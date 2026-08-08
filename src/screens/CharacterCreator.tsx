@@ -388,6 +388,7 @@ function CropPanel({ label, desc, onExport }: {
 export function CharacterCreator() {
   const goTo = useAppStore(s => s.goTo)
   const user = useAppStore(s => s.user)
+  const saveUser = useAppStore(s => s.saveUser)
   const [exports, setExports] = useState<Record<string, string | null>>({
     normal: null, write: null, rest: null,
   })
@@ -404,7 +405,8 @@ export function CharacterCreator() {
     STATES.forEach(s => {
       localStorage.setItem(`nob_custom_img_${s.key}`, exports[s.key]!)
     })
-    setToast('保存しました！戻って「マイキャラ」を選んでください')
+    if (user) saveUser({ ...user, character: 'custom' })
+    setToast('保存しました！')
     setTimeout(() => goTo(user?.onboarded ? 'settings' : 'onboarding'), 1200)
   }
 
