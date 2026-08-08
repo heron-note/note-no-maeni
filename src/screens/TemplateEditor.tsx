@@ -5,6 +5,49 @@ import { buildTemplateHTML } from '../utils/template'
 import { REST_DECLARATIONS } from '../data/declarations'
 import { Toast } from '../components/Toast'
 
+// クリップボードのHTMLをインライン書式を保持しながら行配列に変換
+const INLINE_TAGS = new Set(['strong','em','b','i','u','s','strike','span','a','code'])
+const BLOCK_TAGS  = new Set(['p','div','h1','h2','h3','h4','h5','h6','li','blockquote','pre','br'])
+
+function sanitizeInline(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? ''
+  if (node.nodeType !== Node.ELEMENT_NODE) return ''
+  const el = node as Element
+  const tag = el.tagName.toLowerCase()
+  const inner = Array.from(el.childNodes).map(sanitizeInline).join('')
+  return INLINE_TAGS.has(tag) ? `<${tag}>${inner}</${tag}>` : inner
+}
+
+function parseHtmlToLines(html: string): string[] {
+  const root = document.createElement('div')
+  root.innerHTML = html
+  const result: string[] = []
+
+  function walk(el: Element) {
+    for (const child of Array.from(el.childNodes)) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const ce = child as Element
+        const tag = ce.tagName.toLowerCase()
+        if (tag === 'br') { result.push(''); continue }
+        if (BLOCK_TAGS.has(tag)) {
+          const content = Array.from(ce.childNodes).map(sanitizeInline).join('').trim()
+          if (content) result.push(content)
+          else walk(ce)
+          continue
+        }
+      }
+      // インライン or テキストノード：直前の行に追記
+      const content = sanitizeInline(child)
+      if (!content.trim()) continue
+      if (result.length === 0) result.push(content)
+      else result[result.length - 1] += content
+    }
+  }
+
+  walk(root)
+  return result.length > 0 ? result : ['']
+}
+
 // contenteditable の行コンポーネント（カーソル位置保持のため uncontrolled）
 function LineEditable({
   html,
@@ -44,13 +87,11 @@ function LineEditable({
       }}
       onPaste={e => {
         e.preventDefault()
-        const text = e.clipboardData.getData('text/plain')
-        const parts = text.split('\n').map(s => s.replace(/\r$/, ''))
-        // 現在行にカーソル位置でテキスト挿入
-        document.execCommand('insertText', false, parts[0])
-        if (parts.length > 1) {
-          onPasteLines(lineIndex, parts.slice(1))
-        }
+        const html = e.clipboardData.getData('text/html')
+        const plain = e.clipboardData.getData('text/plain')
+        const lines = html ? parseHtmlToLines(html) : plain.split(/\r?\n/)
+        document.execCommand('insertHTML', false, lines[0])
+        if (lines.length > 1) onPasteLines(lineIndex, lines.slice(1))
       }}
     />
   )
