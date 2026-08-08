@@ -1,301 +1,123 @@
 ========================================
-noteのまえに - キャラクター生成プロンプト集
+noteのまえに - キャラクター制作ガイド
 ========================================
 
-【アプリ概要】
-note.com ユーザーの書くプレッシャーをやわらげるメンタルサポートPWA。
-「今日は書く？休む？」を毎日選べる。
-トーン: 穏やか・やさしい・ちょっとユーモラス
-
-【技術仕様（全キャラ共通）】
-- ファイル形式: SVG（またはPNG）
-- サイズ: 200×220px
-- 背景: 透明
-- 頭身: 2〜2.5頭身（頭が大きい）
-
-【必要なステート（各キャラ4枚）】
-normal  通常待機。ホーム画面に毎日表示。
-write   「書く」を選んだとき。背中を押す・応援。
-rest    「休む」を選んだとき。一緒に休む・ほっとする。
-watch   今日の記録済み画面。穏やかに見守る・おかえりの雰囲気。
+このガイドは、アプリに登録するキャラクター画像を
+自分で用意するための情報をまとめたものです。
+キャラクターのデザインはあなたが自由に決めてください。
+動物でも、人でも、物でも、抽象的な形でも構いません。
 
 ========================================
-汎用プロンプトテンプレート（AI画像生成用）
+必要なファイル
 ========================================
 
-以下の [　] 部分をキャラクター定義に沿って埋め、1ステートにつき1回生成する。
+キャラクター1体につき、以下4枚の画像が必要です。
 
---- 英語プロンプト（Midjourney / DALL-E 3 / SD 向け） ---
+  normal.svg（またはnormal.png）
+    使用場面: ホーム画面（毎日最初に表示される）
+    演出:     待機・ニュートラル。毎日見ても飽きない表情。
 
-A [BODY_SHAPE] [ANIMAL] mascot character, [POSE_AND_EXPRESSION],
-[CHARACTER_SPECIFIC_COLORS_AND_FEATURES],
-[STATE_SPECIFIC_DETAIL],
-cute kawaii Japanese mascot style, chibi proportions (large head small body),
-flat vector illustration, soft pastel colors, clean simple shapes,
-transparent background, full body visible, no text, no watermark
+  write.svg（またはwrite.png）
+    使用場面: 「書く」を選んだ直後
+    演出:     背中を押す・応援。前向きで力強い。
 
---- 日本語プロンプト（Bing Image Creator / Adobe Firefly 向け） ---
+  rest.svg（またはrest.png）
+    使用場面: 「休む」を選んだ直後（スタンプ画面）
+    演出:     一緒に休む・脱力・ほっとする。
+              「休むことは正しい」という空気感。罪悪感ゼロ。
 
-[動物の種類]のゆるキャラマスコット、[体型の特徴]、[ポーズと表情]、
-[キャラクター固有の色や特徴]、[ステート演出]、
-かわいい日本のゆるキャラスタイル、2頭身、
-フラットイラスト、淡いパステルカラー、シンプルな形、
-背景透明、全身、テキストなし
+  watch.svg（またはwatch.png）
+    使用場面: 今日すでに記録済みの画面（おかえり）
+    演出:     穏やかに見守る・受け入れる。
+              何があっても歓迎する温かさ。
 
---- LLM（Claude等）にSVGを生成させる場合 ---
+配置場所:
+  public/assets/images/characters/<キャラクターID>/normal.svg
+  public/assets/images/characters/<キャラクターID>/write.svg
+  ...（以下同様）
 
+キャラクターIDと表示名は src/characters.ts に登録してください。
+
+========================================
+画像の技術仕様
+========================================
+
+推奨サイズ:  200×220px（縦長）
+背景:        透明（必須）
+形式:        SVGまたはPNG
+
+SVGの場合:
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220">
+    ...
+  </svg>
+
+PNGの場合:
+  src/characters.ts の charImgPath 関数の拡張子を変更:
+  return `assets/images/characters/${charKey}/${stateKey}.png`
+
+========================================
+制作方法（どれか一つを選ぶ）
+========================================
+
+【方法A: 自分でイラストを描く】
+上記仕様を満たせば何でも可。
+Illustrator / Figma / Procreate 等で制作後、
+SVGまたは透過PNGで書き出す。
+
+【方法B: AI画像生成ツールで作る】
+Midjourney / DALL-E 3 / Stable Diffusion / Adobe Firefly 等を使う。
+
+プロンプトの組み立て方:
+  1. キャラクター説明（あなたが決める）
+  2. ステートごとのポーズ・表情指示（下記テンプレート参照）
+  3. 出力スタイル指定（下記テンプレート参照）
+
+英語プロンプト テンプレート:
+  [キャラクター説明], [ポーズ・表情], [スタイル指定]
+
+スタイル指定（末尾に付ける）:
+  transparent background, full body, no text, no watermark,
+  simple clean illustration
+
+ステートごとのポーズ・表情:
+  normal: calm neutral expression, relaxed natural pose
+  write:  motivated forward-leaning pose, encouraging expression
+  rest:   relaxed droopy expression, limp or slouched body, carefree
+  watch:  warm gentle gaze, open welcoming pose, soft smile
+
+【方法C: LLMにSVGコードを書かせる】
+Claude等のLLMにSVGを生成させる。
+以下のプロンプトをそのまま使い、
+[キャラクター説明]と[ステート指示]を自分のキャラクターに合わせて書き換える。
+
+---プロンプトここから---
 以下の仕様でSVGキャラクターを生成してください。
 
 技術仕様:
-- viewBox="0 0 200 220", 背景なし（透明）
-- 使用要素: circle / ellipse / rect / path / polygon のみ
-- ほっぺ: 楕円のピンク (opacity 0.5〜0.7) を両頬に必須
-- 目: 白目 + 黒目 + 白ハイライト（小白丸）で立体感
-- 色数: 6色以内
+- viewBox="0 0 200 220"
+- 背景なし（透明）
+- 使用できる要素: circle / ellipse / rect / path / polygon / line
+- text要素は最小限（演出記号のみ）
 
 キャラクター:
-[キャラクター定義をそのまま貼る]
+[ここにキャラクターの見た目を自由に記述する。
+ 色、形、特徴的なパーツ、全体の雰囲気など。
+ 参考画像をLLMに渡せる場合は画像を添付してもよい。]
 
 ステート:
-[ステート定義をそのまま貼る]
+[ここにこのステートのポーズ・表情・演出を記述する]
 
 出力: SVGコードのみ（説明文不要）
-
-========================================
-キャラクター1: kuma（ブラウンベア）
-========================================
-
-【デザイン定義】
-動物: クマ（ブラウンベア）
-体型: まるくてぽっちゃり、ずんぐり
-メインカラー: 茶色 #8B6346
-耳の内側: ベージュ #C49A6C
-口吻（マズル）: クリーム #E8D5BC
-鼻: ダークブラウン楕円
-ほっぺ: ピンク楕円 opacity 0.6
-腕: ぽってりした楕円形の手
-
-英語キャラクター説明:
-chubby round brown bear, warm brown fur (#8B6346),
-beige inner ears, cream muzzle area, rosy cheeks, small stubby paw arms
-
---- kuma / normal ---
-
-ポーズ・表情: ニュートラルな笑顔、両腕を自然に下げてリラックス
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-calm gentle smile, arms relaxed at sides, soft and approachable expression
-
-[SVG生成用 ステート指示]
-通常の待機状態。穏やかな笑顔（口は優しいカーブ）。
-両腕は自然に下ろして力が抜けている。目はぱっちり丸く、白目あり。
-毎日見るので飽きない落ち着いた表情。
-
---- kuma / write ---
-
-ポーズ・表情: 前向き・やる気。少し前のめり。鉛筆を持つ。
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-leaning slightly forward with motivation, holding a small yellow pencil,
-excited expression with raised eyebrows, big smile, one paw raised as if cheering
-
-[SVG生成用 ステート指示]
-「書く」応援ステート。目を少し細めてやる気のある表情（上がり眉）。
-大きめの笑顔。左手（向かって右）に小さな黄色い鉛筆を持つ。
-右腕は前に出してガッツポーズ気味。
-
---- kuma / rest ---
-
-ポーズ・表情: とろんとした半目、脱力、zzz
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-drowsy half-closed eyes, arms hanging loosely, slightly slouched posture,
-small "zzz" floating near head, cozy relaxed expression, big rosy cheeks
-
-[SVG生成用 ステート指示]
-「休む」ステート。目は半分閉じた眠そうな目（まぶたで上半分を覆う）。
-両腕はだらんと下げる。右上あたりに「z z z」が小さく浮かぶ（青系の薄い文字）。
-ほっぺを少し強めに。罪悪感ゼロの充足した休息顔。
-
---- kuma / watch ---
-
-ポーズ・表情: やさしい目尻下がり、腕を広げてハグ待ち
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-warm gentle gaze with slightly drooping eyes, arms gently open as if ready to hug,
-small pink heart floating above head, soft reassuring smile
-
-[SVG生成用 ステート指示]
-「おかえり」見守りステート。目尻が少し下がったやさしい目。
-両腕を少し広げてハグを待つようなポーズ。
-頭上に小さなピンクのハートを浮かべる。
-「よく来たね」という温かい雰囲気。
-
-========================================
-キャラクター2: neko（ピンクネコ）
-========================================
-
-【デザイン定義】
-動物: ネコ
-体型: スリムよりのかわいい体型（クマより少し縦長）
-メインカラー: 薄ピンク #F0C0CC
-耳の内側: より薄いピンク #F8D0DC
-顔の中央: オフホワイト #FFF0F4
-瞳: 縦長の瞳、深緑 #3A6040（猫目）
-鼻: 小さなハート型、ローズピンク #C06080
-ひげ: 左右2本ずつ、薄いグレー
-尻尾: 丸みのある尻尾、体の横に見える
-
-英語キャラクター説明:
-cute pink cat, pale pink fur (#F0C0CC), triangular ears with lighter inner color,
-cat-slit green pupils, small heart-shaped nose, whiskers on both cheeks,
-curved tail visible to the side
-
---- neko / normal ---
-
-ポーズ・表情: クールだけどかわいい、澄ました顔で座る
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-calm composed expression, sitting upright, ears perked, tail curled neatly to one side,
-cool but cute cat demeanor, slightly aloof but friendly
-
-[SVG生成用 ステート指示]
-通常の待機状態。少し澄ました表情（猫らしいクール感）だが親しみやすい。
-座った姿勢で尻尾を体の横に巻く。耳はまっすぐ立てる。
-目は縦長の猫目でキリッとしているが表情は穏やか。
-
---- neko / write ---
-
-ポーズ・表情: 招き猫ポーズ、自信満々な顔
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-beckoning cat pose with one paw raised high, confident determined expression,
-eyes squinting with focus, ears perked up, holding a tiny scroll or book in other paw
-
-[SVG生成用 ステート指示]
-「書く」応援ステート。右手を招き猫のように高く上げる。
-左手に小さな巻物か本を持つ。目は少し細めて自信のある表情。
-「あなたならできる」という雰囲気の頼れる相棒感。
-
---- neko / rest ---
-
-ポーズ・表情: ごろんと丸まる、目を細めて至福
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-curled up or flopped over in relaxation, eyes closed into happy crescents,
-tail wrapped around body, blissfully unbothered expression, soft smile
-
-[SVG生成用 ステート指示]
-「休む」ステート。目を細めて三日月型に（幸せそうに閉じた目）。
-体を少し傾けてリラックスしたポーズ（完全に倒れなくてもよい）。
-尻尾は体に巻き付ける。「どうぞご自由に休んで」という超マイペースな雰囲気。
-
---- neko / watch ---
-
-ポーズ・表情: 静かに見守る、落ち着いたやさしさ
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-calm watchful expression, paws neatly together, tail curled up,
-gentle half-lidded eyes radiating quiet warmth, small sparkle or star near head
-
-[SVG生成用 ステート指示]
-「おかえり」見守りステート。前足をきれいに揃えて座る。
-目を少し細めてやさしい表情。頭の近くに小さな星かキラキラ。
-クールなようで実は温かい、猫らしい見守り方。
-
-========================================
-キャラクター3: maru（まるっこいキャラ）
-========================================
-
-【デザイン定義】
-動物: 特定なし（抽象的な生き物）
-体型: 体全体がほぼ真円、頭と体の区別がほぼない
-メインカラー: 薄クリームイエロー #FFFDE7
-アウトライン: 薄いゴールド #E0C840（線幅4px）
-目: シンプルな丸目、黒
-口: シンプルなカーブ
-腕: 丸からポコッと出た小さな丸い突起
-脚: ない（浮いているか影だけ）
-
-英語キャラクター説明:
-extremely round blob-like creature, body is one large circle,
-creamy yellow color (#FFFDE7) with golden outline, tiny round stub arms sticking out from sides,
-big simple dot eyes, very simple and cute like a small sun
-
---- maru / normal ---
-
-ポーズ・表情: ふわっと浮いた感じで佇む、シンプルな笑顔
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-floating or hovering slightly, gentle simple smile, arms hanging down naturally,
-soft shadow underneath, calm and peaceful
-
-[SVG生成用 ステート指示]
-通常の待機状態。シンプルな笑顔（口は緩いカーブ）。
-小さな両腕は自然に下げる。下に薄い楕円の影を描いて浮遊感を演出。
-一番シンプルで愛らしい状態。
-
---- maru / write ---
-
-ポーズ・表情: 両手を上げてバンザイ、全力応援
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-both tiny arms raised high in celebration, bright cheerful wide smile,
-looks bouncy and energetic, small star or exclamation marks floating around
-
-[SVG生成用 ステート指示]
-「書く」応援ステート。両腕を上にあげてバンザイポーズ。
-口を大きく開けた笑顔。周りに小さな星やキラキラを散らす。
-まん丸なのに全力でエールを送っているかわいさ。
-
---- maru / rest ---
-
-ポーズ・表情: とろけるように脱力、少し扁平
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-slightly squished flat shape as if melting with relaxation,
-arms hanging completely limp, droopy half-closed eyes, looks content and boneless
-
-[SVG生成用 ステート指示]
-「休む」ステート。体を少し縦に潰したような形（扁平気味）。
-目はとろんとした半目か閉じた目。両腕はぺたんと下に垂れる。
-「もうすっかり溶けた」という究極のリラックス状態。小さなzzz可。
-
---- maru / watch ---
-
-ポーズ・表情: 腕を広げて、温かい光を放つ
-
-[英語プロンプト用 STATE_SPECIFIC_DETAIL]
-tiny arms slightly spread open, warm glowing expression,
-soft radiance or halo effect around the body, unconditional welcoming smile
-
-[SVG生成用 ステート指示]
-「おかえり」見守りステート。両腕を少し開いてハグ待ち。
-体の周りに薄い光のオーラを描く（大きめの半透明の円）。
-「何があっても受け止めるよ」という無条件の温かさ。
-
-========================================
-ファイル配置
-========================================
-
-public/assets/images/characters/
-  kuma/  normal.svg  write.svg  rest.svg  watch.svg
-  neko/  normal.svg  write.svg  rest.svg  watch.svg
-  maru/  normal.svg  write.svg  rest.svg  watch.svg
-
-PNGで生成した場合は拡張子を .png に変更し、
-src/characters.ts の charImgPath の戻り値を
-  `assets/images/characters/${charKey}/${stateKey}.png`
-に変更する。
+---プロンプトここまで---
 
 ========================================
 品質チェックリスト
 ========================================
 
-各キャラクター完成後に確認:
-[ ] 同じキャラクターの4ステートで体型・色が統一されているか
-[ ] 3キャラクター間でサイズ感が揃っているか
+4枚完成後に確認:
+[ ] 同じキャラクターに見えるか（色・形・比率が統一されているか）
 [ ] 背景が透明か（白ベタになっていないか）
-[ ] rest が「ネガティブ」でなく「ほっこり」に見えるか
-[ ] watch が「圧」でなく「温かみ」に見えるか
-[ ] 375px幅のスマホ画面で小さすぎないか
+[ ] rest が暗い・落ち込んだ印象でなく「ほっこり・充足」に見えるか
+[ ] watch が「監視・圧」でなく「温かく迎え入れる」雰囲気か
+[ ] スマートフォン画面（375px幅）で小さすぎず大きすぎないか
+[ ] 4ステート並べたとき統一感があるか
