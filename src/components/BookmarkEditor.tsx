@@ -38,6 +38,26 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
 
   const handleClipboard = async () => {
     try {
+      // HTML形式（execCommand経由）を優先して読む
+      if (navigator.clipboard.read) {
+        const items = await navigator.clipboard.read()
+        for (const item of items) {
+          if (item.types.includes('text/html')) {
+            const blob = await item.getType('text/html')
+            const html = await blob.text()
+            const div = document.createElement('div')
+            div.innerHTML = html
+            const anchor = div.querySelector('a[href]') as HTMLAnchorElement | null
+            if (anchor?.href) {
+              setName(anchor.textContent?.trim() ?? '')
+              setUrl(anchor.href)
+              setError(null)
+              return
+            }
+          }
+        }
+      }
+      // フォールバック: プレーンテキスト「タイトル：URL」形式
       const text = await navigator.clipboard.readText()
       const parsed = parseClipboard(text)
       if (parsed) {
@@ -45,7 +65,7 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
         setUrl(parsed.url)
         setError(null)
       } else {
-        setError('「タイトル：URL」の形式で読み込めませんでした')
+        setError('読み込めませんでした。ブックマークレットを実行してから押してください')
       }
     } catch {
       setError('クリップボードへのアクセスが許可されていません')
