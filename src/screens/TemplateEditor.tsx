@@ -12,6 +12,7 @@ function LineEditable({
   placeholder,
   onUpdate,
   onEnterKey,
+  onPasteLines,
   focusRef,
 }: {
   html: string
@@ -19,6 +20,7 @@ function LineEditable({
   placeholder: string
   onUpdate: (i: number, html: string) => void
   onEnterKey: (i: number) => void
+  onPasteLines: (i: number, extraLines: string[]) => void
   focusRef: (el: HTMLDivElement | null, i: number) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -39,6 +41,16 @@ function LineEditable({
       onInput={() => ref.current && onUpdate(lineIndex, ref.current.innerHTML)}
       onKeyDown={e => {
         if (e.key === 'Enter') { e.preventDefault(); onEnterKey(lineIndex) }
+      }}
+      onPaste={e => {
+        e.preventDefault()
+        const text = e.clipboardData.getData('text/plain')
+        const parts = text.split('\n').map(s => s.replace(/\r$/, ''))
+        // 現在行にカーソル位置でテキスト挿入
+        document.execCommand('insertText', false, parts[0])
+        if (parts.length > 1) {
+          onPasteLines(lineIndex, parts.slice(1))
+        }
       }}
     />
   )
@@ -70,6 +82,16 @@ export function TemplateEditor() {
     setLines(prev => { const next = [...prev]; next.splice(i + 1, 0, ''); return next })
     setInsertIdx(prev => prev > i ? prev + 1 : prev)
     focusLine(i + 1)
+  }, [focusLine])
+
+  const pasteLines = useCallback((i: number, extraLines: string[]) => {
+    setLines(prev => {
+      const next = [...prev]
+      next.splice(i + 1, 0, ...extraLines)
+      return next
+    })
+    setInsertIdx(prev => prev > i ? prev + extraLines.length : prev)
+    focusLine(i + extraLines.length)
   }, [focusLine])
 
   const deleteLine = useCallback((i: number) => {
@@ -127,6 +149,7 @@ export function TemplateEditor() {
                 placeholder={`行 ${i + 1}`}
                 onUpdate={updateLine}
                 onEnterKey={addLineAfter}
+                onPasteLines={pasteLines}
                 focusRef={(el, idx) => {
                   if (el) lineRefs.current.set(idx, el)
                   else lineRefs.current.delete(idx)
