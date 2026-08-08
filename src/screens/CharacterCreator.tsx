@@ -142,9 +142,14 @@ function CropPanel({ label, desc, onExport }: {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !hasImage) return
-    const prevent = (e: Event) => e.preventDefault()
-    canvas.addEventListener('touchmove', prevent, { passive: false })
-    return () => canvas.removeEventListener('touchmove', prevent)
+    const handleTouchMove = (e: TouchEvent) => {
+      // ドラッグ中またはピンチ中のみスクロールをブロック
+      if (cropRef.current.dragging || e.touches.length >= 2) {
+        e.preventDefault()
+      }
+    }
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
+    return () => canvas.removeEventListener('touchmove', handleTouchMove)
   }, [hasImage])
 
   const getScaledDelta = (dx: number, dy: number) => {
