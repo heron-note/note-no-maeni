@@ -24,6 +24,11 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
   const [url, setUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(bookmarks.length === 0)
+  const [search, setSearch] = useState('')
+
+  const filtered = search.trim()
+    ? bookmarks.filter(b => b.name.includes(search.trim()))
+    : bookmarks
 
   const handleAdd = () => {
     const trimName = name.trim()
@@ -84,11 +89,21 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
           <button className="icon-btn" onClick={onClose}>✕</button>
         </div>
 
+        <input
+          className="bookmark-input"
+          placeholder="🔍 名前で検索"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+
         <div className="bookmark-list">
           {bookmarks.length === 0 && (
             <p className="bookmark-empty">まだ登録されていません</p>
           )}
-          {bookmarks.map(b => (
+          {bookmarks.length > 0 && filtered.length === 0 && (
+            <p className="bookmark-empty">一致する項目がありません</p>
+          )}
+          {filtered.map(b => (
             <div key={b.id} className="bookmark-item">
               <span className="bookmark-item-name">{b.name}</span>
               <button className="bookmark-delete-btn" onClick={() => handleDelete(b.id)}>削除</button>
