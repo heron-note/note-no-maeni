@@ -230,6 +230,7 @@ html, body, #root {
 .template-preview {
   background: var(--surface); border: 1.5px solid var(--border);
   border-radius: var(--radius); padding: 20px; min-height: 80px;
+  max-height: 40vh; overflow-y: auto;
   line-height: 1.9; font-size: 15px;
 }
 .template-preview .tl-declaration {
@@ -250,12 +251,12 @@ html, body, #root {
 
 /* ===== TEMPLATE EDITOR ===== */
 .template-richtext {
-  width: 100%; min-height: 200px;
+  width: 100%; min-height: 160px; max-height: 45vh; overflow-y: auto;
   border: 2px solid var(--border); border-radius: var(--radius-sm);
   padding: 14px; font-size: 15px; line-height: 1.8; color: var(--text);
   background: var(--surface); outline: none;
   font-family: inherit; transition: border-color 0.15s;
-  word-break: break-all;
+  word-break: break-word;
 }
 .template-richtext:focus { border-color: var(--primary); }
 .template-richtext:empty::before {
@@ -264,20 +265,13 @@ html, body, #root {
 .template-richtext a { color: var(--primary); text-decoration: underline; }
 
 .insert-position-block { display: flex; flex-direction: column; gap: 8px; }
-.insert-position-list { display: flex; flex-direction: column; gap: 6px; }
-.insert-pos-item {
-  display: flex; align-items: center; gap: 10px;
-  background: var(--surface); border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm); padding: 10px 14px;
-  cursor: pointer; text-align: left; transition: border-color 0.15s, background 0.15s;
+.insert-pos-row { display: flex; gap: 8px; }
+.insert-pos-chip {
+  flex: 1; background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px; font-size: 14px; font-weight: 600;
+  cursor: pointer; text-align: center; transition: border-color 0.15s, background 0.15s;
 }
-.insert-pos-item.active { border-color: var(--primary); background: #FFF0EE; }
-.insert-pos-dot {
-  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
-  border: 2px solid var(--border); background: transparent;
-}
-.insert-pos-item.active .insert-pos-dot { border-color: var(--primary); background: var(--primary); }
-.insert-pos-label { font-size: 13px; color: var(--text); }
+.insert-pos-chip.active { border-color: var(--primary); background: #FFF0EE; color: var(--primary); }
 
 .preview-section { display: flex; flex-direction: column; gap: 8px; }
 .preview-title { font-size: 14px; font-weight: 700; }

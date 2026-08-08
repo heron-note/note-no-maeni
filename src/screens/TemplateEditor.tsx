@@ -5,9 +5,16 @@ import { buildTemplateHTML } from '../utils/template'
 import { REST_DECLARATIONS } from '../data/declarations'
 import { Toast } from '../components/Toast'
 
-// ===== HTML サニタイズ (インラインタグ + a[href] を保持) =====
+// ===== HTML サニタイズ =====
 const INLINE_TAGS = new Set(['strong','em','b','i','u','s','strike','code'])
-const BLOCK_TAGS  = new Set(['p','div','h1','h2','h3','h4','h5','h6','li','blockquote','pre'])
+
+// note.com が使うブロック要素を網羅
+const BLOCK_TAGS = new Set([
+  'p','div','h1','h2','h3','h4','h5','h6',
+  'li','blockquote','pre','section','article',
+  'header','footer','figure','figcaption',
+  'ul','ol','main','aside','address','dt','dd',
+])
 
 function sanitizeInline(node: Node): string {
   if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? ''
@@ -37,9 +44,33 @@ function parseHtmlToLines(html: string): string[] {
         const tag = ce.tagName.toLowerCase()
         if (tag === 'br') { result.push(''); continue }
         if (BLOCK_TAGS.has(tag)) {
-          const content = Array.from(ce.childNodes).map(sanitizeInline).join('').trim()
-          if (content) result.push(content)
-          else result.push('')
+          // ブロック要素：再帰的に内容を取り出して1行として追加
+          const innerResult: string[] = []
+          function walkInner(e: Element) {
+            for (const c of Array.from(e.childNodes)) {
+              if (c.nodeType === Node.ELEMENT_NODE) {
+                const ce2 = c as Element
+                const t = ce2.tagName.toLowerCase()
+                if (t === 'br') { innerResult.push(''); return }
+                if (BLOCK_TAGS.has(t)) {
+                  const txt = Array.from(ce2.childNodes).map(sanitizeInline).join('').trim()
+                  if (txt) innerResult.push(txt)
+                  else walkInner(ce2)
+                  return
+                }
+              }
+              const txt = sanitizeInline(c)
+              if (!txt.trim()) continue
+              if (innerResult.length === 0) innerResult.push(txt)
+              else innerResult[innerResult.length - 1] += txt
+            }
+          }
+          walkInner(ce)
+          if (innerResult.length > 0) result.push(...innerResult)
+          else {
+            const content = Array.from(ce.childNodes).map(sanitizeInline).join('').trim()
+            if (content) result.push(content)
+          }
           continue
         }
       }
@@ -51,73 +82,92 @@ function parseHtmlToLines(html: string): string[] {
   }
 
   walk(root)
-  return result.length > 0 ? result : ['']
+  // 連続する空行を1つにまとめ、前後の空行を除去
+  const cleaned = result
+    .reduce<string[]>((acc, l) => {
+      if (l === '' && acc[acc.length - 1] === '') return acc
+      return [...acc, l]
+    }, [])
+    .filter((l, i, arr) => !(l === '' && (i === 0 || i === arr.length - 1)))
+  return cleaned.length > 0 ? cleaned : ['']
 }
 
-// ===== エディタ初期 HTML 生成（lines → contenteditable 用） =====
-function linesToEditorHtml(lines: string[]): string {
-  return lines.map(l => `<div>${l || '<br>'}</div>`).join('')
+// Selection API を使って安全にHTMLを挿入
+function insertHtmlAtCursor(html: string) {
+  const sel = window.getSelection()
+  if (!sel || sel.rangeCount === 0) return
+  const range = sel.getRangeAt(0)
+  range.deleteContents()
+  const frag = document.createRange().createContextualFragment(html)
+  const last = frag.lastChild
+  range.insertNode(frag)
+  if (last) {
+    range.setStartAfter(last)
+    range.collapse(true)
+    sel.removeAllRanges()
+    sel.addRange(range)
+  }
 }
 
 export function TemplateEditor() {
   const goTo = useAppStore(s => s.goTo)
   const editorRef = useRef<HTMLDivElement>(null)
 
-  const [lines, setLines] = useState<string[]>(() => {
-    const t = storage.loadTemplate()
-    return t?.lines.length ? t.lines : ['']
-  })
-  const [insertIdx, setInsertIdx] = useState<number>(() => {
-    const t = storage.loadTemplate()
-    return t?.insertAfterIndex ?? 0
-  })
+  const savedLines = storage.loadTemplate()?.lines ?? ['']
+  const [insertIdx, setInsertIdx] = useState<number>(
+    () => storage.loadTemplate()?.insertAfterIndex ?? -1
+  )
+  const [lineCount, setLineCount] = useState(savedLines.length)
   const [toast, setToast] = useState<string | null>(null)
 
-  // マウント時のみ初期 HTML をセット
+  // 初期 HTML をセット（再レンダで上書きしない）
   useEffect(() => {
-    if (editorRef.current) {
-      editorRef.current.innerHTML = linesToEditorHtml(lines)
+    if (editorRef.current && savedLines.join('')) {
+      editorRef.current.innerHTML = savedLines
+        .map(l => `<div>${l || '<br>'}</div>`)
+        .join('')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleInput = useCallback(() => {
-    if (editorRef.current) {
-      setLines(parseHtmlToLines(editorRef.current.innerHTML))
-    }
+    if (!editorRef.current) return
+    // 行数だけ更新（挿入位置セレクタ用）
+    const lines = parseHtmlToLines(editorRef.current.innerHTML)
+    setLineCount(lines.length)
   }, [])
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault()
     const html = e.clipboardData.getData('text/html')
     const plain = e.clipboardData.getData('text/plain')
-    if (html) {
-      // HTML ペースト：サニタイズしてインライン書式＋リンクを保持
-      const sanitized = parseHtmlToLines(html)
-        .map(l => `<div>${l || '<br>'}</div>`)
-        .join('')
-      document.execCommand('insertHTML', false, sanitized)
-    } else {
-      // プレーンテキスト：改行を <br> に変換
-      const escaped = plain.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      document.execCommand('insertHTML', false,
-        escaped.split(/\r?\n/).map(l => `<div>${l || '<br>'}</div>`).join(''))
+    const lines = html ? parseHtmlToLines(html) : plain.split(/\r?\n/)
+    const safeHtml = lines.map(l => `<div>${l || '<br>'}</div>`).join('')
+    insertHtmlAtCursor(safeHtml)
+    // 行数を更新
+    if (editorRef.current) {
+      setLineCount(parseHtmlToLines(editorRef.current.innerHTML).length)
     }
   }, [])
 
   const handleSave = () => {
-    const parsed = editorRef.current
+    const lines = editorRef.current
       ? parseHtmlToLines(editorRef.current.innerHTML)
-      : lines
-    storage.saveTemplate({ lines: parsed, insertAfterIndex: insertIdx })
+      : ['']
+    const clampedIdx = Math.min(insertIdx, lines.length - 1)
+    storage.saveTemplate({ lines, insertAfterIndex: clampedIdx })
     setToast('保存しました')
     setTimeout(() => goTo('settings'), 900)
   }
 
-  const previewHTML = buildTemplateHTML(
-    { lines, insertAfterIndex: insertIdx },
-    REST_DECLARATIONS[0]
-  )
+  // プレビューはボタンで表示
+  const [showPreview, setShowPreview] = useState(false)
+  const previewLines = showPreview && editorRef.current
+    ? parseHtmlToLines(editorRef.current.innerHTML)
+    : null
+  const previewHTML = previewLines
+    ? buildTemplateHTML({ lines: previewLines, insertAfterIndex: insertIdx }, REST_DECLARATIONS[0])
+    : null
 
   return (
     <div className="screen-scroll">
@@ -139,30 +189,30 @@ export function TemplateEditor() {
 
       <div className="insert-position-block">
         <p className="label">宣言文の挿入位置</p>
-        <div className="insert-position-list">
-          <InsertPositionItem
-            label="テンプレートの先頭"
-            active={insertIdx === -1}
+        <div className="insert-pos-row">
+          <button
+            className={`insert-pos-chip${insertIdx === -1 ? ' active' : ''}`}
             onClick={() => setInsertIdx(-1)}
-          />
-          {lines.map((line, i) => (
-            <InsertPositionItem
-              key={i}
-              label={`${i + 1}行目の後：${line.replace(/<[^>]+>/g,'').slice(0, 20) || '（空行）'}${line.replace(/<[^>]+>/g,'').length > 20 ? '…' : ''}`}
-              active={insertIdx === i}
-              onClick={() => setInsertIdx(i)}
-            />
-          ))}
+          >先頭</button>
+          <button
+            className={`insert-pos-chip${insertIdx >= lineCount ? ' active' : ''}`}
+            onClick={() => setInsertIdx(lineCount)}
+          >末尾</button>
         </div>
       </div>
 
-      <div className="preview-section">
-        <h3 className="preview-title">プレビュー（宣言文サンプル入り）</h3>
-        <div
-          className="template-preview"
-          dangerouslySetInnerHTML={{ __html: previewHTML }}
-        />
-      </div>
+      <button className="btn-secondary wide" onClick={() => setShowPreview(v => !v)}>
+        {showPreview ? 'プレビューを閉じる' : 'プレビューを確認'}
+      </button>
+
+      {showPreview && previewHTML && (
+        <div className="preview-section">
+          <div
+            className="template-preview"
+            dangerouslySetInnerHTML={{ __html: previewHTML }}
+          />
+        </div>
+      )}
 
       <button className="btn-primary wide" onClick={handleSave}>
         保存する
@@ -170,21 +220,5 @@ export function TemplateEditor() {
 
       <Toast message={toast} onDone={() => setToast(null)} />
     </div>
-  )
-}
-
-function InsertPositionItem({ label, active, onClick }: {
-  label: string
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      className={`insert-pos-item${active ? ' active' : ''}`}
-      onClick={onClick}
-    >
-      <span className="insert-pos-dot" />
-      <span className="insert-pos-label">{label}</span>
-    </button>
   )
 }
