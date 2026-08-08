@@ -21,13 +21,9 @@ function sanitizeInline(node: Node): string {
   const tag = el.tagName.toLowerCase()
   const inner = Array.from(el.childNodes).map(sanitizeInline).join('')
   if (tag === 'a') {
-    // リンクはURLをテキストとして展開する
+    // href の URL だけを出力（リンクテキストは使わない）
     const href = el.getAttribute('href') ?? ''
-    const url = href.startsWith('http') ? href : ''
-    if (url && url !== inner.trim()) {
-      return inner ? `${inner} ( ${url} )` : url
-    }
-    return url || inner
+    return href.startsWith('http') ? href : inner
   }
   return INLINE_TAGS.has(tag) ? `<${tag}>${inner}</${tag}>` : inner
 }
@@ -80,29 +76,12 @@ function htmlToLines(html: string): string[] {
 
   walkBlock(root)
 
-  // 連続空行を1つに圧縮、末尾の空行を除去
   const cleaned = result.reduce<string[]>((acc, l) => {
     if (l === '' && acc[acc.length - 1] === '') return acc
     return [...acc, l]
   }, [])
   while (cleaned[cleaned.length - 1] === '') cleaned.pop()
   return cleaned.length > 0 ? cleaned : ['']
-}
-
-function insertHtmlAtCursor(html: string) {
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) return
-  const range = sel.getRangeAt(0)
-  range.deleteContents()
-  const frag = document.createRange().createContextualFragment(html)
-  const last = frag.lastChild
-  range.insertNode(frag)
-  if (last) {
-    range.setStartAfter(last)
-    range.collapse(true)
-    sel.removeAllRanges()
-    sel.addRange(range)
-  }
 }
 
 export function TemplateEditor() {
@@ -120,8 +99,9 @@ export function TemplateEditor() {
   const [toast, setToast] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
 
+  // 保存済みテンプレートを初期表示（再レンダで上書きしない）
   useEffect(() => {
-    if (editorRef.current && lines.join('')) {
+    if (editorRef.current && lines.join('').trim()) {
       editorRef.current.innerHTML = lines
         .map(l => `<div>${l || '<br>'}</div>`)
         .join('')
@@ -129,55 +109,47 @@ export function TemplateEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // contenteditable の現在の内容を解析して lines を更新
   const refreshLines = useCallback(() => {
-    if (editorRef.current) {
-      setLines(htmlToLines(editorRef.current.innerHTML))
-    }
+    if (!editorRef.current) return
+    const parsed = htmlToLines(editorRef.current.innerHTML)
+    setLines(parsed)
+    return parsed
   }, [])
 
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    e.preventDefault()
-    const html = e.clipboardData.getData('text/html')
-    const plain = e.clipboardData.getData('text/plain')
-    const parsed = html ? htmlToLines(html) : plain.split(/\r?\n/)
-    const safeHtml = parsed.map(l => `<div>${l || '<br>'}</div>`).join('')
-    insertHtmlAtCursor(safeHtml)
-    refreshLines()
-  }, [refreshLines])
-
   const handleSave = () => {
-    const current = editorRef.current ? htmlToLines(editorRef.current.innerHTML) : lines
+    const current = refreshLines() ?? lines
     const clampedIdx = Math.min(Math.max(insertIdx, -1), current.length - 1)
     storage.saveTemplate({ lines: current, insertAfterIndex: clampedIdx })
     setToast('保存しました')
     setTimeout(() => goTo('settings'), 900)
   }
 
+  const hasContent = lines.length > 0 && lines[0] !== ''
+
   const previewHTML = showPreview
     ? buildTemplateHTML({ lines, insertAfterIndex: insertIdx }, REST_DECLARATIONS[0])
     : null
-
-  const hasContent = lines.length > 0 && lines[0] !== ''
 
   return (
     <div className="screen-scroll">
       <div className="subscreen-header">
         <button className="back-btn" onClick={() => goTo('settings')}>← 戻る</button>
         <h2 className="subscreen-title">テンプレート編集</h2>
-        <p className="hint">貼り付け後「挿入位置を確定」を押してください。リンクはURLテキストに変換されます。</p>
+        <p className="hint">noteの記事をそのまま貼り付け → 「行を解析」を押してください。リンクはURLに変換されます。</p>
       </div>
 
+      {/* ブラウザ標準のペーストに任せる（preventDefault なし） */}
       <div
         ref={editorRef}
         className="template-richtext"
         contentEditable
         suppressContentEditableWarning
         data-placeholder="ここにnoteのテンプレートをペーストしてください"
-        onPaste={handlePaste}
       />
 
       <button className="btn-secondary wide" onClick={refreshLines}>
-        挿入位置を確定（貼り付け後に押してください）
+        行を解析（貼り付け後に押してください）
       </button>
 
       {hasContent && (
