@@ -148,8 +148,10 @@ export function TemplateEditor() {
   return (
     <div className="screen-scroll">
       <div className="subscreen-header">
-        <button className="back-btn" onClick={() => goTo('home')}>← 戻る</button>
-        <h2 className="subscreen-title">テンプレート編集</h2>
+        <div className="subscreen-title-row">
+          <button className="back-btn" onClick={() => goTo('home')}>‹</button>
+          <h2 className="subscreen-title">テンプレート編集</h2>
+        </div>
         <p className="hint">noteの記事をそのまま貼り付け → 「行を解析」を押してください。リンクはURLに変換されます。</p>
       </div>
 
