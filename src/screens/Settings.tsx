@@ -6,7 +6,6 @@ import { Toast } from '../components/Toast'
 export function Settings() {
   const user = useAppStore(s => s.user)
   const saveUser = useAppStore(s => s.saveUser)
-  const goTo = useAppStore(s => s.goTo)
   const goHome = useAppStore(s => s.goHome)
 
   const [name, setName] = useState(user?.name ?? '')
@@ -41,14 +40,6 @@ export function Settings() {
       <div className="settings-row">
         <p className="label">相棒</p>
         <CharGrid selected={char} onSelect={setChar} />
-      </div>
-
-      <div className="settings-row">
-        <p className="label">投稿テンプレート</p>
-        <p className="hint">「休む」選択時に宣言文を埋め込んで投稿できます。</p>
-        <button className="btn-secondary" onClick={() => goTo('template-editor')}>
-          テンプレートを編集する
-        </button>
       </div>
 
       <button className="btn-primary wide" onClick={handleSave}>

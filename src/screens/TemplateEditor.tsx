@@ -122,7 +122,7 @@ export function TemplateEditor() {
     const clampedIdx = Math.min(Math.max(insertIdx, -1), current.length - 1)
     storage.saveTemplate({ lines: current, insertAfterIndex: clampedIdx })
     setToast('保存しました')
-    setTimeout(() => goTo('settings'), 900)
+    setTimeout(() => goTo('home'), 900)
   }
 
   const hasContent = lines.length > 0 && lines[0] !== ''
@@ -134,7 +134,7 @@ export function TemplateEditor() {
   return (
     <div className="screen-scroll">
       <div className="subscreen-header">
-        <button className="back-btn" onClick={() => goTo('settings')}>← 戻る</button>
+        <button className="back-btn" onClick={() => goTo('home')}>← 戻る</button>
         <h2 className="subscreen-title">テンプレート編集</h2>
         <p className="hint">noteの記事をそのまま貼り付け → 「行を解析」を押してください。リンクはURLに変換されます。</p>
       </div>
