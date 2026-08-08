@@ -6,7 +6,9 @@ export function selectRecommend(bookmarks: Bookmark[]): Bookmark | null {
 
   const today = todayStr()
   const eligible = bookmarks.filter(b => b.lastRecommendedDate !== today)
-  if (eligible.length === 0) return null
+  if (eligible.length === 0) {
+    return bookmarks[Math.floor(Math.random() * bookmarks.length)]
+  }
 
   const weights = eligible.map(b => {
     if (!b.lastRecommendedDate) return 100
