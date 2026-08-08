@@ -1,31 +1,19 @@
-const VOICEVOX_URL = 'http://localhost:50021'
-const SPEAKER = 1
+const audioTest = new Audio()
+const EXT = audioTest.canPlayType('audio/ogg; codecs=opus') ? '.ogg' : '.mp3'
 
-export async function speakVoicevox(text: string): Promise<void> {
-  try {
-    const queryRes = await fetch(
-      `${VOICEVOX_URL}/audio_query?text=${encodeURIComponent(text)}&speaker=${SPEAKER}`,
-      { method: 'POST' }
-    )
-    if (!queryRes.ok) return
-    const query = await queryRes.json()
-
-    const synthRes = await fetch(
-      `${VOICEVOX_URL}/synthesis?speaker=${SPEAKER}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(query),
-      }
-    )
-    if (!synthRes.ok) return
-
-    const blob = await synthRes.blob()
-    const url = URL.createObjectURL(blob)
-    const audio = new Audio(url)
-    audio.onended = () => URL.revokeObjectURL(url)
-    await audio.play()
-  } catch (err) {
-    console.error('[VOICEVOX]', err)
-  }
+function playVV(name: string): void {
+  const a = new Audio(`assets/sounds/${name}${EXT}`)
+  a.play().catch(() => {})
 }
+
+export function speakVoicevox(key: VoicevoxKey): void {
+  playVV(key)
+}
+
+export type VoicevoxKey =
+  | 'vv_hajimemashite'
+  | 'vv_okaeri'
+  | 'vv_yasumu'
+  | 'vv_kaite'
+  | 'vv_yasumokka'
+  | 'vv_tanoshiku'

@@ -19,7 +19,7 @@ export function WriteOverlay({ reactionText, onClose }: {
     const t1 = setTimeout(() => {
       el.classList.add('stamp-animate')
       playStampSound()
-      speakVoicevox('たのしく　かいて　きてね！')
+      speakVoicevox('vv_tanoshiku')
     }, 80)
     const t2 = setTimeout(() => setShowButtons(true), 800)
     return () => { clearTimeout(t1); clearTimeout(t2) }

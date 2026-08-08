@@ -27,17 +27,15 @@ export function App() {
     const state = useAppStore.getState()
     const user = state.user
     const todayLog = state.todayLog()
-    let text: string
     if (!user?.onboarded) {
-      text = 'はじめまして'
+      speakVoicevox('vv_hajimemashite')
     } else if (!todayLog) {
-      text = 'おかえり'
+      speakVoicevox('vv_okaeri')
     } else if (todayLog.type === 'write') {
-      text = 'やすむことにする？'
+      speakVoicevox('vv_yasumu')
     } else {
-      text = 'かいてみる？'
+      speakVoicevox('vv_kaite')
     }
-    speakVoicevox(text)
   }, [])
 
   if (splash) return <SplashScreen onDone={onSplashDone} />

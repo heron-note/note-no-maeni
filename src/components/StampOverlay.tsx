@@ -22,7 +22,7 @@ export function StampOverlay({ declaration, onClose }: {
     const t1 = setTimeout(() => {
       el.classList.add('stamp-animate')
       playStampSound()
-      speakVoicevox('やすもっか　けいかく、はつどう！')
+      speakVoicevox('vv_yasumokka')
     }, 80)
     // アニメーション完了後にボタンを表示
     const t2 = setTimeout(() => setShowButtons(true), 800)
