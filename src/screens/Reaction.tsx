@@ -23,7 +23,7 @@ export function Reaction() {
         <p className="reaction-text">{text}</p>
       </div>
       <a
-        href="https://note.com"
+        href="https://note.com/notes/new"
         target="_blank"
         rel="noopener noreferrer"
         className="btn-primary wide btn-note"

@@ -41,7 +41,7 @@ export function WriteOverlay({ reactionText, onClose }: {
         </div>
         <div className={`rest-btns overlay-btns${showButtons ? ' overlay-btns-visible' : ''}`}>
           <a
-            href="https://note.com"
+            href="https://note.com/notes/new"
             target="_blank"
             rel="noopener noreferrer"
             className="btn-primary wide btn-note"

@@ -36,7 +36,7 @@ export function StampOverlay({ declaration, onClose }: {
       : declaration.text
     await copyToClipboard(text).catch(() => {})
     setToast('コピーしました！')
-    window.open('https://note.com', '_blank', 'noopener,noreferrer')
+    window.open('https://note.com/notes/new', '_blank', 'noopener,noreferrer')
   }
 
   return (
