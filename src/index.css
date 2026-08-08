@@ -249,15 +249,19 @@ html, body, #root {
 .subscreen-title  { font-size: 20px; font-weight: 900; }
 
 /* ===== TEMPLATE EDITOR ===== */
-.template-textarea {
+.template-richtext {
   width: 100%; min-height: 200px;
   border: 2px solid var(--border); border-radius: var(--radius-sm);
-  padding: 14px; font-size: 15px; line-height: 1.7; color: var(--text);
-  background: var(--surface); outline: none; resize: vertical;
+  padding: 14px; font-size: 15px; line-height: 1.8; color: var(--text);
+  background: var(--surface); outline: none;
   font-family: inherit; transition: border-color 0.15s;
+  word-break: break-all;
 }
-.template-textarea:focus { border-color: var(--primary); }
-.template-textarea::placeholder { color: var(--text-light); }
+.template-richtext:focus { border-color: var(--primary); }
+.template-richtext:empty::before {
+  content: attr(data-placeholder); color: var(--text-light); pointer-events: none;
+}
+.template-richtext a { color: var(--primary); text-decoration: underline; }
 
 .insert-position-block { display: flex; flex-direction: column; gap: 8px; }
 .insert-position-list { display: flex; flex-direction: column; gap: 6px; }
