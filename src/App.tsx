@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppStore } from './store/useAppStore'
 import { Onboarding } from './screens/Onboarding'
 import { Home } from './screens/Home'
 import { Settings } from './screens/Settings'
 import { TemplateEditor } from './screens/TemplateEditor'
 import { SplashScreen } from './components/SplashScreen'
-import { speakVoicevox } from './utils/voicevox'
+import { preloadVoicevox } from './utils/voicevox'
+import type { VoicevoxKey } from './utils/voicevox'
 import type { ScreenName } from './types'
 import type { JSX } from 'react'
 
@@ -20,22 +21,24 @@ export function App() {
   const screen = useAppStore(s => s.screen)
   const init = useAppStore(s => s.init)
   const [splash, setSplash] = useState(true)
+  const preloadedAudio = useRef<HTMLAudioElement | null>(null)
 
-  useEffect(() => { init() }, [init])
-  const onSplashDone = useCallback(() => {
-    setSplash(false)
+  useEffect(() => {
+    init()
     const state = useAppStore.getState()
     const user = state.user
     const todayLog = state.todayLog()
-    if (!user?.onboarded) {
-      speakVoicevox('vv_hajimemashite')
-    } else if (!todayLog) {
-      speakVoicevox('vv_okaeri')
-    } else if (todayLog.type === 'write') {
-      speakVoicevox('vv_yasumu')
-    } else {
-      speakVoicevox('vv_kaite')
-    }
+    let key: VoicevoxKey
+    if (!user?.onboarded) key = 'vv_hajimemashite'
+    else if (!todayLog) key = 'vv_okaeri'
+    else if (todayLog.type === 'write') key = 'vv_yasumu'
+    else key = 'vv_kaite'
+    preloadedAudio.current = preloadVoicevox(key)
+  }, [init])
+
+  const onSplashDone = useCallback(() => {
+    setSplash(false)
+    preloadedAudio.current?.play().catch(() => {})
   }, [])
 
   if (splash) return <SplashScreen onDone={onSplashDone} />

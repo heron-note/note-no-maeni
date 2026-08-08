@@ -2,13 +2,15 @@ const audioTest = new Audio()
 const EXT = audioTest.canPlayType('audio/ogg; codecs=opus') ? '.ogg' : '.mp3'
 const BASE = import.meta.env.BASE_URL
 
-function playVV(name: string): void {
-  const a = new Audio(`${BASE}assets/sounds/${name}${EXT}`)
-  a.play().catch(() => {})
+export function preloadVoicevox(key: VoicevoxKey): HTMLAudioElement {
+  const a = new Audio(`${BASE}assets/sounds/${key}${EXT}`)
+  a.preload = 'auto'
+  return a
 }
 
 export function speakVoicevox(key: VoicevoxKey): void {
-  playVV(key)
+  const a = new Audio(`${BASE}assets/sounds/${key}${EXT}`)
+  a.play().catch(() => {})
 }
 
 export type VoicevoxKey =
