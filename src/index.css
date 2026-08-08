@@ -239,43 +239,31 @@ html, body, #root {
 .subscreen-title  { font-size: 20px; font-weight: 900; }
 
 /* ===== TEMPLATE EDITOR ===== */
-.editor-toolbar {
-  display: flex; gap: 8px; align-items: center;
+.template-textarea {
+  width: 100%; min-height: 200px;
+  border: 2px solid var(--border); border-radius: var(--radius-sm);
+  padding: 14px; font-size: 15px; line-height: 1.7; color: var(--text);
+  background: var(--surface); outline: none; resize: vertical;
+  font-family: inherit; transition: border-color 0.15s;
+}
+.template-textarea:focus { border-color: var(--primary); }
+.template-textarea::placeholder { color: var(--text-light); }
+
+.insert-position-block { display: flex; flex-direction: column; gap: 8px; }
+.insert-position-list { display: flex; flex-direction: column; gap: 6px; }
+.insert-pos-item {
+  display: flex; align-items: center; gap: 10px;
   background: var(--surface); border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm); padding: 8px 12px;
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  cursor: pointer; text-align: left; transition: border-color 0.15s, background 0.15s;
 }
-.toolbar-btn {
-  background: var(--secondary); border: 1.5px solid var(--border);
-  border-radius: 6px; padding: 6px 12px; font-size: 15px; cursor: pointer; min-width: 36px;
+.insert-pos-item.active { border-color: var(--primary); background: #FFF0EE; }
+.insert-pos-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--border); background: transparent;
 }
-.toolbar-hint { font-size: 11px; color: var(--text-light); margin-left: auto; }
-
-.template-line-editor {
-  display: flex; flex-direction: column;
-  border: 1.5px solid var(--border); border-radius: var(--radius);
-  overflow: hidden; background: var(--surface);
-}
-.insert-marker {
-  display: flex; align-items: center; justify-content: center; padding: 4px;
-  background: var(--bg); border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border);
-}
-.insert-marker.active { background: #FFF0EE; border-color: var(--primary); }
-.insert-marker-btn { background: none; border: none; font-size: 11px; color: var(--text-light); cursor: pointer; padding: 2px 8px; }
-.insert-marker.active .insert-marker-btn { color: var(--primary); font-weight: 700; }
-
-.line-row { display: flex; align-items: stretch; border-top: 1px solid var(--border); }
-.line-row:first-of-type { border-top: none; }
-.line-editable {
-  flex: 1; padding: 10px 14px; min-height: 40px; outline: none;
-  font-size: 15px; line-height: 1.6; color: var(--text); cursor: text;
-}
-.line-editable:focus { background: #FFFAF8; }
-.line-editable:empty::before { content: attr(data-placeholder); color: var(--text-light); pointer-events: none; }
-.line-delete-btn {
-  background: none; border: none; border-left: 1px solid var(--border);
-  padding: 0 12px; color: var(--text-light); font-size: 16px; cursor: pointer;
-}
-.line-delete-btn:active { background: #FFE8E8; color: #C04838; }
+.insert-pos-item.active .insert-pos-dot { border-color: var(--primary); background: var(--primary); }
+.insert-pos-label { font-size: 13px; color: var(--text); }
 
 .preview-section { display: flex; flex-direction: column; gap: 8px; }
 .preview-title { font-size: 14px; font-weight: 700; }

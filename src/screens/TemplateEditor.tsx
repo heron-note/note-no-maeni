@@ -1,107 +1,25 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { storage } from '../utils/storage'
 import { buildTemplateHTML } from '../utils/template'
 import { REST_DECLARATIONS } from '../data/declarations'
 import { Toast } from '../components/Toast'
 
-// クリップボードのHTMLをインライン書式を保持しながら行配列に変換
-const INLINE_TAGS = new Set(['strong','em','b','i','u','s','strike','span','a','code'])
-const BLOCK_TAGS  = new Set(['p','div','h1','h2','h3','h4','h5','h6','li','blockquote','pre','br'])
-
-function sanitizeInline(node: Node): string {
-  if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? ''
-  if (node.nodeType !== Node.ELEMENT_NODE) return ''
-  const el = node as Element
-  const tag = el.tagName.toLowerCase()
-  const inner = Array.from(el.childNodes).map(sanitizeInline).join('')
-  return INLINE_TAGS.has(tag) ? `<${tag}>${inner}</${tag}>` : inner
+function textToLines(text: string): string[] {
+  const lines = text.split(/\r?\n/)
+  return lines.length > 0 ? lines : ['']
 }
 
-function parseHtmlToLines(html: string): string[] {
-  const root = document.createElement('div')
-  root.innerHTML = html
-  const result: string[] = []
-
-  function walk(el: Element) {
-    for (const child of Array.from(el.childNodes)) {
-      if (child.nodeType === Node.ELEMENT_NODE) {
-        const ce = child as Element
-        const tag = ce.tagName.toLowerCase()
-        if (tag === 'br') { result.push(''); continue }
-        if (BLOCK_TAGS.has(tag)) {
-          const content = Array.from(ce.childNodes).map(sanitizeInline).join('').trim()
-          if (content) result.push(content)
-          else walk(ce)
-          continue
-        }
-      }
-      // インライン or テキストノード：直前の行に追記
-      const content = sanitizeInline(child)
-      if (!content.trim()) continue
-      if (result.length === 0) result.push(content)
-      else result[result.length - 1] += content
-    }
-  }
-
-  walk(root)
-  return result.length > 0 ? result : ['']
-}
-
-// contenteditable の行コンポーネント（カーソル位置保持のため uncontrolled）
-function LineEditable({
-  html,
-  lineIndex,
-  placeholder,
-  onUpdate,
-  onEnterKey,
-  onPasteLines,
-  focusRef,
-}: {
-  html: string
-  lineIndex: number
-  placeholder: string
-  onUpdate: (i: number, html: string) => void
-  onEnterKey: (i: number) => void
-  onPasteLines: (i: number, extraLines: string[]) => void
-  focusRef: (el: HTMLDivElement | null, i: number) => void
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  // マウント時のみ innerHTML をセット（React の再レンダで上書きしない）
-  useEffect(() => {
-    if (ref.current) ref.current.innerHTML = html
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  return (
-    <div
-      ref={el => { ref.current = el; focusRef(el, lineIndex) }}
-      className="line-editable"
-      contentEditable
-      suppressContentEditableWarning
-      data-placeholder={placeholder}
-      onInput={() => ref.current && onUpdate(lineIndex, ref.current.innerHTML)}
-      onKeyDown={e => {
-        if (e.key === 'Enter') { e.preventDefault(); onEnterKey(lineIndex) }
-      }}
-      onPaste={e => {
-        e.preventDefault()
-        const html = e.clipboardData.getData('text/html')
-        const plain = e.clipboardData.getData('text/plain')
-        const lines = html ? parseHtmlToLines(html) : plain.split(/\r?\n/)
-        document.execCommand('insertHTML', false, lines[0])
-        if (lines.length > 1) onPasteLines(lineIndex, lines.slice(1))
-      }}
-    />
-  )
+function linesToText(lines: string[]): string {
+  return lines.join('\n')
 }
 
 export function TemplateEditor() {
   const goTo = useAppStore(s => s.goTo)
-  const [lines, setLines] = useState<string[]>(() => {
+
+  const [text, setText] = useState<string>(() => {
     const t = storage.loadTemplate()
-    return t?.lines.length ? t.lines : ['']
+    return t?.lines.length ? linesToText(t.lines) : ''
   })
   const [insertIdx, setInsertIdx] = useState<number>(() => {
     const t = storage.loadTemplate()
@@ -109,45 +27,7 @@ export function TemplateEditor() {
   })
   const [toast, setToast] = useState<string | null>(null)
 
-  // 行ごとの DOM 参照（フォーカス制御用）
-  const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map())
-  const focusLine = useCallback((i: number) => {
-    setTimeout(() => lineRefs.current.get(i)?.focus(), 30)
-  }, [])
-
-  const updateLine = useCallback((i: number, html: string) => {
-    setLines(prev => { const next = [...prev]; next[i] = html; return next })
-  }, [])
-
-  const addLineAfter = useCallback((i: number) => {
-    setLines(prev => { const next = [...prev]; next.splice(i + 1, 0, ''); return next })
-    setInsertIdx(prev => prev > i ? prev + 1 : prev)
-    focusLine(i + 1)
-  }, [focusLine])
-
-  const pasteLines = useCallback((i: number, extraLines: string[]) => {
-    setLines(prev => {
-      const next = [...prev]
-      next.splice(i + 1, 0, ...extraLines)
-      return next
-    })
-    setInsertIdx(prev => prev > i ? prev + extraLines.length : prev)
-    focusLine(i + extraLines.length)
-  }, [focusLine])
-
-  const deleteLine = useCallback((i: number) => {
-    setLines(prev => {
-      if (prev.length <= 1) return ['']
-      const next = [...prev]; next.splice(i, 1); return next
-    })
-    setInsertIdx(prev =>
-      prev === i ? Math.max(-1, i - 1) : prev > i ? prev - 1 : prev
-    )
-  }, [])
-
-  const applyFormat = (cmd: 'bold' | 'italic') => {
-    document.execCommand(cmd)
-  }
+  const lines = textToLines(text)
 
   const handleSave = () => {
     storage.saveTemplate({ lines, insertAfterIndex: insertIdx })
@@ -165,61 +45,34 @@ export function TemplateEditor() {
       <div className="subscreen-header">
         <button className="back-btn" onClick={() => goTo('settings')}>← 戻る</button>
         <h2 className="subscreen-title">テンプレート編集</h2>
-        <p className="hint">行を編集し、宣言文の挿入位置を選んでください。</p>
+        <p className="hint">テンプレート本文を貼り付けて、宣言文の挿入位置を選んでください。</p>
       </div>
 
-      <div className="editor-toolbar">
-        <button className="toolbar-btn" onMouseDown={e => { e.preventDefault(); applyFormat('bold') }}><b>B</b></button>
-        <button className="toolbar-btn" onMouseDown={e => { e.preventDefault(); applyFormat('italic') }}><i>I</i></button>
-        <span className="toolbar-hint">選択してから適用</span>
-      </div>
+      <textarea
+        className="template-textarea"
+        placeholder="ここにnoteのテンプレートをペーストしてください"
+        value={text}
+        onChange={e => setText(e.target.value)}
+      />
 
-      <div className="template-line-editor">
-        {/* 先頭への挿入マーカー */}
-        <InsertMarker
-          position={-1}
-          active={insertIdx === -1}
-          onClick={() => setInsertIdx(-1)}
-        />
-        {lines.map((html, i) => (
-          <div key={i}>
-            <div className="line-row">
-              <LineEditable
-                html={html}
-                lineIndex={i}
-                placeholder={`行 ${i + 1}`}
-                onUpdate={updateLine}
-                onEnterKey={addLineAfter}
-                onPasteLines={pasteLines}
-                focusRef={(el, idx) => {
-                  if (el) lineRefs.current.set(idx, el)
-                  else lineRefs.current.delete(idx)
-                }}
-              />
-              <button
-                className="line-delete-btn"
-                onClick={() => deleteLine(i)}
-                title="この行を削除"
-              >×</button>
-            </div>
-            <InsertMarker
-              position={i}
+      <div className="insert-position-block">
+        <p className="label">宣言文の挿入位置</p>
+        <div className="insert-position-list">
+          <InsertPositionItem
+            label="テンプレートの先頭"
+            active={insertIdx === -1}
+            onClick={() => setInsertIdx(-1)}
+          />
+          {lines.map((line, i) => (
+            <InsertPositionItem
+              key={i}
+              label={`${i + 1}行目の後：${line.slice(0, 20) || '（空行）'}${line.length > 20 ? '…' : ''}`}
               active={insertIdx === i}
               onClick={() => setInsertIdx(i)}
             />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-
-      <button
-        className="btn-secondary"
-        onClick={() => {
-          setLines(prev => [...prev, ''])
-          focusLine(lines.length)
-        }}
-      >
-        ＋ 行を追加
-      </button>
 
       <div className="preview-section">
         <h3 className="preview-title">プレビュー（宣言文サンプル入り）</h3>
@@ -238,16 +91,18 @@ export function TemplateEditor() {
   )
 }
 
-function InsertMarker({ active, onClick }: {
-  position: number
+function InsertPositionItem({ label, active, onClick }: {
+  label: string
   active: boolean
   onClick: () => void
 }) {
   return (
-    <div className={`insert-marker${active ? ' active' : ''}`}>
-      <button className="insert-marker-btn" onClick={onClick}>
-        {active ? '📍 休もっ化宣言をここに挿入' : '▼ ここに挿入'}
-      </button>
-    </div>
+    <button
+      className={`insert-pos-item${active ? ' active' : ''}`}
+      onClick={onClick}
+    >
+      <span className="insert-pos-dot" />
+      <span className="insert-pos-label">{label}</span>
+    </button>
   )
 }
