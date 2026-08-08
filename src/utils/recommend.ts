@@ -17,7 +17,7 @@ export function selectRecommend(bookmarks: Bookmark[]): Bookmark | null {
           / (1000 * 60 * 60 * 24)
         ) * 10)
       : 100
-    return base * (1 + b.priority)
+    return base * (1 + (b.priority ?? 0) * 0.5)
   })
 
   const total = weights.reduce((a, b) => a + b, 0)
