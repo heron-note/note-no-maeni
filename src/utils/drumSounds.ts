@@ -33,12 +33,12 @@ export function startDrumRoll(duration: number): () => void {
 
   const t0 = ctx.currentTime + 0.05
   let t = 0
-  let interval = 0.22
-  const minInterval = 0.055
+  let interval = 0.055
+  const maxInterval = 0.22
 
   while (t < duration) {
-    snareHit(ctx, t0 + t, 0.25 + (t / duration) * 0.55)
-    interval = Math.max(minInterval, interval * 0.93)
+    snareHit(ctx, t0 + t, 0.8 - (t / duration) * 0.55)
+    interval = Math.min(maxInterval, interval * 1.075)
     t += interval
   }
 
