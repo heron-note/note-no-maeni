@@ -137,6 +137,7 @@ html, body, #root {
 .hint  { font-size: 12px; color: var(--text-light); margin-top: 6px; }
 .form-block    { display: flex; flex-direction: column; }
 .settings-row  { display: flex; flex-direction: column; gap: 8px; }
+.transfer-row  { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 
 /* ===== CHAR GRID ===== */
 .char-grid { display: flex; flex-direction: row; gap: 12px; overflow-x: auto; width: 100%; padding-bottom: 4px; }

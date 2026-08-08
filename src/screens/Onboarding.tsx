@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
+import { importData } from '../utils/transfer'
 
 export function Onboarding() {
   const [name, setName] = useState('')
@@ -9,6 +10,20 @@ export function Onboarding() {
   const saveUser = useAppStore(s => s.saveUser)
   const goHome = useAppStore(s => s.goHome)
   const goTo = useAppStore(s => s.goTo)
+  const init = useAppStore(s => s.init)
+  const importRef = useRef<HTMLInputElement>(null)
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      await importData(file)
+      init()
+    } catch {
+      // ファイルが不正な場合は無視
+    }
+    e.target.value = ''
+  }
 
   const handleStart = () => {
     if (!name.trim()) { setError(true); return }
@@ -58,6 +73,13 @@ export function Onboarding() {
       <button className="btn-primary wide" onClick={handleStart}>
         はじめる
       </button>
+
+      <div className="transfer-row">
+        <input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+        <button className="btn-secondary wide" onClick={() => importRef.current?.click()}>
+          引越しデータをインポート
+        </button>
+      </div>
     </div>
   )
 }
