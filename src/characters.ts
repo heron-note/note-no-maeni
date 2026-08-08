@@ -10,7 +10,6 @@ import type { CharDef } from './types'
 export const CHARS: CharDef[] = [
   { key: 'kuma', label: 'クマ' },
   { key: 'neko', label: 'ネコ' },
-  { key: 'maru', label: 'まる' },
 ]
 
 export function getChars(): CharDef[] {
