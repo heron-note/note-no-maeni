@@ -8,11 +8,19 @@ export function Onboarding() {
   const [error, setError] = useState(false)
   const saveUser = useAppStore(s => s.saveUser)
   const goHome = useAppStore(s => s.goHome)
+  const goTo = useAppStore(s => s.goTo)
 
   const handleStart = () => {
     if (!name.trim()) { setError(true); return }
     saveUser({ name: name.trim(), character: char, onboarded: true })
     goHome()
+  }
+
+  const handleGoCreator = () => {
+    if (name.trim()) {
+      saveUser({ name: name.trim(), character: char, onboarded: false })
+    }
+    goTo('character-creator')
   }
 
   return (
@@ -47,6 +55,10 @@ export function Onboarding() {
 
       <button className="btn-primary wide" onClick={handleStart}>
         はじめる
+      </button>
+
+      <button className="btn-secondary wide" onClick={handleGoCreator}>
+        相棒クリエイト
       </button>
     </div>
   )

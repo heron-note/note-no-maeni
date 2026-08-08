@@ -282,7 +282,7 @@ export function CharacterCreator() {
     STATES.forEach(s => {
       localStorage.setItem(`nob_custom_img_${s.key}`, exports[s.key]!)
     })
-    saveUser({ ...(user ?? { name: '', onboarded: true }), character: 'custom' })
+    saveUser({ name: user?.name ?? '', onboarded: true, character: 'custom' })
     setToast('設定しました！')
     setTimeout(() => goTo('home'), 900)
   }
