@@ -8,6 +8,7 @@ export function RestTemplate() {
   const declaration = useAppStore(s => s.declaration)
   const logToday = useAppStore(s => s.logToday)
   const goTo = useAppStore(s => s.goTo)
+  const goHome = useAppStore(s => s.goHome)
   const [toast, setToast] = useState<string | null>(null)
 
   const template = storage.loadTemplate()
@@ -20,12 +21,12 @@ export function RestTemplate() {
     }
     window.open('https://note.com', '_blank', 'noopener,noreferrer')
     logToday('rest', declaration?.id ?? null)
-    goTo('already-done')
+    goHome()
   }
 
   const handleSkip = () => {
     logToday('rest', declaration?.id ?? null)
-    goTo('already-done')
+    goHome()
   }
 
   return (

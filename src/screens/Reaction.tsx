@@ -4,14 +4,14 @@ import { charImgPath } from '../characters'
 export function Reaction() {
   const user = useAppStore(s => s.user)
   const logToday = useAppStore(s => s.logToday)
-  const goTo = useAppStore(s => s.goTo)
+  const goHome = useAppStore(s => s.goHome)
 
   const ch = user?.character ?? 'kuma'
   const text = (window as any).__reactionText ?? 'よく選べたね。'
 
   const handleDone = () => {
     logToday('write')
-    goTo('already-done')
+    goHome()
   }
 
   return (

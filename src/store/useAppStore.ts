@@ -9,7 +9,6 @@ interface AppStore {
   logs: Record<string, LogEntry>
   choice: ChoiceType | null
   declaration: Declaration | null
-  settingsFrom: 'home' | 'already'
 
   // Actions
   init: () => void
@@ -19,7 +18,6 @@ interface AppStore {
   logToday: (type: ChoiceType, declarationId?: string | null) => void
   setChoice: (type: ChoiceType) => void
   setDeclaration: (d: Declaration) => void
-  setSettingsFrom: (from: 'home' | 'already') => void
 
   // Selectors
   todayLog: () => LogEntry | undefined
@@ -31,7 +29,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
   logs: {},
   choice: null,
   declaration: null,
-  settingsFrom: 'home',
 
   init() {
     const user = storage.loadUser()
@@ -40,7 +37,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!user?.onboarded) {
       set({ screen: 'onboarding' })
     } else {
-      set({ screen: logs[todayStr()] ? 'already-done' : 'home' })
+      set({ screen: 'home' })
     }
   },
 
@@ -48,7 +45,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   goHome() {
     const logs = storage.loadLogs()
-    set({ logs, screen: logs[todayStr()] ? 'already-done' : 'home' })
+    set({ logs, screen: 'home' })
   },
 
   saveUser(user) {
@@ -66,7 +63,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setChoice(choice) { set({ choice }) },
   setDeclaration(declaration) { set({ declaration }) },
-  setSettingsFrom(settingsFrom) { set({ settingsFrom }) },
 
   todayLog() { return get().logs[todayStr()] },
 }))

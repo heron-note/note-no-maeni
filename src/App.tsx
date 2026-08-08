@@ -5,7 +5,6 @@ import { Home } from './screens/Home'
 import { Reaction } from './screens/Reaction'
 import { Rest } from './screens/Rest'
 import { RestTemplate } from './screens/RestTemplate'
-import { AlreadyDone } from './screens/AlreadyDone'
 import { Settings } from './screens/Settings'
 import { TemplateEditor } from './screens/TemplateEditor'
 import type { ScreenName } from './types'
@@ -17,7 +16,6 @@ const SCREENS: Record<ScreenName, JSX.Element> = {
   'reaction':        <Reaction />,
   'rest':            <Rest />,
   'rest-template':   <RestTemplate />,
-  'already-done':    <AlreadyDone />,
   'settings':        <Settings />,
   'template-editor': <TemplateEditor />,
 }

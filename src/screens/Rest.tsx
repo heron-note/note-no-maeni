@@ -9,6 +9,7 @@ export function Rest() {
   const declaration = useAppStore(s => s.declaration)
   const logToday = useAppStore(s => s.logToday)
   const goTo = useAppStore(s => s.goTo)
+  const goHome = useAppStore(s => s.goHome)
 
   const ch = user?.character ?? 'kuma'
 
@@ -21,13 +22,13 @@ export function Rest() {
       copyToClipboard(declaration?.text ?? '').catch(() => {})
       window.open('https://note.com', '_blank', 'noopener,noreferrer')
       logToday('rest', declaration?.id ?? null)
-      goTo('already-done')
+      goHome()
     }
   }
 
   const handleSkip = () => {
     logToday('rest', declaration?.id ?? null)
-    goTo('already-done')
+    goHome()
   }
 
   return (

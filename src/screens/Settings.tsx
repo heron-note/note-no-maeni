@@ -8,15 +8,10 @@ export function Settings() {
   const saveUser = useAppStore(s => s.saveUser)
   const goTo = useAppStore(s => s.goTo)
   const goHome = useAppStore(s => s.goHome)
-  const settingsFrom = useAppStore(s => s.settingsFrom)
 
   const [name, setName] = useState(user?.name ?? '')
   const [char, setChar] = useState(user?.character ?? 'kuma')
   const [toast, setToast] = useState<string | null>(null)
-
-  const handleBack = () => {
-    settingsFrom === 'already' ? goTo('already-done') : goHome()
-  }
 
   const handleSave = () => {
     if (!name.trim()) return
@@ -27,7 +22,7 @@ export function Settings() {
   return (
     <div className="screen-scroll">
       <div className="subscreen-header">
-        <button className="back-btn" onClick={handleBack}>← 戻る</button>
+        <button className="back-btn" onClick={goHome}>← 戻る</button>
         <h2 className="subscreen-title">設定</h2>
       </div>
 

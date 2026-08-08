@@ -177,14 +177,12 @@ html, body, #root {
 .reaction-text { font-size: 16px; line-height: 1.7; }
 
 /* ===== REST / STAMP ===== */
-.stamp-block { display: flex; align-items: center; justify-content: center; width: 220px; height: 220px; }
+.stamp-block { display: flex; align-items: center; justify-content: center; width: 220px; height: 220px; overflow: visible; }
 .stamp-colored {
   width: 210px; height: 210px;
   -webkit-mask-image: url(/assets/images/stamps/stamp-mask.png);
   mask-image: url(/assets/images/stamps/stamp-mask.png);
-  -webkit-mask-size: 82% 82%; mask-size: 82% 82%;
-  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
   background-color: #4A5E3A;
   transform-origin: center;
   transform: scale(0.06); opacity: 0;
