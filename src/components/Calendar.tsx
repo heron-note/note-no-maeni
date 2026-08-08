@@ -34,9 +34,15 @@ export function Calendar({ logs }: Props) {
           <span className="cal-day-num">{d}</span>
         </div>
       )
+    } else if (log?.type === 'write') {
+      cells.push(
+        <div key={key} className={`cal-day logged write${isToday ? ' today' : ''}`}>
+          <div className="cal-write-stamp" />
+          <span className="cal-write-day-num">{d}</span>
+        </div>
+      )
     } else {
-      const cls = ['cal-day', isToday && 'today', log && 'logged write']
-        .filter(Boolean).join(' ')
+      const cls = ['cal-day', isToday && 'today'].filter(Boolean).join(' ')
       cells.push(<div key={key} className={cls}>{d}</div>)
     }
   }
