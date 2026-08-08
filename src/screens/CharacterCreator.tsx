@@ -16,7 +16,7 @@ const STATES: Array<{ key: string; label: string; desc: string }> = [
   {
     key: 'write',
     label: '書く',
-    desc: '「書く」を選んだ時に表示されます。元気や期待感のある表情・ポーズが向いています。',
+    desc: '「書く」を選んだ時のオーバーレイに表示されます。元気や期待感のある表情・ポーズが向いています。',
   },
   {
     key: 'rest',
@@ -35,6 +35,67 @@ interface CropRef {
   pinchDist: number
 }
 
+// エッジからのフラッドフィルで背景色を透過
+function removeBg(img: HTMLImageElement, tolerance: number): Promise<HTMLImageElement> {
+  return new Promise(resolve => {
+    const w = img.width, h = img.height
+    const canvas = document.createElement('canvas')
+    canvas.width = w; canvas.height = h
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(img, 0, 0)
+    const imageData = ctx.getImageData(0, 0, w, h)
+    const d = imageData.data
+
+    // 四隅＋各辺中央の色をシードとして収集
+    const getColor = (x: number, y: number): [number, number, number] => {
+      const i = (y * w + x) * 4
+      return [d[i], d[i + 1], d[i + 2]]
+    }
+    const seeds = [
+      getColor(0, 0), getColor(w - 1, 0),
+      getColor(0, h - 1), getColor(w - 1, h - 1),
+      getColor(Math.floor(w / 2), 0),
+      getColor(0, Math.floor(h / 2)),
+      getColor(w - 1, Math.floor(h / 2)),
+      getColor(Math.floor(w / 2), h - 1),
+    ]
+
+    const visited = new Uint8Array(w * h)
+    const stack: number[] = []
+
+    const visit = (x: number, y: number) => {
+      if (x < 0 || x >= w || y < 0 || y >= h) return
+      const idx = y * w + x
+      if (visited[idx]) return
+      visited[idx] = 1
+      const pi = idx * 4
+      if (d[pi + 3] === 0) return
+      const r = d[pi], g = d[pi + 1], b = d[pi + 2]
+      const match = seeds.some(([sr, sg, sb]) =>
+        Math.max(Math.abs(r - sr), Math.abs(g - sg), Math.abs(b - sb)) <= tolerance
+      )
+      if (!match) return
+      d[pi + 3] = 0
+      stack.push(x, y)
+    }
+
+    for (let x = 0; x < w; x++) { visit(x, 0); visit(x, h - 1) }
+    for (let y = 1; y < h - 1; y++) { visit(0, y); visit(w - 1, y) }
+
+    while (stack.length > 0) {
+      const y = stack.pop()!
+      const x = stack.pop()!
+      visit(x + 1, y); visit(x - 1, y)
+      visit(x, y + 1); visit(x, y - 1)
+    }
+
+    ctx.putImageData(imageData, 0, 0)
+    const out = new Image()
+    out.onload = () => resolve(out)
+    out.src = canvas.toDataURL('image/png')
+  })
+}
+
 function CropPanel({ label, desc, onExport }: {
   stateKey: string
   label: string
@@ -42,7 +103,8 @@ function CropPanel({ label, desc, onExport }: {
   onExport: (dataUrl: string | null) => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const imgRef = useRef<HTMLImageElement | null>(null)
+  const origImgRef = useRef<HTMLImageElement | null>(null)   // オリジナル
+  const drawImgRef = useRef<HTMLImageElement | null>(null)   // 描画用（BG除去後）
   const cropRef = useRef<CropRef>({
     offsetX: 0, offsetY: 0, scale: 1,
     dragging: false, lastX: 0, lastY: 0, pinchDist: 0,
@@ -50,10 +112,13 @@ function CropPanel({ label, desc, onExport }: {
   const [hasImage, setHasImage] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [bgTolerance, setBgTolerance] = useState(25)
+  const [bgApplied, setBgApplied] = useState(false)
+  const [bgProcessing, setBgProcessing] = useState(false)
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current
-    const img = imgRef.current
+    const img = drawImgRef.current
     if (!canvas || !img) return
     const ctx = canvas.getContext('2d')!
     const { offsetX, offsetY, scale } = cropRef.current
@@ -69,13 +134,11 @@ function CropPanel({ label, desc, onExport }: {
     ctx.strokeRect(CROP_OFF + 1, CROP_OFF + 1, CROP_SIZE - 2, CROP_SIZE - 2)
   }, [])
 
-  // Initial draw after canvas mounts
   useEffect(() => {
     if (hasImage) redraw()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasImage])
 
-  // Prevent passive scroll on canvas touch
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !hasImage) return
@@ -94,24 +157,55 @@ function CropPanel({ label, desc, onExport }: {
     }
   }
 
+  const initCrop = (img: HTMLImageElement) => {
+    drawImgRef.current = img
+    const fitScale = Math.min(CROP_SIZE / img.width, CROP_SIZE / img.height)
+    cropRef.current = {
+      offsetX: CROP_OFF + (CROP_SIZE - img.width * fitScale) / 2,
+      offsetY: CROP_OFF + (CROP_SIZE - img.height * fitScale) / 2,
+      scale: fitScale,
+      dragging: false, lastX: 0, lastY: 0, pinchDist: 0,
+    }
+  }
+
   const handleFile = (file: File) => {
     const url = URL.createObjectURL(file)
     const img = new Image()
     img.onload = () => {
-      imgRef.current = img
-      const fitScale = Math.min(CROP_SIZE / img.width, CROP_SIZE / img.height)
-      cropRef.current = {
-        offsetX: CROP_OFF + (CROP_SIZE - img.width * fitScale) / 2,
-        offsetY: CROP_OFF + (CROP_SIZE - img.height * fitScale) / 2,
-        scale: fitScale,
-        dragging: false, lastX: 0, lastY: 0, pinchDist: 0,
-      }
+      origImgRef.current = img
+      initCrop(img)
       setConfirmed(false)
       setPreviewUrl(null)
+      setBgApplied(false)
       onExport(null)
       setHasImage(true)
     }
     img.src = url
+  }
+
+  const handleRemoveBg = async () => {
+    const src = origImgRef.current
+    if (!src) return
+    setBgProcessing(true)
+    const processed = await removeBg(src, bgTolerance)
+    initCrop(processed)
+    setBgApplied(true)
+    setBgProcessing(false)
+    setConfirmed(false)
+    setPreviewUrl(null)
+    onExport(null)
+    redraw()
+  }
+
+  const handleResetBg = () => {
+    const orig = origImgRef.current
+    if (!orig) return
+    initCrop(orig)
+    setBgApplied(false)
+    setConfirmed(false)
+    setPreviewUrl(null)
+    onExport(null)
+    redraw()
   }
 
   const onMouseDown = (e: React.MouseEvent) => {
@@ -136,8 +230,7 @@ function CropPanel({ label, desc, onExport }: {
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault()
     const factor = e.deltaY > 0 ? 0.9 : 1.1
-    const cx = CANVAS_SIZE / 2
-    const cy = CANVAS_SIZE / 2
+    const cx = CANVAS_SIZE / 2, cy = CANVAS_SIZE / 2
     const { offsetX, offsetY, scale } = cropRef.current
     const newScale = Math.max(0.05, Math.min(20, scale * factor))
     const f = newScale / scale
@@ -179,8 +272,7 @@ function CropPanel({ label, desc, onExport }: {
       const pinchDist = cropRef.current.pinchDist || dist
       const factor = dist / pinchDist
       cropRef.current.pinchDist = dist
-      const cx = CANVAS_SIZE / 2
-      const cy = CANVAS_SIZE / 2
+      const cx = CANVAS_SIZE / 2, cy = CANVAS_SIZE / 2
       const { offsetX, offsetY, scale } = cropRef.current
       const newScale = Math.max(0.05, Math.min(20, scale * factor))
       const f = newScale / scale
@@ -192,7 +284,7 @@ function CropPanel({ label, desc, onExport }: {
   }
 
   const handleConfirm = () => {
-    const img = imgRef.current
+    const img = drawImgRef.current
     if (!img) return
     const offscreen = document.createElement('canvas')
     offscreen.width = CROP_SIZE
@@ -230,6 +322,32 @@ function CropPanel({ label, desc, onExport }: {
       </label>
       {hasImage && (
         <>
+          <div className="bg-remove-row">
+            <div className="bg-remove-controls">
+              <label className="bg-tolerance-label">
+                許容範囲 <strong>{bgTolerance}</strong>
+                <input
+                  type="range" min={5} max={80} value={bgTolerance}
+                  onChange={e => setBgTolerance(Number(e.target.value))}
+                  className="bg-tolerance-slider"
+                />
+              </label>
+            </div>
+            <div className="bg-remove-btns">
+              <button
+                className="btn-secondary"
+                onClick={handleRemoveBg}
+                disabled={bgProcessing}
+              >
+                {bgProcessing ? '処理中…' : '背景除去'}
+              </button>
+              {bgApplied && (
+                <button className="btn-secondary" onClick={handleResetBg}>
+                  元に戻す
+                </button>
+              )}
+            </div>
+          </div>
           <p className="hint crop-hint-move">ドラッグで移動・ピンチ/ホイールで拡縮。白枠内に収めてください。</p>
           <canvas
             ref={canvasRef}

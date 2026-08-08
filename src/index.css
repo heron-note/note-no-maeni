@@ -491,6 +491,11 @@ html, body, #root {
 }
 .crop-upload-label:active { background: var(--border); }
 .crop-hint-move { margin-top: 2px; }
+.bg-remove-row { display: flex; flex-direction: column; gap: 8px; }
+.bg-remove-controls { display: flex; flex-direction: column; gap: 4px; }
+.bg-tolerance-label { font-size: 13px; color: var(--text-light); display: flex; flex-direction: column; gap: 4px; }
+.bg-tolerance-slider { width: 100%; accent-color: var(--primary); }
+.bg-remove-btns { display: flex; gap: 8px; }
 .crop-canvas {
   display: block;
   width: 100%; max-width: 320px;

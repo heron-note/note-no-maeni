@@ -20,6 +20,7 @@ export function Home() {
 
   const [stampDeclaration, setStampDeclaration] = useState<Declaration | null>(null)
   const [writeReaction, setWriteReaction] = useState<string | null>(null)
+  const [charState, setCharState] = useState<'normal' | 'write' | 'rest'>('normal')
   const [soundOn, setSoundOn] = useState(() => storage.loadSoundEnabled())
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(() => storage.loadBookmarks())
   const [showEditor, setShowEditor] = useState(false)
@@ -50,8 +51,10 @@ export function Home() {
 
   const handleChoice = (type: ChoiceType) => {
     if (type === 'write') {
+      setCharState('write')
       setWriteReaction(pickWriteReaction(name))
     } else {
+      setCharState('rest')
       const decl = pickDeclaration()
       logToday('rest', decl.id)
       setStampDeclaration(decl)
@@ -79,7 +82,7 @@ export function Home() {
         <button className="icon-btn" onClick={() => goTo('settings')}>⚙</button>
       </div>
       <div className="chara-block">
-        <img className="chara-img" src={charImgPath(ch, 'normal')} alt="相棒" />
+        <img className="chara-img" src={charImgPath(ch, charState)} alt="相棒" />
       </div>
       <div className="greeting-block">
         <p className="greeting">おかえり、{name}さん。</p>
@@ -118,13 +121,13 @@ export function Home() {
       {stampDeclaration && (
         <StampOverlay
           declaration={stampDeclaration}
-          onClose={() => { setStampDeclaration(null); goHome() }}
+          onClose={() => { setStampDeclaration(null); setCharState('normal'); goHome() }}
         />
       )}
       {writeReaction && (
         <WriteOverlay
           reactionText={writeReaction}
-          onClose={() => { setWriteReaction(null); goHome() }}
+          onClose={() => { setWriteReaction(null); setCharState('normal'); goHome() }}
         />
       )}
       {showEditor && (
