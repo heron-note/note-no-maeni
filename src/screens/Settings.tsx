@@ -43,14 +43,13 @@ export function Settings() {
       <div className="settings-row">
         <p className="label">相棒</p>
         <CharGrid selected={char} onSelect={setChar} />
+        <button className="btn-secondary wide" onClick={() => goTo('character-creator')}>
+          相棒クリエイト
+        </button>
       </div>
 
       <button className="btn-primary wide" onClick={handleSave}>
         保存する
-      </button>
-
-      <button className="btn-secondary wide" onClick={() => goTo('character-creator')}>
-        相棒クリエイト
       </button>
 
       <Toast message={toast} onDone={() => setToast(null)} />

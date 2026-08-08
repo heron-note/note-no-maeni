@@ -51,14 +51,13 @@ export function Onboarding() {
       <div className="form-block">
         <p className="label">相棒を選んでください</p>
         <CharGrid selected={char} onSelect={setChar} />
+        <button className="btn-secondary wide" style={{ marginTop: '8px' }} onClick={handleGoCreator}>
+          相棒クリエイト
+        </button>
       </div>
 
       <button className="btn-primary wide" onClick={handleStart}>
         はじめる
-      </button>
-
-      <button className="btn-secondary wide" onClick={handleGoCreator}>
-        相棒クリエイト
       </button>
     </div>
   )
