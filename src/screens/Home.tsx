@@ -2,7 +2,6 @@ import { useAppStore } from '../store/useAppStore'
 import { charImgPath } from '../characters'
 import { Calendar } from '../components/Calendar'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
-import { todayStr } from '../utils/storage'
 import type { ChoiceType } from '../types'
 
 export function Home() {
@@ -14,34 +13,16 @@ export function Home() {
 
   const ch = user?.character ?? 'kuma'
   const name = user?.name ?? ''
-  const todayLog = logs[todayStr()]
 
   const handleChoice = (type: ChoiceType) => {
     setChoice(type)
     if (type === 'write') {
-      // reactionテキストはここで決定（ガチャ）
       ;(window as any).__reactionText = pickWriteReaction(name)
       goTo('reaction')
     } else {
       setDeclaration(pickDeclaration())
       goTo('rest')
     }
-  }
-
-  if (todayLog) {
-    return (
-      <div className="screen-inner">
-        <div className="top-bar">
-          <button className="icon-btn" onClick={() => goTo('settings')}>⚙</button>
-        </div>
-        <div className="chara-block">
-          <img className="chara-img chara-lg" src={charImgPath(ch, 'watch')} alt="相棒" />
-        </div>
-        <p className="greeting">おかえり。</p>
-        <p className="greeting-sub">今日はもう十分やったんじゃない？</p>
-        <Calendar logs={logs} />
-      </div>
-    )
   }
 
   return (
