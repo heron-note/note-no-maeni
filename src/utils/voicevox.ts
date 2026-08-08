@@ -1,8 +1,9 @@
 const audioTest = new Audio()
 const EXT = audioTest.canPlayType('audio/ogg; codecs=opus') ? '.ogg' : '.mp3'
+const BASE = import.meta.env.BASE_URL
 
 function playVV(name: string): void {
-  const a = new Audio(`assets/sounds/${name}${EXT}`)
+  const a = new Audio(`${BASE}assets/sounds/${name}${EXT}`)
   a.play().catch(() => {})
 }
 
