@@ -59,5 +59,5 @@ export function pickWriteReaction(name: string): string {
     p < 0.05 ? WRITE_REACTIONS.superRare :
     p < 0.20 ? WRITE_REACTIONS.rare :
                WRITE_REACTIONS.normal
-  return pickRandom(pool).replace(/{name}/g, name || 'きみ')
+  return pickRandom(pool).replace(/{name}/g, name ? `${name}さん` : 'きみ')
 }

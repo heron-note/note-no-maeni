@@ -39,7 +39,7 @@ export function Home() {
         <img className="chara-img" src={charImgPath(ch, 'normal')} alt="相棒" />
       </div>
       <div className="greeting-block">
-        <p className="greeting">おかえり、{name}。</p>
+        <p className="greeting">おかえり、{name}さん。</p>
         <p className="greeting-sub">今日のnote、どうする？</p>
       </div>
       <div className="choice-block">
@@ -55,7 +55,7 @@ export function Home() {
         </button>
       </div>
       <button className="template-shortcut-btn" onClick={() => goTo('template-editor')}>
-        ✏️ 休もっ化テンプレートを編集
+        ✏️ 休もっ化計画テンプレートを編集
       </button>
       <Calendar logs={logs} />
 
