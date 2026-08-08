@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import type { Bookmark } from '../types'
 
+function stripNote(name: string) {
+  return name.replace(/\s*\|\s*note\s*$/i, '')
+}
+
 function parseClipboard(text: string): { name: string; url: string } | null {
   const match = text.match(/^(.+?)：(https?:\/\/.+)$/)
-  if (match) return { name: match[1].trim(), url: match[2].trim() }
+  if (match) return { name: stripNote(match[1].trim()), url: match[2].trim() }
   return null
 }
 
@@ -49,7 +53,8 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
             div.innerHTML = html
             const anchor = div.querySelector('a[href]') as HTMLAnchorElement | null
             if (anchor?.href) {
-              setName(anchor.textContent?.trim() ?? '')
+              const rawName = anchor.textContent?.trim() ?? ''
+              setName(stripNote(rawName))
               setUrl(anchor.href)
               setError(null)
               return
