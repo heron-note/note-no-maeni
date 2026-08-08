@@ -1,3 +1,5 @@
+import { storage } from './storage'
+
 const audioTest = new Audio()
 const EXT = audioTest.canPlayType('audio/ogg; codecs=opus') ? '.ogg' : '.mp3'
 const BASE = import.meta.env.BASE_URL
@@ -9,6 +11,7 @@ export function preloadVoicevox(key: VoicevoxKey): HTMLAudioElement {
 }
 
 export function speakVoicevox(key: VoicevoxKey): void {
+  if (!storage.loadSoundEnabled()) return
   const a = new Audio(`${BASE}assets/sounds/${key}${EXT}`)
   a.play().catch(() => {})
 }

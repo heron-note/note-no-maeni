@@ -24,6 +24,9 @@ export const storage = {
 
   loadTemplate: ()           => safeLoad<Template>(SK.template),
   saveTemplate: (v: Template) => localStorage.setItem(SK.template, JSON.stringify(v)),
+
+  loadSoundEnabled: () => localStorage.getItem('nob_sound') !== 'off',
+  saveSoundEnabled: (v: boolean) => localStorage.setItem('nob_sound', v ? 'on' : 'off'),
 }
 
 export function todayStr(): string {

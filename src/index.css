@@ -103,7 +103,7 @@ html, body, #root {
 .btn-secondary.wide { width: 100%; max-width: 320px; }
 
 .back-btn { background: none; border: none; color: var(--text-light); font-size: 14px; cursor: pointer; padding: 4px 0; }
-.icon-btn  { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-light); padding: 6px; }
+.icon-btn  { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-light); padding: 6px; }
 
 /* ===== LOGO ===== */
 .logo-block { text-align: center; padding: 12px 0 4px; }
@@ -136,7 +136,7 @@ html, body, #root {
 .char-name  { font-size: 13px; font-weight: 700; }
 
 /* ===== HOME ===== */
-.top-bar { position: absolute; top: 16px; right: 16px; }
+.top-bar { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; align-items: center; }
 .chara-block { display: flex; align-items: center; justify-content: center; }
 .chara-img { width: 140px; height: 140px; object-fit: contain; }
 .chara-img.chara-lg { width: 160px; height: 160px; }

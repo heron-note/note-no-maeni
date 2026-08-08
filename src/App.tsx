@@ -7,6 +7,7 @@ import { TemplateEditor } from './screens/TemplateEditor'
 import { SplashScreen } from './components/SplashScreen'
 import { preloadVoicevox } from './utils/voicevox'
 import type { VoicevoxKey } from './utils/voicevox'
+import { storage } from './utils/storage'
 import type { ScreenName } from './types'
 import type { JSX } from 'react'
 
@@ -33,7 +34,9 @@ export function App() {
     else if (!todayLog) key = 'vv_okaeri'
     else if (todayLog.type === 'write') key = 'vv_yasumu'
     else key = 'vv_kaite'
-    preloadedAudio.current = preloadVoicevox(key)
+    if (storage.loadSoundEnabled()) {
+      preloadedAudio.current = preloadVoicevox(key)
+    }
   }, [init])
 
   const onSplashDone = useCallback(() => {

@@ -5,6 +5,7 @@ import { Calendar } from '../components/Calendar'
 import { StampOverlay } from '../components/StampOverlay'
 import { WriteOverlay } from '../components/WriteOverlay'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
+import { storage } from '../utils/storage'
 import type { ChoiceType, Declaration } from '../types'
 
 export function Home() {
@@ -16,6 +17,13 @@ export function Home() {
 
   const [stampDeclaration, setStampDeclaration] = useState<Declaration | null>(null)
   const [writeReaction, setWriteReaction] = useState<string | null>(null)
+  const [soundOn, setSoundOn] = useState(() => storage.loadSoundEnabled())
+
+  const toggleSound = () => {
+    const next = !soundOn
+    storage.saveSoundEnabled(next)
+    setSoundOn(next)
+  }
 
   const ch = user?.character ?? 'kuma'
   const name = user?.name ?? ''
@@ -33,6 +41,7 @@ export function Home() {
   return (
     <div className="screen-inner">
       <div className="top-bar">
+        <button className="icon-btn" onClick={toggleSound}>{soundOn ? '🔊' : '🔇'}</button>
         <button className="icon-btn" onClick={() => goTo('settings')}>⚙</button>
       </div>
       <div className="chara-block">
