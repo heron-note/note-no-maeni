@@ -19,7 +19,7 @@ export function Onboarding() {
     <div className="screen-scroll">
       <div className="logo-block">
         <div className="logo-icon">
-          <img src="assets/images/logo.png" alt="noteのまえに" width={100} height={100} />
+          <img src="assets/images/logo.png" alt="noteのまえに" width={160} height={160} />
         </div>
         <h1 className="app-title">noteのまえに</h1>
         <p className="app-sub">書く日も、読む日も、休む日も。</p>
