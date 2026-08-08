@@ -268,6 +268,15 @@ html, body, #root {
 .preview-section { display: flex; flex-direction: column; gap: 8px; }
 .preview-title { font-size: 14px; font-weight: 700; }
 
+/* ===== OVERLAY BUTTONS ===== */
+.overlay-btns {
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.overlay-btns.overlay-btns-visible {
+  opacity: 1; pointer-events: auto;
+}
+
 /* ===== STAMP OVERLAY ===== */
 .stamp-overlay {
   position: fixed; inset: 0; z-index: 200;

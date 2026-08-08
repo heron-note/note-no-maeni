@@ -44,16 +44,14 @@ export function StampOverlay({ declaration, onClose }: {
           <div ref={stampRef} className="stamp-colored" />
         </div>
         <p className="declaration-text">{declaration.text}</p>
-        {showButtons && (
-          <div className="rest-btns">
-            <button className="btn-primary wide" onClick={handleCopy}>
-              コピーしてnoteへ ↗
-            </button>
-            <button className="btn-secondary wide" onClick={onClose}>
-              閉じる
-            </button>
-          </div>
-        )}
+        <div className={`rest-btns overlay-btns${showButtons ? ' overlay-btns-visible' : ''}`}>
+          <button className="btn-primary wide" onClick={handleCopy}>
+            コピーしてnoteへ ↗
+          </button>
+          <button className="btn-secondary wide" onClick={onClose}>
+            閉じる
+          </button>
+        </div>
       </div>
       <Toast message={toast} onDone={() => { setToast(null); onClose() }} />
     </div>
