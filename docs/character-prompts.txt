@@ -13,28 +13,29 @@ noteのまえに - キャラクター制作ガイド
 
 キャラクター1体につき、以下4枚の画像が必要です。
 
-  normal.svg（またはnormal.png）
+  normal.png
     使用場面: ホーム画面（毎日最初に表示される）
     演出:     待機・ニュートラル。毎日見ても飽きない表情。
 
-  write.svg（またはwrite.png）
+  write.png
     使用場面: 「書く」を選んだ直後
     演出:     背中を押す・応援。前向きで力強い。
 
-  rest.svg（またはrest.png）
+  rest.png
     使用場面: 「休む」を選んだ直後（スタンプ画面）
     演出:     一緒に休む・脱力・ほっとする。
               「休むことは正しい」という空気感。罪悪感ゼロ。
 
-  watch.svg（またはwatch.png）
+  watch.png
     使用場面: 今日すでに記録済みの画面（おかえり）
     演出:     穏やかに見守る・受け入れる。
               何があっても歓迎する温かさ。
 
 配置場所:
-  public/assets/images/characters/<キャラクターID>/normal.svg
-  public/assets/images/characters/<キャラクターID>/write.svg
-  ...（以下同様）
+  public/assets/images/characters/<キャラクターID>/normal.png
+  public/assets/images/characters/<キャラクターID>/write.png
+  public/assets/images/characters/<キャラクターID>/rest.png
+  public/assets/images/characters/<キャラクターID>/watch.png
 
 キャラクターIDと表示名は src/characters.ts に登録してください。
 
@@ -42,18 +43,9 @@ noteのまえに - キャラクター制作ガイド
 画像の技術仕様
 ========================================
 
-推奨サイズ:  200×220px（縦長）
+推奨サイズ:  400×440px 以上（縦長、表示は200×220px相当）
 背景:        透明（必須）
-形式:        SVGまたはPNG
-
-SVGの場合:
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220">
-    ...
-  </svg>
-
-PNGの場合:
-  src/characters.ts の charImgPath 関数の拡張子を変更:
-  return `assets/images/characters/${charKey}/${stateKey}.png`
+形式:        PNG（透過）
 
 ========================================
 制作方法（どれか一つを選ぶ）
@@ -61,54 +53,36 @@ PNGの場合:
 
 【方法A: 自分でイラストを描く】
 上記仕様を満たせば何でも可。
-Illustrator / Figma / Procreate 等で制作後、
-SVGまたは透過PNGで書き出す。
+Illustrator / Procreate / CLIP STUDIO 等で制作後、
+透過PNGで書き出す。
 
 【方法B: AI画像生成ツールで作る】
 Midjourney / DALL-E 3 / Stable Diffusion / Adobe Firefly 等を使う。
+生成後、背景除去ツール（remove.bg 等）で透過PNGに変換する。
 
 プロンプトの組み立て方:
-  1. キャラクター説明（あなたが決める）
-  2. ステートごとのポーズ・表情指示（下記テンプレート参照）
-  3. 出力スタイル指定（下記テンプレート参照）
+  1. キャラクターの説明（あなたが決める）
+  2. ステートごとのポーズ・表情指示（下記参照）
+  3. スタイル指定（あなたが決める。例は下記参照）
 
 英語プロンプト テンプレート:
-  [キャラクター説明], [ポーズ・表情], [スタイル指定]
+  [キャラクターの説明], [ポーズ・表情], [スタイル指定],
+  white background, full body, no text, no watermark
 
-スタイル指定（末尾に付ける）:
-  transparent background, full body, no text, no watermark,
-  simple clean illustration
+  ※背景は白で生成し、後から背景除去するほうが品質が安定する
 
-ステートごとのポーズ・表情:
+スタイル指定の例（好みで選ぶ）:
+  ・かわいい系:   cute kawaii illustration, pastel colors, soft lines
+  ・ゆるい系:     loose sketchy style, hand-drawn feel, warm colors
+  ・シンプル系:   minimal flat design, clean shapes, limited palette
+  ・リアル寄り:   watercolor illustration, detailed, expressive
+  ・その他:       自分が好きなイラストや作家のスタイルをそのまま指定してよい
+
+ステートごとのポーズ・表情（自分のキャラクターに合わせて調整する）:
   normal: calm neutral expression, relaxed natural pose
   write:  motivated forward-leaning pose, encouraging expression
-  rest:   relaxed droopy expression, limp or slouched body, carefree
+  rest:   relaxed droopy expression, limp or slouched body, carefree and content
   watch:  warm gentle gaze, open welcoming pose, soft smile
-
-【方法C: LLMにSVGコードを書かせる】
-Claude等のLLMにSVGを生成させる。
-以下のプロンプトをそのまま使い、
-[キャラクター説明]と[ステート指示]を自分のキャラクターに合わせて書き換える。
-
----プロンプトここから---
-以下の仕様でSVGキャラクターを生成してください。
-
-技術仕様:
-- viewBox="0 0 200 220"
-- 背景なし（透明）
-- 使用できる要素: circle / ellipse / rect / path / polygon / line
-- text要素は最小限（演出記号のみ）
-
-キャラクター:
-[ここにキャラクターの見た目を自由に記述する。
- 色、形、特徴的なパーツ、全体の雰囲気など。
- 参考画像をLLMに渡せる場合は画像を添付してもよい。]
-
-ステート:
-[ここにこのステートのポーズ・表情・演出を記述する]
-
-出力: SVGコードのみ（説明文不要）
----プロンプトここまで---
 
 ========================================
 品質チェックリスト
@@ -116,8 +90,8 @@ Claude等のLLMにSVGを生成させる。
 
 4枚完成後に確認:
 [ ] 同じキャラクターに見えるか（色・形・比率が統一されているか）
-[ ] 背景が透明か（白ベタになっていないか）
-[ ] rest が暗い・落ち込んだ印象でなく「ほっこり・充足」に見えるか
+[ ] 背景が透明か
+[ ] rest が「落ち込み・反省」でなく「ほっこり・充足」に見えるか
 [ ] watch が「監視・圧」でなく「温かく迎え入れる」雰囲気か
 [ ] スマートフォン画面（375px幅）で小さすぎず大きすぎないか
-[ ] 4ステート並べたとき統一感があるか
+[ ] 4ステット並べたとき統一感があるか

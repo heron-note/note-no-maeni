@@ -14,5 +14,5 @@ export const CHARS: CharDef[] = [
 ]
 
 export function charImgPath(charKey: string, stateKey: string): string {
-  return `assets/images/characters/${charKey}/${stateKey}.svg`
+  return `assets/images/characters/${charKey}/${stateKey}.png`
 }
