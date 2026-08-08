@@ -234,8 +234,11 @@ html, body, #root {
   line-height: 1.9; font-size: 15px;
 }
 .template-preview .tl-declaration {
-  display: block; color: var(--primary); font-weight: 700;
+  display: block; color: var(--primary); font-weight: 700; font-size: 17px;
   border-left: 3px solid var(--primary); padding-left: 10px; margin: 4px 0;
+}
+.template-preview .tl-declaration-body {
+  display: block; color: var(--text); font-size: 15px; padding-left: 13px; margin-bottom: 4px;
 }
 .template-preview .tl-line { display: block; min-height: 1.5em; }
 

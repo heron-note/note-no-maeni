@@ -13,10 +13,15 @@ function escHtml(str: string): string {
     .replace(/>/g, '&gt;')
 }
 
+const DECL_TITLE = '『note休もっ化計画』を発動します。'
+
 /** テンプレート+宣言文 → 表示用HTML */
 export function buildTemplateHTML(template: Template, declaration: Declaration): string {
   const { lines, insertAfterIndex } = template
-  const decl = `<span class="tl-declaration">${escHtml(declaration.text)}</span>`
+  const decl =
+    `<span class="tl-declaration">${escHtml(DECL_TITLE)}</span>` +
+    `<span class="tl-line">&nbsp;</span><span class="tl-line">&nbsp;</span>` +
+    `<span class="tl-declaration-body">${escHtml(declaration.text)}</span>`
   let html = ''
 
   if (insertAfterIndex === -1) html += decl
@@ -31,17 +36,21 @@ export function buildTemplateHTML(template: Template, declaration: Declaration):
   return html
 }
 
+function declBlock(declaration: Declaration): string {
+  return `## ${DECL_TITLE}\n\n${declaration.text}`
+}
+
 /** テンプレート+宣言文 → クリップボード用プレーンテキスト */
 export function buildPlainText(template: Template, declaration: Declaration): string {
   const { lines, insertAfterIndex } = template
   const parts: string[] = []
 
-  if (insertAfterIndex === -1) parts.push(declaration.text)
+  if (insertAfterIndex === -1) parts.push(declBlock(declaration))
   lines.forEach((lineHtml, i) => {
     parts.push(stripHtml(lineHtml))
-    if (i === insertAfterIndex) parts.push(declaration.text)
+    if (i === insertAfterIndex) parts.push(declBlock(declaration))
   })
-  if (insertAfterIndex >= lines.length) parts.push(declaration.text)
+  if (insertAfterIndex >= lines.length) parts.push(declBlock(declaration))
 
   return parts.join('\n')
 }
