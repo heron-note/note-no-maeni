@@ -138,6 +138,10 @@ export function Home() {
           <span className="choice-sub">書くプレッシャーをリセット</span>
         </button>
       </div>
+      <button className="template-shortcut-btn" onClick={() => goTo('template-editor')}>
+        ✏️ 休もっ化計画テンプレートを編集
+      </button>
+
       <div className="recommend-bar">
         <button
           className="btn-recommend"
@@ -150,10 +154,6 @@ export function Home() {
           おすすめ編集
         </button>
       </div>
-
-      <button className="template-shortcut-btn" onClick={() => goTo('template-editor')}>
-        ✏️ 休もっ化計画テンプレートを編集
-      </button>
       <Calendar logs={logs} />
 
       {stampDeclaration && (
