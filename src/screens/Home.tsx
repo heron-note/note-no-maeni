@@ -54,6 +54,9 @@ export function Home() {
           <span className="choice-sub">書くプレッシャーをリセット</span>
         </button>
       </div>
+      <button className="template-shortcut-btn" onClick={() => goTo('template-editor')}>
+        ✏️ 休もっ化テンプレートを編集
+      </button>
       <Calendar logs={logs} />
 
       {stampDeclaration && (
