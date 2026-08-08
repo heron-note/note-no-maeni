@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { charImgPath } from '../characters'
 import { Calendar } from '../components/Calendar'
@@ -9,6 +9,7 @@ import { RecommendOverlay } from '../components/RecommendOverlay'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
 import { storage, todayStr } from '../utils/storage'
 import { selectRecommend, recordRecommend } from '../utils/recommend'
+import { speakVoicevox } from '../utils/voicevox'
 import type { ChoiceType, Declaration, Bookmark } from '../types'
 
 export function Home() {
@@ -24,6 +25,12 @@ export function Home() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(() => storage.loadBookmarks())
   const [showEditor, setShowEditor] = useState(false)
   const [recommended, setRecommended] = useState<Bookmark | null>(null)
+
+  const isFirstVisit = Object.keys(logs).length === 0
+
+  useEffect(() => {
+    speakVoicevox(isFirstVisit ? 'vv_hajimemashite' : 'vv_okaeri')
+  }, [])
 
   const toggleSound = () => {
     const next = !soundOn
@@ -84,7 +91,7 @@ export function Home() {
         <img className="chara-img" src={charImgPath(ch, charState)} alt="相棒" />
       </div>
       <div className="greeting-block">
-        <p className="greeting">おかえり、{name}さん。</p>
+        <p className="greeting">{isFirstVisit ? 'はじめまして' : 'おかえり'}、{name}さん。</p>
         <p className="greeting-sub">今日のnote、どうする？</p>
       </div>
       <div className="choice-block">
