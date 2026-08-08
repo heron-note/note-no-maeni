@@ -63,24 +63,38 @@ function WeekView({ logs }: Props) {
 
 function MonthView({ logs, onClose }: Props & { onClose: () => void }) {
   const now = new Date()
-  const y = now.getFullYear()
-  const m = now.getMonth()
+  const [viewYear, setViewYear] = useState(now.getFullYear())
+  const [viewMonth, setViewMonth] = useState(now.getMonth())
+
+  const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth()
   const today = now.getDate()
-  const firstDay = new Date(y, m, 1).getDay()
-  const daysInMonth = new Date(y, m + 1, 0).getDate()
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+
+  const goPrev = () => {
+    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
+    else setViewMonth(m => m - 1)
+  }
+  const goNext = () => {
+    if (isCurrentMonth) return
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
+    else setViewMonth(m => m + 1)
+  }
 
   const cells = []
   for (let i = 0; i < firstDay; i++) cells.push(<div key={`e${i}`} />)
   for (let d = 1; d <= daysInMonth; d++) {
-    const key = dateKey(y, m, d)
-    cells.push(<DayCell key={key} d={d} log={logs[key]} isToday={d === today} />)
+    const key = dateKey(viewYear, viewMonth, d)
+    cells.push(<DayCell key={key} d={d} log={logs[key]} isToday={isCurrentMonth && d === today} />)
   }
 
   return (
     <div className="month-overlay" onClick={onClose}>
       <div className="month-popup" onClick={e => e.stopPropagation()}>
         <div className="month-popup-header">
-          <span className="calendar-header">{y}年{m + 1}月</span>
+          <button className="icon-btn" onClick={goPrev}>‹</button>
+          <span className="calendar-header">{viewYear}年{viewMonth + 1}月</span>
+          <button className="icon-btn" onClick={goNext} disabled={isCurrentMonth}>›</button>
           <button className="icon-btn" onClick={onClose}>✕</button>
         </div>
         <div className="calendar-grid">

@@ -139,11 +139,11 @@ html, body, #root {
 .settings-row  { display: flex; flex-direction: column; gap: 8px; }
 
 /* ===== CHAR GRID ===== */
-.char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 320px; }
+.char-grid { display: flex; flex-direction: row; gap: 12px; overflow-x: auto; width: 100%; padding-bottom: 4px; }
 .char-option {
   background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
   padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px;
-  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s; flex: 0 0 auto;
 }
 .char-option.selected { border-color: var(--primary); background: #FFF0EE; }
 .char-thumb { width: 72px; height: 72px; object-fit: contain; }
