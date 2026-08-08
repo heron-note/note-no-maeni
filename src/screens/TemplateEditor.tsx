@@ -60,6 +60,20 @@ function htmlToLines(html: string): string[] {
         const ce = child as Element
         const tag = ce.tagName.toLowerCase()
         if (tag === 'br') { result.push(''); continue }
+        if (tag === 'blockquote') {
+          const text = (ce.textContent ?? '').trim()
+          if (text) {
+            text.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => result.push(`> ${l}`))
+          }
+          continue
+        }
+        if (tag === 'pre') {
+          const code = (ce.textContent ?? '').replace(/\n$/, '')
+          result.push('```')
+          code.split('\n').forEach(line => result.push(line))
+          result.push('```')
+          continue
+        }
         if (BLOCK_TAGS.has(tag)) {
           const sub: string[] = []
           walkInner(ce, sub)
