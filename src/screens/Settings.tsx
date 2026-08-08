@@ -21,8 +21,10 @@ export function Settings() {
   return (
     <div className="screen-scroll">
       <div className="subscreen-header">
-        <button className="back-btn" onClick={goHome}>← 戻る</button>
-        <h2 className="subscreen-title">設定</h2>
+        <div className="subscreen-title-row">
+          <button className="back-btn" onClick={goHome}>‹</button>
+          <h2 className="subscreen-title">設定</h2>
+        </div>
       </div>
 
       <div className="settings-row">
