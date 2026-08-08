@@ -23,6 +23,7 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [formOpen, setFormOpen] = useState(bookmarks.length === 0)
 
   const handleAdd = () => {
     const trimName = name.trim()
@@ -30,8 +31,7 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
     if (!trimName || !trimUrl) { setError('名前とURLを入力してください'); return }
     if (!/^https?:\/\//.test(trimUrl)) { setError('URLはhttp(s)://から始めてください'); return }
     if (bookmarks.some(b => b.url === trimUrl)) { setError('このURLはすでに登録されています'); return }
-    const next = [...bookmarks, { id: newId(), name: trimName, url: trimUrl, recommendCount: 0, lastRecommendedDate: null }]
-    onChange(next)
+    onChange([...bookmarks, { id: newId(), name: trimName, url: trimUrl, recommendCount: 0, lastRecommendedDate: null }])
     setName('')
     setUrl('')
     setError(null)
@@ -43,7 +43,6 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
 
   const handleClipboard = async () => {
     try {
-      // HTML形式（execCommand経由）を優先して読む
       if (navigator.clipboard.read) {
         const items = await navigator.clipboard.read()
         for (const item of items) {
@@ -54,8 +53,7 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
             div.innerHTML = html
             const anchor = div.querySelector('a[href]') as HTMLAnchorElement | null
             if (anchor?.href) {
-              const rawName = anchor.textContent?.trim() ?? ''
-              setName(stripNote(rawName))
+              setName(stripNote(anchor.textContent?.trim() ?? ''))
               setUrl(anchor.href)
               setError(null)
               return
@@ -63,7 +61,6 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
           }
         }
       }
-      // フォールバック: プレーンテキスト「タイトル：URL」形式
       const text = await navigator.clipboard.readText()
       const parsed = parseClipboard(text)
       if (parsed) {
@@ -81,6 +78,7 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
   return (
     <div className="stamp-overlay" onClick={onClose}>
       <div className="bookmark-editor" onClick={e => e.stopPropagation()}>
+
         <div className="bookmark-editor-header">
           <span className="subscreen-title">おすすめ編集</span>
           <button className="icon-btn" onClick={onClose}>✕</button>
@@ -98,25 +96,34 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
           ))}
         </div>
 
-        <div className="bookmark-form">
-          <input
-            className="bookmark-input"
-            placeholder="名前"
-            value={name}
-            onChange={e => setName(e.target.value)}
-          />
-          <input
-            className="bookmark-input"
-            placeholder="URL（https://...）"
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-          />
-          {error && <p className="bookmark-error">{error}</p>}
-          <button className="btn-secondary wide" onClick={handleClipboard}>
-            クリップボードから読み込む
+        <div className={`bookmark-form-wrap${formOpen ? ' bookmark-form-open' : ''}`}>
+          <button
+            className="bookmark-form-toggle"
+            onClick={() => setFormOpen(v => !v)}
+          >
+            {formOpen ? '▼ 閉じる' : '▲ 追加する'}
           </button>
-          <button className="btn-primary wide" onClick={handleAdd}>追加する</button>
+          <div className="bookmark-form">
+            <input
+              className="bookmark-input"
+              placeholder="名前"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
+            <input
+              className="bookmark-input"
+              placeholder="URL（https://...）"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+            />
+            {error && <p className="bookmark-error">{error}</p>}
+            <button className="btn-secondary wide" onClick={handleClipboard}>
+              クリップボードから読み込む
+            </button>
+            <button className="btn-primary wide" onClick={handleAdd}>追加する</button>
+          </div>
         </div>
+
       </div>
     </div>
   )

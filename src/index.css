@@ -200,7 +200,22 @@ html, body, #root {
   background: none; border: none; color: var(--text-light); font-size: 12px;
   cursor: pointer; white-space: nowrap; padding: 4px 6px;
 }
-.bookmark-form { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px solid var(--border); }
+.bookmark-form-wrap {
+  border-top: 1px solid var(--border);
+  overflow: hidden;
+}
+.bookmark-form-toggle {
+  width: 100%; background: none; border: none; cursor: pointer;
+  font-size: 13px; color: var(--text-light); padding: 10px 0;
+  text-align: center; letter-spacing: 0.05em;
+}
+.bookmark-form {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-bottom: 4px;
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.bookmark-form-open .bookmark-form { max-height: 300px; }
 .bookmark-input {
   width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px;
   font-size: 14px; background: var(--bg); color: var(--text); box-sizing: border-box;
