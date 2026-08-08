@@ -19,6 +19,17 @@ export function Home() {
   const goHome = useAppStore(s => s.goHome)
   const logToday = useAppStore(s => s.logToday)
 
+  const [heartBursts, setHeartBursts] = useState<{ id: number; x: number; y: number }[]>([])
+
+  const handleCharaTap = (e: React.MouseEvent | React.TouchEvent) => {
+    const point = 'touches' in e
+      ? { x: e.touches[0]?.clientX ?? 0, y: e.touches[0]?.clientY ?? 0 }
+      : { x: (e as React.MouseEvent).clientX, y: (e as React.MouseEvent).clientY }
+    const id = Date.now()
+    setHeartBursts(prev => [...prev, { id, ...point }])
+    setTimeout(() => setHeartBursts(prev => prev.filter(b => b.id !== id)), 750)
+  }
+
   const [stampDeclaration, setStampDeclaration] = useState<Declaration | null>(null)
   const [writeReaction, setWriteReaction] = useState<string | null>(null)
   const [soundOn, setSoundOn] = useState(() => storage.loadSoundEnabled())
@@ -88,7 +99,33 @@ export function Home() {
         <button className="icon-btn" onClick={() => goTo('settings')}>⚙</button>
       </div>
       <div className="chara-block">
-        <img className="chara-img" src={charImgPath(ch, charState)} alt="相棒" />
+        <img
+          className="chara-img"
+          src={charImgPath(ch, charState)}
+          alt="相棒"
+          onClick={handleCharaTap}
+          onTouchStart={handleCharaTap}
+          style={{ cursor: 'pointer' }}
+        />
+      </div>
+      <div className="heart-burst-wrap">
+        {heartBursts.map(({ id, x, y }) =>
+          [0, 1, 2, 3, 4, 5, 6].map(i => {
+            const angle = (i / 7) * Math.PI * 2
+            const dist = 48 + Math.random() * 32
+            const dx = Math.cos(angle) * dist
+            const dy = Math.sin(angle) * dist
+            return (
+              <span
+                key={`${id}-${i}`}
+                className="heart-particle"
+                style={{ left: x, top: y, '--dx': `${dx}px`, '--dy': `${dy}px` } as React.CSSProperties}
+              >
+                ❤️
+              </span>
+            )
+          })
+        )}
       </div>
       <div className="greeting-block">
         <p className="greeting">{isFirstVisit ? 'はじめまして' : 'おかえり'}、{name}さん。</p>
