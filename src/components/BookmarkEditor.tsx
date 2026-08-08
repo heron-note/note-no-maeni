@@ -29,6 +29,7 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
     const trimUrl = url.trim()
     if (!trimName || !trimUrl) { setError('名前とURLを入力してください'); return }
     if (!/^https?:\/\//.test(trimUrl)) { setError('URLはhttp(s)://から始めてください'); return }
+    if (bookmarks.some(b => b.url === trimUrl)) { setError('このURLはすでに登録されています'); return }
     const next = [...bookmarks, { id: newId(), name: trimName, url: trimUrl, recommendCount: 0, lastRecommendedDate: null }]
     onChange(next)
     setName('')
