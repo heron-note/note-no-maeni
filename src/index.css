@@ -263,8 +263,9 @@ html, body, #root {
 }
 .recommend-message {
   font-size: 16px; font-weight: 700; text-align: center; line-height: 1.6;
-  animation: fade-in 0.4s ease;
+  opacity: 0; transition: opacity 0.4s ease;
 }
+.recommend-message-visible { opacity: 1; }
 
 /* ===== TEMPLATE SHORTCUT ===== */
 .template-shortcut-btn {

@@ -67,11 +67,9 @@ export function RecommendOverlay({ bookmark, allNames, onOpen, onClose }: {
           </div>
         </div>
 
-        {done && (
-          <p className="recommend-message">
-            {bookmark.name}<br />さんのところへ遊びに行こう！
-          </p>
-        )}
+        <p className={`recommend-message${done ? ' recommend-message-visible' : ''}`}>
+          さんのところへ遊びに行こう！
+        </p>
 
         <div className={`overlay-btns${done ? ' overlay-btns-visible' : ''}`}>
           <button className="btn-primary wide" onClick={onOpen}>開く ↗</button>
