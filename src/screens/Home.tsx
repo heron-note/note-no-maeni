@@ -6,6 +6,7 @@ import { StampOverlay } from '../components/StampOverlay'
 import { WriteOverlay } from '../components/WriteOverlay'
 import { BookmarkEditor } from '../components/BookmarkEditor'
 import { RecommendOverlay } from '../components/RecommendOverlay'
+import { WikiHintCard } from '../components/WikiHintCard'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
 import { storage, todayStr } from '../utils/storage'
 import { selectRecommend, recordRecommend } from '../utils/recommend'
@@ -155,6 +156,7 @@ export function Home() {
         </button>
       </div>
       <Calendar logs={logs} />
+      <WikiHintCard />
 
       {stampDeclaration && (
         <StampOverlay
