@@ -171,7 +171,9 @@ html, body, #root {
   position: absolute; inset: 0; border-radius: 50%;
   -webkit-mask-image: url(/assets/images/stamps/stamp-mask.png);
   mask-image: url(/assets/images/stamps/stamp-mask.png);
-  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
   background-color: rgba(255,255,255,0.28);
   pointer-events: none;
 }
@@ -191,7 +193,9 @@ html, body, #root {
   width: 210px; height: 210px;
   -webkit-mask-image: url(/assets/images/stamps/stamp-mask.png);
   mask-image: url(/assets/images/stamps/stamp-mask.png);
-  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
   background-color: #4A5E3A;
   transform-origin: center;
   transform: scale(0.06); opacity: 0;
