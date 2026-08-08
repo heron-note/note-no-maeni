@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { pickStampColor } from '../data/declarations'
 import { playStampSound } from '../utils/audio'
+import { speakVoicevox } from '../utils/voicevox'
 import { storage } from '../utils/storage'
 import { buildPlainText, copyToClipboard } from '../utils/template'
 import { Toast } from './Toast'
@@ -21,6 +22,7 @@ export function StampOverlay({ declaration, onClose }: {
     const t1 = setTimeout(() => {
       el.classList.add('stamp-animate')
       playStampSound()
+      speakVoicevox('やすもっか　けいかく、はつどう！')
     }, 80)
     // アニメーション完了後にボタンを表示
     const t2 = setTimeout(() => setShowButtons(true), 800)
@@ -43,7 +45,9 @@ export function StampOverlay({ declaration, onClose }: {
         <div className="stamp-block">
           <div ref={stampRef} className="stamp-colored" />
         </div>
-        <p className="declaration-text">{declaration.text}</p>
+        <div className="bubble">
+          <p className="declaration-text">{declaration.text}</p>
+        </div>
         <div className={`rest-btns overlay-btns${showButtons ? ' overlay-btns-visible' : ''}`}>
           <button className="btn-primary wide" onClick={handleCopy}>
             コピーしてnoteへ ↗

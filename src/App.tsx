@@ -5,6 +5,7 @@ import { Home } from './screens/Home'
 import { Settings } from './screens/Settings'
 import { TemplateEditor } from './screens/TemplateEditor'
 import { SplashScreen } from './components/SplashScreen'
+import { speakVoicevox } from './utils/voicevox'
 import type { ScreenName } from './types'
 import type { JSX } from 'react'
 
@@ -21,7 +22,23 @@ export function App() {
   const [splash, setSplash] = useState(true)
 
   useEffect(() => { init() }, [init])
-  const onSplashDone = useCallback(() => setSplash(false), [])
+  const onSplashDone = useCallback(() => {
+    setSplash(false)
+    const state = useAppStore.getState()
+    const user = state.user
+    const todayLog = state.todayLog()
+    let text: string
+    if (!user?.onboarded) {
+      text = 'はじめまして'
+    } else if (!todayLog) {
+      text = 'おかえり'
+    } else if (todayLog.type === 'write') {
+      text = 'やすむことにする？'
+    } else {
+      text = 'かいてみる？'
+    }
+    speakVoicevox(text)
+  }, [])
 
   if (splash) return <SplashScreen onDone={onSplashDone} />
 

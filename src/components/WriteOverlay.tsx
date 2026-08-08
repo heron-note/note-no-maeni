@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { pickStampColor } from '../data/declarations'
 import { playStampSound } from '../utils/audio'
+import { speakVoicevox } from '../utils/voicevox'
 
 export function WriteOverlay({ reactionText, onClose }: {
   reactionText: string
@@ -18,6 +19,7 @@ export function WriteOverlay({ reactionText, onClose }: {
     const t1 = setTimeout(() => {
       el.classList.add('stamp-animate')
       playStampSound()
+      speakVoicevox('たのしく　かいて　きてね！')
     }, 80)
     const t2 = setTimeout(() => setShowButtons(true), 800)
     return () => { clearTimeout(t1); clearTimeout(t2) }
