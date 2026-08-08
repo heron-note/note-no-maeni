@@ -1,7 +1,7 @@
 import type { Declaration } from '../types'
 
 export const REST_DECLARATIONS: Declaration[] = [
-  { id: 'rest_01', text: '『note休もっ化計画』を発動します。' },
+  { id: 'rest_01', text: '今日は休む。それもひとつの、正しい選択。' },
   { id: 'rest_02', text: '本日のnote活動、終了！' },
   { id: 'rest_03', text: '「今日は休もう」と僕が決めたから、本日限定「休もっ記念日」。' },
   { id: 'rest_04', text: '「投稿しなきゃ」という邪智暴虐のプレッシャーと戦うと決意した。……しかし、疲れていたので今日は寝る。' },
