@@ -3,6 +3,7 @@ export type ScreenName =
   | 'home'
   | 'settings'
   | 'template-editor'
+  | 'character-creator'
 
 export type ChoiceType = 'write' | 'rest'
 

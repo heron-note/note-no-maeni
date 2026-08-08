@@ -4,6 +4,7 @@ import { Onboarding } from './screens/Onboarding'
 import { Home } from './screens/Home'
 import { Settings } from './screens/Settings'
 import { TemplateEditor } from './screens/TemplateEditor'
+import { CharacterCreator } from './screens/CharacterCreator'
 import { SplashScreen } from './components/SplashScreen'
 import { preloadVoicevox } from './utils/voicevox'
 import type { VoicevoxKey } from './utils/voicevox'
@@ -12,10 +13,11 @@ import type { ScreenName } from './types'
 import type { JSX } from 'react'
 
 const SCREENS: Record<ScreenName, JSX.Element> = {
-  'onboarding':      <Onboarding />,
-  'home':            <Home />,
-  'settings':        <Settings />,
-  'template-editor': <TemplateEditor />,
+  'onboarding':        <Onboarding />,
+  'home':              <Home />,
+  'settings':          <Settings />,
+  'template-editor':   <TemplateEditor />,
+  'character-creator': <CharacterCreator />,
 }
 
 export function App() {

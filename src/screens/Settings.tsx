@@ -7,6 +7,7 @@ export function Settings() {
   const user = useAppStore(s => s.user)
   const saveUser = useAppStore(s => s.saveUser)
   const goHome = useAppStore(s => s.goHome)
+  const goTo = useAppStore(s => s.goTo)
 
   const [name, setName] = useState(user?.name ?? '')
   const [char, setChar] = useState(user?.character ?? 'kuma')
@@ -46,6 +47,10 @@ export function Settings() {
 
       <button className="btn-primary wide" onClick={handleSave}>
         保存する
+      </button>
+
+      <button className="btn-secondary wide" onClick={() => goTo('character-creator')}>
+        相棒クリエイト
       </button>
 
       <Toast message={toast} onDone={() => setToast(null)} />
