@@ -47,7 +47,7 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
   }
 
   const cyclePriority = (id: string) => {
-    onChange(bookmarks.map(b => b.id === id ? { ...b, priority: (b.priority + 1) % 4 } : b))
+    onChange(bookmarks.map(b => b.id === id ? { ...b, priority: ((b.priority ?? 0) + 1) % 4 } : b))
   }
 
   const DOTS = ['○○○', '●○○', '●●○', '●●●']
