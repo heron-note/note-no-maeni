@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Bookmark } from '../types'
+import { startDrumRoll, playDrumHit } from '../utils/drumSounds'
+import { speakVoicevox } from '../utils/voicevox'
 
 const ITEM_H = 56
 
@@ -23,15 +25,23 @@ export function RecommendOverlay({ bookmark, allNames, onOpen, onClose }: {
   useEffect(() => {
     const el = reelRef.current
     if (!el) return
-    // index=14 を中央に → translateY = -13 * ITEM_H
     const travel = 13 * ITEM_H
     el.style.transition = 'none'
     el.style.transform = 'translateY(0)'
+
+    const stopRoll = startDrumRoll(2.4)
+
     requestAnimationFrame(() => requestAnimationFrame(() => {
       el.style.transition = `transform 2.4s cubic-bezier(0.0, 0.0, 0.2, 1.0)`
       el.style.transform = `translateY(-${travel}px)`
     }))
-    const t = setTimeout(() => setDone(true), 2600)
+
+    const t = setTimeout(() => {
+      stopRoll()
+      playDrumHit()
+      speakVoicevox('vv_asobini')
+      setDone(true)
+    }, 2500)
     return () => clearTimeout(t)
   }, [])
 

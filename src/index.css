@@ -112,7 +112,12 @@ html, body, #root {
 .btn-secondary.wide { width: 100%; max-width: 320px; }
 
 .back-btn { background: none; border: none; color: var(--text-light); font-size: 14px; cursor: pointer; padding: 4px 0; }
-.icon-btn  { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-light); padding: 6px; }
+.icon-btn  {
+  background: none; border: none; cursor: pointer; color: var(--text-light);
+  width: 36px; height: 36px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; line-height: 1;
+}
 
 /* ===== LOGO ===== */
 .logo-block { text-align: center; padding: 12px 0 4px; }
