@@ -167,7 +167,7 @@ html, body, #root {
 }
 .cal-day.logged { color: #fff; font-weight: 700; }
 .cal-day.logged.write { background: var(--write); color: var(--text); }
-.cal-day.logged.rest  { background: var(--rest); position: relative; }
+.cal-day.logged.rest  { background: #4880B0; position: relative; }
 .cal-stamp {
   position: absolute; inset: 0; border-radius: 50%;
   -webkit-mask-image: url(/assets/images/stamps/stamp-mask.png);
@@ -175,11 +175,11 @@ html, body, #root {
   -webkit-mask-size: contain; mask-size: contain;
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   -webkit-mask-position: center; mask-position: center;
-  background-color: var(--rest-stamp);
-  opacity: 0.55;
+  background-color: #E06050;
+  opacity: 0.7;
   pointer-events: none;
 }
-.cal-day-num { position: relative; z-index: 1; color: var(--rest-stamp); }
+.cal-day-num { position: relative; z-index: 1; color: #fff; }
 
 /* ===== REACTION ===== */
 .bubble {
