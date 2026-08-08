@@ -25,7 +25,7 @@ export async function speakVoicevox(text: string): Promise<void> {
     const audio = new Audio(url)
     audio.onended = () => URL.revokeObjectURL(url)
     await audio.play()
-  } catch {
-    // VOICEVOX が起動していない場合は無視
+  } catch (err) {
+    console.error('[VOICEVOX]', err)
   }
 }
