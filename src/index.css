@@ -31,9 +31,13 @@ html, body, #root {
 
 #app {
   height: 100%;
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   animation: fade-in 0.2s ease;
+  box-shadow: 0 0 40px rgba(0,0,0,0.08);
 }
 
 @keyframes fade-in {
