@@ -182,7 +182,7 @@ html, body, #root {
   width: 210px; height: 210px;
   -webkit-mask-image: url(/assets/images/stamps/stamp-mask.png);
   mask-image: url(/assets/images/stamps/stamp-mask.png);
-  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-size: 82% 82%; mask-size: 82% 82%;
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   -webkit-mask-position: center; mask-position: center;
   background-color: #4A5E3A;
