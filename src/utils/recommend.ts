@@ -11,12 +11,13 @@ export function selectRecommend(bookmarks: Bookmark[]): Bookmark | null {
   }
 
   const weights = eligible.map(b => {
-    if (!b.lastRecommendedDate) return 100
-    const daysSince = Math.floor(
-      (new Date(today).getTime() - new Date(b.lastRecommendedDate).getTime())
-      / (1000 * 60 * 60 * 24)
-    )
-    return Math.max(1, daysSince * 10)
+    const base = b.lastRecommendedDate
+      ? Math.max(1, Math.floor(
+          (new Date(today).getTime() - new Date(b.lastRecommendedDate).getTime())
+          / (1000 * 60 * 60 * 24)
+        ) * 10)
+      : 100
+    return base * (1 + b.priority)
   })
 
   const total = weights.reduce((a, b) => a + b, 0)

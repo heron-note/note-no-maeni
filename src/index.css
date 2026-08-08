@@ -201,6 +201,11 @@ html, body, #root {
   padding: 10px 12px; background: var(--bg); border-radius: 10px; gap: 8px;
 }
 .bookmark-item-name { font-size: 14px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bookmark-priority-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 11px; letter-spacing: 1px; color: var(--write);
+  white-space: nowrap; padding: 4px 4px; flex-shrink: 0;
+}
 .bookmark-delete-btn {
   background: none; border: none; color: var(--text-light); font-size: 12px;
   cursor: pointer; white-space: nowrap; padding: 4px 6px;

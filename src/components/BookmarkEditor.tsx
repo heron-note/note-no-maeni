@@ -36,7 +36,7 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
     if (!trimName || !trimUrl) { setError('名前とURLを入力してください'); return }
     if (!/^https?:\/\//.test(trimUrl)) { setError('URLはhttp(s)://から始めてください'); return }
     if (bookmarks.some(b => b.url === trimUrl)) { setError('このURLはすでに登録されています'); return }
-    onChange([...bookmarks, { id: newId(), name: trimName, url: trimUrl, recommendCount: 0, lastRecommendedDate: null }])
+    onChange([...bookmarks, { id: newId(), name: trimName, url: trimUrl, priority: 0, recommendCount: 0, lastRecommendedDate: null }])
     setName('')
     setUrl('')
     setError(null)
@@ -45,6 +45,12 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
   const handleDelete = (id: string) => {
     onChange(bookmarks.filter(b => b.id !== id))
   }
+
+  const cyclePriority = (id: string) => {
+    onChange(bookmarks.map(b => b.id === id ? { ...b, priority: (b.priority + 1) % 4 } : b))
+  }
+
+  const DOTS = ['○○○', '●○○', '●●○', '●●●']
 
   const handleClipboard = async () => {
     try {
@@ -105,6 +111,9 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
           )}
           {filtered.map(b => (
             <div key={b.id} className="bookmark-item">
+              <button className="bookmark-priority-btn" onClick={() => cyclePriority(b.id)}>
+                {DOTS[b.priority ?? 0]}
+              </button>
               <span className="bookmark-item-name">{b.name}</span>
               <button className="bookmark-delete-btn" onClick={() => handleDelete(b.id)}>削除</button>
             </div>

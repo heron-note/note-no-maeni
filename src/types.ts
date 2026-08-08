@@ -37,6 +37,7 @@ export interface Bookmark {
   id: string
   name: string
   url: string
+  priority: number               // 0〜3
   recommendCount: number
   lastRecommendedDate: string | null  // YYYY-MM-DD
 }
