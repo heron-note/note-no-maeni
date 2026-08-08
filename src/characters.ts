@@ -13,6 +13,13 @@ export const CHARS: CharDef[] = [
   { key: 'maru', label: 'まる' },
 ]
 
+export function getChars(): CharDef[] {
+  const hasCustom = ['normal', 'write', 'rest'].every(
+    k => localStorage.getItem(`nob_custom_img_${k}`)
+  )
+  return hasCustom ? [...CHARS, { key: 'custom', label: 'マイキャラ' }] : CHARS
+}
+
 export function charImgPath(charKey: string, stateKey: string): string {
   if (charKey === 'custom') {
     return localStorage.getItem(`nob_custom_img_${stateKey}`) ?? ''

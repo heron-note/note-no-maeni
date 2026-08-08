@@ -43,7 +43,6 @@ export function Onboarding() {
           autoComplete="off"
           value={name}
           onChange={e => { setName(e.target.value); setError(false) }}
-          onKeyDown={e => e.key === 'Enter' && handleStart()}
         />
         <p className="hint">あとから変更できます</p>
       </div>

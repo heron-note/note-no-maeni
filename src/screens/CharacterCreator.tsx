@@ -383,7 +383,6 @@ function CropPanel({ label, desc, onExport }: {
 export function CharacterCreator() {
   const goTo = useAppStore(s => s.goTo)
   const user = useAppStore(s => s.user)
-  const saveUser = useAppStore(s => s.saveUser)
   const [exports, setExports] = useState<Record<string, string | null>>({
     normal: null, write: null, rest: null,
   })
@@ -400,9 +399,8 @@ export function CharacterCreator() {
     STATES.forEach(s => {
       localStorage.setItem(`nob_custom_img_${s.key}`, exports[s.key]!)
     })
-    saveUser({ name: user?.name ?? '', onboarded: true, character: 'custom' })
-    setToast('設定しました！')
-    setTimeout(() => goTo('home'), 900)
+    setToast('保存しました！戻って「マイキャラ」を選んでください')
+    setTimeout(() => goTo(user?.onboarded ? 'settings' : 'onboarding'), 1200)
   }
 
   const handleDownloadZip = async () => {
@@ -453,7 +451,7 @@ export function CharacterCreator() {
       {allReady && (
         <div className="char-creator-actions">
           <button className="btn-primary wide" onClick={handleApply}>
-            直接設定する
+            保存して戻る
           </button>
           <button className="btn-secondary wide" onClick={handleDownloadZip}>
             ZIPダウンロード

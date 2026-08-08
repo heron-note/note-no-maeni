@@ -1,4 +1,4 @@
-import { CHARS, charImgPath } from '../characters'
+import { getChars, charImgPath } from '../characters'
 
 interface Props {
   selected: string
@@ -8,7 +8,7 @@ interface Props {
 export function CharGrid({ selected, onSelect }: Props) {
   return (
     <div className="char-grid">
-      {CHARS.map(({ key, label }) => (
+      {getChars().map(({ key, label }) => (
         <button
           key={key}
           className={`char-option${key === selected ? ' selected' : ''}`}
