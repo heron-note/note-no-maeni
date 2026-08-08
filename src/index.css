@@ -50,6 +50,15 @@ html, body, #root {
 }
 .splash.splash-hide { opacity: 0; pointer-events: none; }
 .splash-logo { width: 220px; height: 220px; object-fit: contain; }
+.splash-tap {
+  margin-top: 32px; font-size: 13px; color: var(--text-light);
+  letter-spacing: 0.08em;
+  animation: splash-blink 1.2s ease-in-out infinite;
+}
+@keyframes splash-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
 
 /* ===== LAYOUT ===== */
 .screen-inner {

@@ -24,6 +24,7 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
   return (
     <div className={`splash${hiding ? ' splash-hide' : ''}`} onClick={dismiss}>
       <img src="assets/images/logo.png" alt="noteのまえに" className="splash-logo" />
+      <p className="splash-tap">タップしてはじめる</p>
     </div>
   )
 }
