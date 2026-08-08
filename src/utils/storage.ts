@@ -1,4 +1,4 @@
-import type { User, LogEntry, Template } from '../types'
+import type { User, LogEntry, Template, Bookmark } from '../types'
 
 const SK = {
   user: 'nob_user',
@@ -27,6 +27,9 @@ export const storage = {
 
   loadSoundEnabled: () => localStorage.getItem('nob_sound') !== 'off',
   saveSoundEnabled: (v: boolean) => localStorage.setItem('nob_sound', v ? 'on' : 'off'),
+
+  loadBookmarks: () => safeLoad<Bookmark[]>('nob_bookmarks') ?? [],
+  saveBookmarks: (v: Bookmark[]) => localStorage.setItem('nob_bookmarks', JSON.stringify(v)),
 }
 
 export function todayStr(): string {

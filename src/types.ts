@@ -32,3 +32,11 @@ export interface Template {
   lines: string[]        // 各行のHTML文字列
   insertAfterIndex: number  // -1=先頭, 0..N-1=行後, N=末尾
 }
+
+export interface Bookmark {
+  id: string
+  name: string
+  url: string
+  recommendCount: number
+  lastRecommendedDate: string | null  // YYYY-MM-DD
+}

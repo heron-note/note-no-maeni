@@ -4,9 +4,12 @@ import { charImgPath } from '../characters'
 import { Calendar } from '../components/Calendar'
 import { StampOverlay } from '../components/StampOverlay'
 import { WriteOverlay } from '../components/WriteOverlay'
+import { BookmarkEditor } from '../components/BookmarkEditor'
+import { RecommendOverlay } from '../components/RecommendOverlay'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
 import { storage } from '../utils/storage'
-import type { ChoiceType, Declaration } from '../types'
+import { selectRecommend, recordRecommend } from '../utils/recommend'
+import type { ChoiceType, Declaration, Bookmark } from '../types'
 
 export function Home() {
   const user = useAppStore(s => s.user)
@@ -18,11 +21,28 @@ export function Home() {
   const [stampDeclaration, setStampDeclaration] = useState<Declaration | null>(null)
   const [writeReaction, setWriteReaction] = useState<string | null>(null)
   const [soundOn, setSoundOn] = useState(() => storage.loadSoundEnabled())
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>(() => storage.loadBookmarks())
+  const [showEditor, setShowEditor] = useState(false)
+  const [recommended, setRecommended] = useState<Bookmark | null>(null)
 
   const toggleSound = () => {
     const next = !soundOn
     storage.saveSoundEnabled(next)
     setSoundOn(next)
+  }
+
+  const handleBookmarksChange = (next: Bookmark[]) => {
+    storage.saveBookmarks(next)
+    setBookmarks(next)
+  }
+
+  const handleRecommend = () => {
+    const picked = selectRecommend(bookmarks)
+    if (!picked) return
+    const next = recordRecommend(bookmarks, picked.id)
+    storage.saveBookmarks(next)
+    setBookmarks(next)
+    setRecommended(picked)
   }
 
   const ch = user?.character ?? 'kuma'
@@ -77,6 +97,19 @@ export function Home() {
           <span className="choice-sub">書くプレッシャーをリセット</span>
         </button>
       </div>
+      <div className="recommend-bar">
+        <button
+          className="btn-recommend"
+          onClick={handleRecommend}
+          disabled={bookmarks.length === 0}
+        >
+          おすすめ
+        </button>
+        <button className="btn-recommend-edit" onClick={() => setShowEditor(true)}>
+          おすすめ編集
+        </button>
+      </div>
+
       <button className="template-shortcut-btn" onClick={() => goTo('template-editor')}>
         ✏️ 休もっ化計画テンプレートを編集
       </button>
@@ -92,6 +125,20 @@ export function Home() {
         <WriteOverlay
           reactionText={writeReaction}
           onClose={() => { setWriteReaction(null); goHome() }}
+        />
+      )}
+      {showEditor && (
+        <BookmarkEditor
+          bookmarks={bookmarks}
+          onChange={handleBookmarksChange}
+          onClose={() => setShowEditor(false)}
+        />
+      )}
+      {recommended && (
+        <RecommendOverlay
+          bookmark={recommended}
+          onOpen={() => { window.open(recommended.url, '_blank', 'noopener,noreferrer'); setRecommended(null) }}
+          onClose={() => setRecommended(null)}
         />
       )}
     </div>

@@ -170,6 +170,61 @@ html, body, #root {
 .choice-main { font-size: 17px; font-weight: 800; }
 .choice-sub  { font-size: 11px; color: var(--text-light); text-align: center; }
 
+/* ===== RECOMMEND ===== */
+.recommend-bar { display: flex; gap: 10px; width: 100%; max-width: 320px; }
+.btn-recommend {
+  flex: 1; padding: 10px 0; border-radius: 12px; border: none; cursor: pointer;
+  background: var(--write); color: #fff; font-size: 15px; font-weight: 700;
+}
+.btn-recommend:disabled { opacity: 0.4; cursor: default; }
+.btn-recommend-edit {
+  padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--text-light); font-size: 13px; cursor: pointer;
+}
+
+/* ===== BOOKMARK EDITOR ===== */
+.bookmark-editor {
+  background: var(--surface); border-radius: 20px; padding: 20px;
+  width: calc(100% - 32px); max-width: 360px; max-height: 80vh;
+  display: flex; flex-direction: column; gap: 12px; overflow: hidden;
+}
+.bookmark-editor-header { display: flex; align-items: center; justify-content: space-between; }
+.bookmark-list { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.bookmark-empty { font-size: 13px; color: var(--text-light); text-align: center; padding: 12px 0; }
+.bookmark-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; background: var(--bg); border-radius: 10px; gap: 8px;
+}
+.bookmark-item-name { font-size: 14px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bookmark-delete-btn {
+  background: none; border: none; color: var(--text-light); font-size: 12px;
+  cursor: pointer; white-space: nowrap; padding: 4px 6px;
+}
+.bookmark-form { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px solid var(--border); }
+.bookmark-input {
+  width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+  font-size: 14px; background: var(--bg); color: var(--text); box-sizing: border-box;
+}
+.bookmark-error { font-size: 12px; color: #e06050; margin: 0; }
+
+/* ===== DART RECOMMEND OVERLAY ===== */
+.recommend-inner { gap: 20px; }
+.dartboard-wrap { position: relative; width: 200px; height: 200px; }
+.dartboard-svg { display: block; }
+.dart-wrap {
+  position: absolute;
+  top: calc(50% - 10px);
+  left: 50%;
+  transform: translateX(220px);
+  transition: transform 0.55s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.dart-wrap.dart-landed { transform: translateX(-4px); }
+.recommend-name {
+  font-size: 17px; font-weight: 700; text-align: center;
+  max-width: 280px; opacity: 0; transition: opacity 0.4s ease 0.1s;
+}
+.recommend-name.recommend-name-visible { opacity: 1; }
+
 /* ===== TEMPLATE SHORTCUT ===== */
 .template-shortcut-btn {
   background: none; border: none;
