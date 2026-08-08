@@ -7,7 +7,7 @@ import { WriteOverlay } from '../components/WriteOverlay'
 import { BookmarkEditor } from '../components/BookmarkEditor'
 import { RecommendOverlay } from '../components/RecommendOverlay'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
-import { storage } from '../utils/storage'
+import { storage, todayStr } from '../utils/storage'
 import { selectRecommend, recordRecommend } from '../utils/recommend'
 import type { ChoiceType, Declaration, Bookmark } from '../types'
 
@@ -47,8 +47,7 @@ export function Home() {
 
   const ch = user?.character ?? 'kuma'
   const name = user?.name ?? ''
-  const todayEntry = useAppStore(s => s.todayLog())
-  const charState = todayEntry?.type ?? 'normal'
+  const charState = useAppStore(s => s.logs[todayStr()]?.type ?? 'normal')
 
   const handleChoice = (type: ChoiceType) => {
     if (type === 'write') {
