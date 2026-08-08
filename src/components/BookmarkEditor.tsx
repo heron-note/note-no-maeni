@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Bookmark } from '../types'
 
 function stripNote(name: string) {
-  return name.replace(/\s*\|\s*note\s*$/i, '')
+  return name.endsWith(' | note') ? name.slice(0, -7) : name
 }
 
 function parseClipboard(text: string): { name: string; url: string } | null {
