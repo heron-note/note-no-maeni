@@ -15,12 +15,12 @@ export const REST_DECLARATIONS: Declaration[] = [
 ]
 
 export const STAMP_COLORS = [
-  '#4A5E3A', // ダークオリーブ
-  '#3A5A8A', // ヴィンテージブルー
-  '#A8582A', // テラコッタ
-  '#2E6B6B', // ミュートティール
-  '#5A4A80', // ダスティパープル
-  '#4A4A4A', // チャコール
+  '#6B8A52', // ブライトオリーブ
+  '#4E7AB8', // ブライトブルー
+  '#C86E38', // ブライトテラコッタ
+  '#3E8E8E', // ブライトティール
+  '#7A62A8', // ブライトパープル
+  '#7A7A7A', // ブライトチャコール
 ]
 
 export const WRITE_REACTIONS = {

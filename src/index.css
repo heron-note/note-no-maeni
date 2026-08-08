@@ -13,7 +13,8 @@
   --write-bg:   #FFFBE0;
   --rest-bg:    #E0EEFF;
   --write:      #D4A800;
-  --rest:       #4880B0;
+  --rest:       #B77F4F;
+  --rest-stamp: #4880B0;
   --radius:     16px;
   --radius-sm:  10px;
   --shadow:     0 2px 16px rgba(0,0,0,0.08);
@@ -174,10 +175,11 @@ html, body, #root {
   -webkit-mask-size: contain; mask-size: contain;
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   -webkit-mask-position: center; mask-position: center;
-  background-color: rgba(255,255,255,0.28);
+  background-color: var(--rest-stamp);
+  opacity: 0.55;
   pointer-events: none;
 }
-.cal-day-num { position: relative; z-index: 1; }
+.cal-day-num { position: relative; z-index: 1; color: var(--rest-stamp); }
 
 /* ===== REACTION ===== */
 .bubble {
@@ -281,7 +283,7 @@ html, body, #root {
 /* ===== STAMP OVERLAY ===== */
 .stamp-overlay {
   position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.35);
+  background: rgba(0,0,0,0.18);
   display: flex; align-items: center; justify-content: center;
   animation: fade-in 0.15s ease;
 }
