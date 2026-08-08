@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { importData } from '../utils/transfer'
+import { speakVoicevox } from '../utils/voicevox'
 
 export function Onboarding() {
   const [name, setName] = useState('')
@@ -28,6 +29,7 @@ export function Onboarding() {
   const handleStart = () => {
     if (!name.trim()) { setError(true); return }
     saveUser({ name: name.trim(), character: char, onboarded: true })
+    speakVoicevox('vv_hajimemashite')
     goHome()
   }
 

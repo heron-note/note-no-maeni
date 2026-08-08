@@ -31,12 +31,11 @@ export function App() {
     const state = useAppStore.getState()
     const user = state.user
     const todayLog = state.todayLog()
-    let key: VoicevoxKey
-    if (!user?.onboarded) key = 'vv_hajimemashite'
-    else if (!todayLog) key = 'vv_okaeri'
-    else if (todayLog.type === 'write') key = 'vv_yasumu'
-    else key = 'vv_kaite'
-    if (storage.loadSoundEnabled()) {
+    if (user?.onboarded && storage.loadSoundEnabled()) {
+      let key: VoicevoxKey
+      if (!todayLog) key = 'vv_okaeri'
+      else if (todayLog.type === 'write') key = 'vv_yasumu'
+      else key = 'vv_kaite'
       preloadedAudio.current = preloadVoicevox(key)
     }
   }, [init])

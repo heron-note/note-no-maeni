@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { charImgPath } from '../characters'
 import { Calendar } from '../components/Calendar'
@@ -9,7 +9,6 @@ import { RecommendOverlay } from '../components/RecommendOverlay'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
 import { storage, todayStr } from '../utils/storage'
 import { selectRecommend, recordRecommend } from '../utils/recommend'
-import { speakVoicevox } from '../utils/voicevox'
 import type { ChoiceType, Declaration, Bookmark } from '../types'
 
 export function Home() {
@@ -38,10 +37,6 @@ export function Home() {
   const [recommended, setRecommended] = useState<Bookmark | null>(null)
 
   const isFirstVisit = Object.keys(logs).length === 0
-
-  useEffect(() => {
-    speakVoicevox(isFirstVisit ? 'vv_hajimemashite' : 'vv_okaeri')
-  }, [])
 
   const toggleSound = () => {
     const next = !soundOn
