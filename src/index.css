@@ -166,7 +166,16 @@ html, body, #root {
 }
 .cal-day.logged { color: #fff; font-weight: 700; }
 .cal-day.logged.write { background: var(--write); color: var(--text); }
-.cal-day.logged.rest  { background: var(--rest); }
+.cal-day.logged.rest  { background: var(--rest); position: relative; }
+.cal-stamp {
+  position: absolute; inset: 0; border-radius: 50%;
+  -webkit-mask-image: url(/assets/images/stamps/stamp-mask.png);
+  mask-image: url(/assets/images/stamps/stamp-mask.png);
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  background-color: rgba(255,255,255,0.28);
+  pointer-events: none;
+}
+.cal-day-num { position: relative; z-index: 1; }
 
 /* ===== REACTION ===== */
 .bubble {
@@ -264,6 +273,19 @@ html, body, #root {
 
 .preview-section { display: flex; flex-direction: column; gap: 8px; }
 .preview-title { font-size: 14px; font-weight: 700; }
+
+/* ===== STAMP OVERLAY ===== */
+.stamp-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  animation: fade-in 0.15s ease;
+}
+.stamp-overlay-inner {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 0 24px; width: 100%; max-width: 360px;
+  pointer-events: auto;
+}
 
 /* ===== TOAST ===== */
 .toast {

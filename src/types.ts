@@ -2,8 +2,6 @@ export type ScreenName =
   | 'onboarding'
   | 'home'
   | 'reaction'
-  | 'rest'
-  | 'rest-template'
   | 'settings'
   | 'template-editor'
 

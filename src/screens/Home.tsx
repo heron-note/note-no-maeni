@@ -1,15 +1,20 @@
+import { useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { charImgPath } from '../characters'
 import { Calendar } from '../components/Calendar'
+import { StampOverlay } from '../components/StampOverlay'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
-import type { ChoiceType } from '../types'
+import type { ChoiceType, Declaration } from '../types'
 
 export function Home() {
   const user = useAppStore(s => s.user)
   const logs = useAppStore(s => s.logs)
   const goTo = useAppStore(s => s.goTo)
   const setChoice = useAppStore(s => s.setChoice)
-  const setDeclaration = useAppStore(s => s.setDeclaration)
+  const logToday = useAppStore(s => s.logToday)
+  const goHome = useAppStore(s => s.goHome)
+
+  const [stampDeclaration, setStampDeclaration] = useState<Declaration | null>(null)
 
   const ch = user?.character ?? 'kuma'
   const name = user?.name ?? ''
@@ -20,8 +25,9 @@ export function Home() {
       ;(window as any).__reactionText = pickWriteReaction(name)
       goTo('reaction')
     } else {
-      setDeclaration(pickDeclaration())
-      goTo('rest')
+      const decl = pickDeclaration()
+      logToday('rest', decl.id)
+      setStampDeclaration(decl)
     }
   }
 
@@ -50,6 +56,13 @@ export function Home() {
         </button>
       </div>
       <Calendar logs={logs} />
+
+      {stampDeclaration && (
+        <StampOverlay
+          declaration={stampDeclaration}
+          onClose={() => { setStampDeclaration(null); goHome() }}
+        />
+      )}
     </div>
   )
 }

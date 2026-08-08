@@ -26,9 +26,19 @@ export function Calendar({ logs }: Props) {
     const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     const log = logs[key]
     const isToday = d === today
-    const cls = ['cal-day', isToday && 'today', log && `logged ${log.type}`]
-      .filter(Boolean).join(' ')
-    cells.push(<div key={key} className={cls}>{d}</div>)
+
+    if (log?.type === 'rest') {
+      cells.push(
+        <div key={key} className={`cal-day logged rest${isToday ? ' today' : ''}`}>
+          <div className="cal-stamp" />
+          <span className="cal-day-num">{d}</span>
+        </div>
+      )
+    } else {
+      const cls = ['cal-day', isToday && 'today', log && 'logged write']
+        .filter(Boolean).join(' ')
+      cells.push(<div key={key} className={cls}>{d}</div>)
+    }
   }
 
   return (
