@@ -26,16 +26,10 @@ noteのまえに - キャラクター制作ガイド
     演出:     一緒に休む・脱力・ほっとする。
               「休むことは正しい」という空気感。罪悪感ゼロ。
 
-  watch.png
-    使用場面: 今日すでに記録済みの画面（おかえり）
-    演出:     穏やかに見守る・受け入れる。
-              何があっても歓迎する温かさ。
-
 配置場所:
   public/assets/images/characters/<キャラクターID>/normal.png
   public/assets/images/characters/<キャラクターID>/write.png
   public/assets/images/characters/<キャラクターID>/rest.png
-  public/assets/images/characters/<キャラクターID>/watch.png
 
 キャラクターIDと表示名は src/characters.ts に登録してください。
 

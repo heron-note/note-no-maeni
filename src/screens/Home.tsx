@@ -51,6 +51,7 @@ export function Home() {
 
   const handleChoice = (type: ChoiceType) => {
     if (type === 'write') {
+      logToday('write')
       setWriteReaction(pickWriteReaction(name))
     } else {
       const decl = pickDeclaration()
