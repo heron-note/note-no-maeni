@@ -222,23 +222,44 @@ html, body, #root {
 }
 .bookmark-error { font-size: 12px; color: #e06050; margin: 0; }
 
-/* ===== DART RECOMMEND OVERLAY ===== */
-.recommend-inner { gap: 20px; }
-.dartboard-wrap { position: relative; width: 200px; height: 200px; }
-.dartboard-svg { display: block; }
-.dart-wrap {
-  position: absolute;
-  top: calc(50% - 10px);
-  left: 50%;
-  transform: translateX(220px);
-  transition: transform 0.55s cubic-bezier(0.25, 0.1, 0.25, 1);
+/* ===== SLOT RECOMMEND OVERLAY ===== */
+.recommend-inner { gap: 24px; }
+.slot-machine { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.slot-window {
+  position: relative; width: 280px; height: calc(3 * 56px);
+  overflow: hidden; border-radius: 16px;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  box-shadow: inset 0 2px 12px rgba(0,0,0,0.07);
 }
-.dart-wrap.dart-landed { transform: translateX(-4px); }
-.recommend-name {
-  font-size: 17px; font-weight: 700; text-align: center;
-  max-width: 280px; opacity: 0; transition: opacity 0.4s ease 0.1s;
+.slot-reel { display: flex; flex-direction: column; }
+.slot-item {
+  height: 56px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 20px; font-size: 14px; font-weight: 600; text-align: center;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px;
+  color: var(--text-light);
 }
-.recommend-name.recommend-name-visible { opacity: 1; }
+.slot-item-hit { color: var(--text); font-size: 16px; }
+.slot-fade-top {
+  position: absolute; top: 0; left: 0; right: 0; height: 56px;
+  background: linear-gradient(to bottom, var(--bg) 20%, transparent);
+  pointer-events: none;
+}
+.slot-fade-bottom {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 56px;
+  background: linear-gradient(to top, var(--bg) 20%, transparent);
+  pointer-events: none;
+}
+.slot-center-line {
+  position: absolute; top: 56px; left: 0; right: 0; height: 56px;
+  border-top: 1.5px solid var(--border); border-bottom: 1.5px solid var(--border);
+  pointer-events: none;
+}
+.recommend-message {
+  font-size: 16px; font-weight: 700; text-align: center; line-height: 1.6;
+  animation: fade-in 0.4s ease;
+}
 
 /* ===== TEMPLATE SHORTCUT ===== */
 .template-shortcut-btn {

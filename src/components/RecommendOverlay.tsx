@@ -1,55 +1,69 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Bookmark } from '../types'
 
-export function RecommendOverlay({ bookmark, onOpen, onClose }: {
+const ITEM_H = 56
+
+export function RecommendOverlay({ bookmark, allNames, onOpen, onClose }: {
   bookmark: Bookmark
+  allNames: string[]
   onOpen: () => void
   onClose: () => void
 }) {
-  const [phase, setPhase] = useState<'throwing' | 'landed' | 'done'>('throwing')
+  const reelRef = useRef<HTMLDivElement>(null)
+  const [done, setDone] = useState(false)
+
+  // リール構成: [ランダム×1, ランダム×13, target, ランダム×1] = 16件
+  // 3件表示ウィンドウで target(index=14) が中央に来る
+  const reelItems = useMemo(() => {
+    const pool = allNames.length > 1 ? allNames.filter(n => n !== bookmark.name) : allNames
+    const rand = () => pool[Math.floor(Math.random() * pool.length)]
+    return [rand(), ...Array.from({ length: 13 }, rand), bookmark.name, rand()]
+  }, [])
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('landed'), 650)
-    const t2 = setTimeout(() => setPhase('done'), 1300)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
+    const el = reelRef.current
+    if (!el) return
+    // index=14 を中央に → translateY = -13 * ITEM_H
+    const travel = 13 * ITEM_H
+    el.style.transition = 'none'
+    el.style.transform = 'translateY(0)'
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.style.transition = `transform 2.4s cubic-bezier(0.0, 0.0, 0.2, 1.0)`
+      el.style.transform = `translateY(-${travel}px)`
+    }))
+    const t = setTimeout(() => setDone(true), 2600)
+    return () => clearTimeout(t)
   }, [])
 
   return (
     <div className="stamp-overlay">
       <div className="stamp-overlay-inner recommend-inner" onClick={e => e.stopPropagation()}>
 
-        <div className="dartboard-wrap">
-          {/* ボード */}
-          <svg className="dartboard-svg" viewBox="0 0 200 200" width="200" height="200">
-            <circle cx="100" cy="100" r="96" fill="#1a1a2e" />
-            <circle cx="100" cy="100" r="78" fill="#e8d5b7" />
-            <circle cx="100" cy="100" r="60" fill="#1a1a2e" />
-            <circle cx="100" cy="100" r="42" fill="#e8d5b7" />
-            <circle cx="100" cy="100" r="24" fill="#c0392b" />
-            <circle cx="100" cy="100" r="10" fill="#e74c3c" />
-          </svg>
-
-          {/* ダーツ */}
-          <div className={`dart-wrap${phase !== 'throwing' ? ' dart-landed' : ''}`}>
-            <svg viewBox="0 0 64 20" width="64" height="20">
-              {/* tip */}
-              <polygon points="0,10 10,6 10,14" fill="#ccc" />
-              {/* shaft */}
-              <rect x="10" y="8.5" width="30" height="3" fill="#aaa" rx="1" />
-              {/* barrel */}
-              <rect x="16" y="7" width="14" height="6" fill="#888" rx="1.5" />
-              {/* flights */}
-              <polygon points="40,9.5 56,2 58,9.5" fill="#c0392b" />
-              <polygon points="40,10.5 56,18 58,10.5" fill="#c0392b" />
-            </svg>
+        <div className="slot-machine">
+          <div className="slot-window">
+            <div className="slot-reel" ref={reelRef}>
+              {reelItems.map((name, i) => (
+                <div
+                  key={i}
+                  className={`slot-item${i === 14 && done ? ' slot-item-hit' : ''}`}
+                >
+                  {name}
+                </div>
+              ))}
+            </div>
+            <div className="slot-fade-top" />
+            <div className="slot-fade-bottom" />
+            <div className="slot-center-line" />
           </div>
         </div>
 
-        <div className={`recommend-name${phase !== 'throwing' ? ' recommend-name-visible' : ''}`}>
-          {bookmark.name}
-        </div>
+        {done && (
+          <p className="recommend-message">
+            {bookmark.name}<br />さんのところへ遊びに行こう！
+          </p>
+        )}
 
-        <div className={`overlay-btns${phase === 'done' ? ' overlay-btns-visible' : ''}`}>
+        <div className={`overlay-btns${done ? ' overlay-btns-visible' : ''}`}>
           <button className="btn-primary wide" onClick={onOpen}>開く ↗</button>
           <button className="btn-secondary wide" onClick={onClose}>閉じる</button>
         </div>

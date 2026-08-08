@@ -137,6 +137,7 @@ export function Home() {
       {recommended && (
         <RecommendOverlay
           bookmark={recommended}
+          allNames={bookmarks.map(b => b.name)}
           onOpen={() => { window.open(recommended.url, '_blank', 'noopener,noreferrer'); setRecommended(null) }}
           onClose={() => setRecommended(null)}
         />
