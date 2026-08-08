@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
+  <!-- 耳 -->
+  <polygon points="52,72 38,32 78,58" fill="#E8A0B0"/>
+  <polygon points="148,72 162,32 122,58" fill="#E8A0B0"/>
+  <polygon points="54,68 44,40 74,60" fill="#F8D0DC"/>
+  <polygon points="146,68 156,40 126,60" fill="#F8D0DC"/>
+  <!-- 頭 -->
+  <ellipse cx="100" cy="104" rx="66" ry="62" fill="#F0C0CC"/>
+  <!-- 顔の白い部分 -->
+  <ellipse cx="100" cy="116" rx="40" ry="34" fill="#FFF0F4"/>
+  <!-- 目（集中！） -->
+  <path d="M 72 93 Q 80 87 88 93" stroke="#3A6040" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 112 93 Q 120 87 128 93" stroke="#3A6040" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- 眉（力が入ってる） -->
+  <path d="M 70 83 Q 80 77 90 82" stroke="#C06080" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M 110 82 Q 120 77 130 83" stroke="#C06080" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- 鼻 -->
+  <ellipse cx="100" cy="112" rx="6" ry="4" fill="#C06080"/>
+  <!-- 口（キリッ） -->
+  <path d="M 90 119 L 100 124 L 110 119" stroke="#C06080" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- ひげ -->
+  <line x1="60" y1="113" x2="84" y2="114" stroke="#A08090" stroke-width="1.5" opacity="0.7"/>
+  <line x1="116" y1="114" x2="140" y2="113" stroke="#A08090" stroke-width="1.5" opacity="0.7"/>
+  <!-- ほっぺ -->
+  <ellipse cx="72" cy="110" rx="11" ry="7" fill="#F4A0A0" opacity="0.4"/>
+  <ellipse cx="128" cy="110" rx="11" ry="7" fill="#F4A0A0" opacity="0.4"/>
+  <!-- 体 -->
+  <ellipse cx="100" cy="188" rx="44" ry="36" fill="#F0C0CC"/>
+  <!-- 尻尾 -->
+  <path d="M 144 200 Q 168 185 158 165" stroke="#E8A0B0" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <!-- 左手（ペンを持つ） -->
+  <ellipse cx="52" cy="168" rx="18" ry="12" fill="#F0C0CC" transform="rotate(-40 52 168)"/>
+  <!-- 右手 -->
+  <ellipse cx="146" cy="180" rx="18" ry="12" fill="#F0C0CC" transform="rotate(10 146 180)"/>
+  <!-- ペン -->
+  <rect x="30" y="148" width="7" height="26" rx="2" fill="#F5E642" transform="rotate(-35 34 161)"/>
+  <polygon points="30,148 37,148 33.5,139" fill="#FF8800" transform="rotate(-35 34 161)"/>
+</svg>

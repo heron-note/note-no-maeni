@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
+  <!-- 耳 -->
+  <circle cx="58" cy="52" r="26" fill="#8B6346"/>
+  <circle cx="142" cy="52" r="26" fill="#8B6346"/>
+  <circle cx="58" cy="52" r="16" fill="#C49A6C"/>
+  <circle cx="142" cy="52" r="16" fill="#C49A6C"/>
+  <!-- 頭 -->
+  <ellipse cx="100" cy="100" rx="68" ry="64" fill="#8B6346"/>
+  <!-- 顔の白い部分 -->
+  <ellipse cx="100" cy="112" rx="42" ry="36" fill="#E8D5BC"/>
+  <!-- 目（やさしく見守る：少し細め） -->
+  <ellipse cx="80" cy="91" rx="9" ry="10" fill="#fff"/>
+  <ellipse cx="120" cy="91" rx="9" ry="10" fill="#fff"/>
+  <circle cx="81" cy="93" r="6" fill="#3A2010"/>
+  <circle cx="121" cy="93" r="6" fill="#3A2010"/>
+  <circle cx="83" cy="91" r="2" fill="#fff"/>
+  <circle cx="123" cy="91" r="2" fill="#fff"/>
+  <!-- 目尻下がり（優しい） -->
+  <path d="M 70 96 Q 75 100 80 98" stroke="#8B6346" stroke-width="2" fill="none"/>
+  <path d="M 120 98 Q 125 100 130 96" stroke="#8B6346" stroke-width="2" fill="none"/>
+  <!-- 鼻 -->
+  <ellipse cx="100" cy="108" rx="8" ry="5" fill="#4A2F1A"/>
+  <!-- 口（やわらかい笑み） -->
+  <path d="M 88 118 Q 100 127 112 118" stroke="#4A2F1A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- ほっぺ -->
+  <ellipse cx="72" cy="108" rx="12" ry="8" fill="#F4A0A0" opacity="0.5"/>
+  <ellipse cx="128" cy="108" rx="12" ry="8" fill="#F4A0A0" opacity="0.5"/>
+  <!-- 体 -->
+  <ellipse cx="100" cy="185" rx="46" ry="38" fill="#8B6346"/>
+  <!-- 手（ハグするように広げる） -->
+  <ellipse cx="44" cy="172" rx="20" ry="13" fill="#8B6346" transform="rotate(-35 44 172)"/>
+  <ellipse cx="156" cy="172" rx="20" ry="13" fill="#8B6346" transform="rotate(35 156 172)"/>
+  <!-- ハートマーク -->
+  <path d="M 96 68 C 96 64 90 60 86 64 C 82 68 86 74 96 80 C 106 74 110 68 106 64 C 102 60 96 64 96 68Z" fill="#F4A0A0" opacity="0.8"/>
+</svg>

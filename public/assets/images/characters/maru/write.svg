@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
+  <ellipse cx="100" cy="212" rx="50" ry="8" fill="#ccc" opacity="0.3"/>
+  <!-- 体 -->
+  <circle cx="100" cy="108" r="88" fill="#FFFDE7"/>
+  <circle cx="100" cy="108" r="88" fill="none" stroke="#E0C840" stroke-width="4"/>
+  <!-- 目（やる気：ギュッ） -->
+  <path d="M 68 95 Q 78 88 88 95" stroke="#3A3020" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M 112 95 Q 122 88 132 95" stroke="#3A3020" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <!-- 眉（ぐっ） -->
+  <path d="M 66 84 Q 78 78 90 84" stroke="#5A4020" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 110 84 Q 122 78 134 84" stroke="#5A4020" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- 口（がんばる） -->
+  <path d="M 84 120 Q 100 132 116 120" stroke="#3A3020" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- ほっぺ -->
+  <circle cx="68" cy="112" r="10" fill="#FFAAAA" opacity="0.4"/>
+  <circle cx="132" cy="112" r="10" fill="#FFAAAA" opacity="0.4"/>
+  <!-- 左手（ペン持ち） -->
+  <circle cx="24" cy="136" r="14" fill="#FFFDE7" stroke="#E0C840" stroke-width="3"/>
+  <!-- 右手 -->
+  <circle cx="176" cy="140" r="14" fill="#FFFDE7" stroke="#E0C840" stroke-width="3"/>
+  <!-- ペン -->
+  <rect x="6" y="108" width="7" height="28" rx="2" fill="#F5E642" transform="rotate(-30 9 122)"/>
+  <polygon points="6,108 13,108 9.5,98" fill="#FF8800" transform="rotate(-30 9 122)"/>
+</svg>

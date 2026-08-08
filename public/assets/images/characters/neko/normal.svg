@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
+  <!-- 耳（三角） -->
+  <polygon points="52,72 38,32 78,58" fill="#E8A0B0"/>
+  <polygon points="148,72 162,32 122,58" fill="#E8A0B0"/>
+  <polygon points="54,68 44,40 74,60" fill="#F8D0DC"/>
+  <polygon points="146,68 156,40 126,60" fill="#F8D0DC"/>
+  <!-- 頭 -->
+  <ellipse cx="100" cy="104" rx="66" ry="62" fill="#F0C0CC"/>
+  <!-- 顔の白い部分 -->
+  <ellipse cx="100" cy="116" rx="40" ry="34" fill="#FFF0F4"/>
+  <!-- 目（すずしい猫目） -->
+  <ellipse cx="80" cy="94" rx="8" ry="11" fill="#fff"/>
+  <ellipse cx="120" cy="94" rx="8" ry="11" fill="#fff"/>
+  <ellipse cx="80" cy="96" rx="5" ry="8" fill="#3A6040"/>
+  <ellipse cx="120" cy="96" rx="5" ry="8" fill="#3A6040"/>
+  <circle cx="80" cy="93" r="2" fill="#fff"/>
+  <circle cx="120" cy="93" r="2" fill="#fff"/>
+  <!-- 鼻（小さいハート型） -->
+  <path d="M 98 110 C 98 107 94 105 92 107 C 90 109 92 112 98 115 C 104 112 106 109 104 107 C 102 105 98 107 98 110Z" fill="#C06080" transform="scale(0.8) translate(25, 12)"/>
+  <!-- 口 -->
+  <path d="M 94 117 L 100 121 L 106 117" stroke="#C06080" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- ひげ -->
+  <line x1="60" y1="112" x2="84" y2="114" stroke="#A08090" stroke-width="1.5" opacity="0.7"/>
+  <line x1="60" y1="118" x2="84" y2="116" stroke="#A08090" stroke-width="1.5" opacity="0.7"/>
+  <line x1="116" y1="114" x2="140" y2="112" stroke="#A08090" stroke-width="1.5" opacity="0.7"/>
+  <line x1="116" y1="116" x2="140" y2="118" stroke="#A08090" stroke-width="1.5" opacity="0.7"/>
+  <!-- ほっぺ -->
+  <ellipse cx="72" cy="110" rx="11" ry="7" fill="#F4A0A0" opacity="0.5"/>
+  <ellipse cx="128" cy="110" rx="11" ry="7" fill="#F4A0A0" opacity="0.5"/>
+  <!-- 体 -->
+  <ellipse cx="100" cy="188" rx="44" ry="36" fill="#F0C0CC"/>
+  <!-- 尻尾 -->
+  <path d="M 144 200 Q 168 190 162 170 Q 156 155 148 165" stroke="#E8A0B0" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <!-- 手 -->
+  <ellipse cx="54" cy="180" rx="18" ry="12" fill="#F0C0CC" transform="rotate(-10 54 180)"/>
+  <ellipse cx="146" cy="180" rx="18" ry="12" fill="#F0C0CC" transform="rotate(10 146 180)"/>
+</svg>

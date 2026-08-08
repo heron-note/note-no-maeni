@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <!-- 外側の丸（スタンプの輪郭） -->
+  <circle cx="150" cy="150" r="140" fill="none" stroke="#D94040" stroke-width="10"/>
+  <!-- 内側の丸（二重線） -->
+  <circle cx="150" cy="150" r="124" fill="none" stroke="#D94040" stroke-width="4"/>
+
+  <!-- 背景（薄い） -->
+  <circle cx="150" cy="150" r="136" fill="#D94040" opacity="0.08"/>
+
+  <!-- メインテキスト：note -->
+  <text x="150" y="118"
+    font-family="'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif"
+    font-size="36" font-weight="900"
+    fill="#D94040" text-anchor="middle" letter-spacing="2">note</text>
+
+  <!-- メインテキスト：休もっ化 -->
+  <text x="150" y="166"
+    font-family="'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif"
+    font-size="38" font-weight="900"
+    fill="#D94040" text-anchor="middle" letter-spacing="1">休もっ化</text>
+
+  <!-- サブテキスト：計画 -->
+  <text x="150" y="208"
+    font-family="'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif"
+    font-size="30" font-weight="700"
+    fill="#D94040" text-anchor="middle" letter-spacing="8">計 画</text>
+
+  <!-- 上下の装飾ライン -->
+  <line x1="54" y1="82" x2="246" y2="82" stroke="#D94040" stroke-width="3"/>
+  <line x1="54" y1="226" x2="246" y2="226" stroke="#D94040" stroke-width="3"/>
+</svg>
