@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore'
 import { charImgPath } from '../characters'
 import { Calendar } from '../components/Calendar'
 import { StampOverlay } from '../components/StampOverlay'
+import { WriteOverlay } from '../components/WriteOverlay'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
 import type { ChoiceType, Declaration } from '../types'
 
@@ -10,20 +11,18 @@ export function Home() {
   const user = useAppStore(s => s.user)
   const logs = useAppStore(s => s.logs)
   const goTo = useAppStore(s => s.goTo)
-  const setChoice = useAppStore(s => s.setChoice)
-  const logToday = useAppStore(s => s.logToday)
   const goHome = useAppStore(s => s.goHome)
+  const logToday = useAppStore(s => s.logToday)
 
   const [stampDeclaration, setStampDeclaration] = useState<Declaration | null>(null)
+  const [writeReaction, setWriteReaction] = useState<string | null>(null)
 
   const ch = user?.character ?? 'kuma'
   const name = user?.name ?? ''
 
   const handleChoice = (type: ChoiceType) => {
-    setChoice(type)
     if (type === 'write') {
-      ;(window as any).__reactionText = pickWriteReaction(name)
-      goTo('reaction')
+      setWriteReaction(pickWriteReaction(name))
     } else {
       const decl = pickDeclaration()
       logToday('rest', decl.id)
@@ -61,6 +60,12 @@ export function Home() {
         <StampOverlay
           declaration={stampDeclaration}
           onClose={() => { setStampDeclaration(null); goHome() }}
+        />
+      )}
+      {writeReaction && (
+        <WriteOverlay
+          reactionText={writeReaction}
+          onClose={() => { setWriteReaction(null); goHome() }}
         />
       )}
     </div>

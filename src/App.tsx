@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { useAppStore } from './store/useAppStore'
 import { Onboarding } from './screens/Onboarding'
 import { Home } from './screens/Home'
-import { Reaction } from './screens/Reaction'
 import { Settings } from './screens/Settings'
 import { TemplateEditor } from './screens/TemplateEditor'
 import type { ScreenName } from './types'
@@ -11,7 +10,6 @@ import type { JSX } from 'react'
 const SCREENS: Record<ScreenName, JSX.Element> = {
   'onboarding':      <Onboarding />,
   'home':            <Home />,
-  'reaction':        <Reaction />,
   'settings':        <Settings />,
   'template-editor': <TemplateEditor />,
 }

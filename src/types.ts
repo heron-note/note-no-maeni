@@ -1,7 +1,6 @@
 export type ScreenName =
   | 'onboarding'
   | 'home'
-  | 'reaction'
   | 'settings'
   | 'template-editor'
 
