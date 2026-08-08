@@ -20,12 +20,12 @@ export function RestTemplate() {
     }
     window.open('https://note.com', '_blank', 'noopener,noreferrer')
     logToday('rest', declaration?.id ?? null)
-    goTo('complete')
+    goTo('already-done')
   }
 
   const handleSkip = () => {
     logToday('rest', declaration?.id ?? null)
-    goTo('complete')
+    goTo('already-done')
   }
 
   return (

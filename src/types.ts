@@ -4,7 +4,6 @@ export type ScreenName =
   | 'reaction'
   | 'rest'
   | 'rest-template'
-  | 'complete'
   | 'already-done'
   | 'settings'
   | 'template-editor'

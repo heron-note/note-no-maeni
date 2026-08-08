@@ -11,7 +11,7 @@ export function Reaction() {
 
   const handleDone = () => {
     logToday('write')
-    goTo('complete')
+    goTo('already-done')
   }
 
   return (
@@ -27,6 +27,7 @@ export function Reaction() {
         target="_blank"
         rel="noopener noreferrer"
         className="btn-primary wide btn-note"
+        onClick={handleDone}
       >
         noteを開く ↗
       </a>
