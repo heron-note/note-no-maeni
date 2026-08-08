@@ -265,13 +265,20 @@ html, body, #root {
 .template-richtext a { color: var(--primary); text-decoration: underline; }
 
 .insert-position-block { display: flex; flex-direction: column; gap: 8px; }
-.insert-pos-row { display: flex; gap: 8px; }
-.insert-pos-chip {
-  flex: 1; background: var(--surface); border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm); padding: 10px; font-size: 14px; font-weight: 600;
-  cursor: pointer; text-align: center; transition: border-color 0.15s, background 0.15s;
+.insert-position-list { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow-y: auto; }
+.insert-pos-item {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 12px;
+  cursor: pointer; text-align: left; transition: border-color 0.15s, background 0.15s;
 }
-.insert-pos-chip.active { border-color: var(--primary); background: #FFF0EE; color: var(--primary); }
+.insert-pos-item.active { border-color: var(--primary); background: #FFF0EE; }
+.insert-pos-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--border); background: transparent;
+}
+.insert-pos-item.active .insert-pos-dot { border-color: var(--primary); background: var(--primary); }
+.insert-pos-label { font-size: 12px; color: var(--text); }
 
 .preview-section { display: flex; flex-direction: column; gap: 8px; }
 .preview-title { font-size: 14px; font-weight: 700; }

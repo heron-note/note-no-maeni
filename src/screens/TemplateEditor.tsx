@@ -7,8 +7,6 @@ import { Toast } from '../components/Toast'
 
 // ===== HTML サニタイズ =====
 const INLINE_TAGS = new Set(['strong','em','b','i','u','s','strike','code'])
-
-// note.com が使うブロック要素を網羅
 const BLOCK_TAGS = new Set([
   'p','div','h1','h2','h3','h4','h5','h6',
   'li','blockquote','pre','section','article',
@@ -23,54 +21,53 @@ function sanitizeInline(node: Node): string {
   const tag = el.tagName.toLowerCase()
   const inner = Array.from(el.childNodes).map(sanitizeInline).join('')
   if (tag === 'a') {
+    // リンクはURLをテキストとして展開する
     const href = el.getAttribute('href') ?? ''
-    if (href.startsWith('http') || href.startsWith('/')) {
-      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${inner}</a>`
+    const url = href.startsWith('http') ? href : ''
+    if (url && url !== inner.trim()) {
+      return inner ? `${inner} ( ${url} )` : url
     }
-    return inner
+    return url || inner
   }
   return INLINE_TAGS.has(tag) ? `<${tag}>${inner}</${tag}>` : inner
 }
 
-function parseHtmlToLines(html: string): string[] {
+function htmlToLines(html: string): string[] {
   const root = document.createElement('div')
   root.innerHTML = html
   const result: string[] = []
 
-  function walk(el: Element) {
+  function walkInner(el: Element, out: string[]) {
+    for (const child of Array.from(el.childNodes)) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const ce = child as Element
+        const tag = ce.tagName.toLowerCase()
+        if (tag === 'br') { out.push(''); return }
+        if (BLOCK_TAGS.has(tag)) {
+          const sub: string[] = []
+          walkInner(ce, sub)
+          if (sub.length > 0) out.push(...sub)
+          else out.push('')
+          return
+        }
+      }
+      const content = sanitizeInline(child)
+      if (!content.trim()) continue
+      if (out.length === 0) out.push(content)
+      else out[out.length - 1] += content
+    }
+  }
+
+  function walkBlock(el: Element) {
     for (const child of Array.from(el.childNodes)) {
       if (child.nodeType === Node.ELEMENT_NODE) {
         const ce = child as Element
         const tag = ce.tagName.toLowerCase()
         if (tag === 'br') { result.push(''); continue }
         if (BLOCK_TAGS.has(tag)) {
-          // ブロック要素：再帰的に内容を取り出して1行として追加
-          const innerResult: string[] = []
-          function walkInner(e: Element) {
-            for (const c of Array.from(e.childNodes)) {
-              if (c.nodeType === Node.ELEMENT_NODE) {
-                const ce2 = c as Element
-                const t = ce2.tagName.toLowerCase()
-                if (t === 'br') { innerResult.push(''); return }
-                if (BLOCK_TAGS.has(t)) {
-                  const txt = Array.from(ce2.childNodes).map(sanitizeInline).join('').trim()
-                  if (txt) innerResult.push(txt)
-                  else walkInner(ce2)
-                  return
-                }
-              }
-              const txt = sanitizeInline(c)
-              if (!txt.trim()) continue
-              if (innerResult.length === 0) innerResult.push(txt)
-              else innerResult[innerResult.length - 1] += txt
-            }
-          }
-          walkInner(ce)
-          if (innerResult.length > 0) result.push(...innerResult)
-          else {
-            const content = Array.from(ce.childNodes).map(sanitizeInline).join('').trim()
-            if (content) result.push(content)
-          }
+          const sub: string[] = []
+          walkInner(ce, sub)
+          if (sub.length > 0) result.push(...sub)
           continue
         }
       }
@@ -81,18 +78,17 @@ function parseHtmlToLines(html: string): string[] {
     }
   }
 
-  walk(root)
-  // 連続する空行を1つにまとめ、前後の空行を除去
-  const cleaned = result
-    .reduce<string[]>((acc, l) => {
-      if (l === '' && acc[acc.length - 1] === '') return acc
-      return [...acc, l]
-    }, [])
-    .filter((l, i, arr) => !(l === '' && (i === 0 || i === arr.length - 1)))
+  walkBlock(root)
+
+  // 連続空行を1つに圧縮、末尾の空行を除去
+  const cleaned = result.reduce<string[]>((acc, l) => {
+    if (l === '' && acc[acc.length - 1] === '') return acc
+    return [...acc, l]
+  }, [])
+  while (cleaned[cleaned.length - 1] === '') cleaned.pop()
   return cleaned.length > 0 ? cleaned : ['']
 }
 
-// Selection API を使って安全にHTMLを挿入
 function insertHtmlAtCursor(html: string) {
   const sel = window.getSelection()
   if (!sel || sel.rangeCount === 0) return
@@ -113,68 +109,62 @@ export function TemplateEditor() {
   const goTo = useAppStore(s => s.goTo)
   const editorRef = useRef<HTMLDivElement>(null)
 
-  const savedLines = storage.loadTemplate()?.lines ?? ['']
-  const [insertIdx, setInsertIdx] = useState<number>(
-    () => storage.loadTemplate()?.insertAfterIndex ?? -1
-  )
-  const [lineCount, setLineCount] = useState(savedLines.length)
+  const [lines, setLines] = useState<string[]>(() => {
+    const t = storage.loadTemplate()
+    return t?.lines.length ? t.lines : ['']
+  })
+  const [insertIdx, setInsertIdx] = useState<number>(() => {
+    const t = storage.loadTemplate()
+    return t?.insertAfterIndex ?? -1
+  })
   const [toast, setToast] = useState<string | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
 
-  // 初期 HTML をセット（再レンダで上書きしない）
   useEffect(() => {
-    if (editorRef.current && savedLines.join('')) {
-      editorRef.current.innerHTML = savedLines
+    if (editorRef.current && lines.join('')) {
+      editorRef.current.innerHTML = lines
         .map(l => `<div>${l || '<br>'}</div>`)
         .join('')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleInput = useCallback(() => {
-    if (!editorRef.current) return
-    // 行数だけ更新（挿入位置セレクタ用）
-    const lines = parseHtmlToLines(editorRef.current.innerHTML)
-    setLineCount(lines.length)
+  const refreshLines = useCallback(() => {
+    if (editorRef.current) {
+      setLines(htmlToLines(editorRef.current.innerHTML))
+    }
   }, [])
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault()
     const html = e.clipboardData.getData('text/html')
     const plain = e.clipboardData.getData('text/plain')
-    const lines = html ? parseHtmlToLines(html) : plain.split(/\r?\n/)
-    const safeHtml = lines.map(l => `<div>${l || '<br>'}</div>`).join('')
+    const parsed = html ? htmlToLines(html) : plain.split(/\r?\n/)
+    const safeHtml = parsed.map(l => `<div>${l || '<br>'}</div>`).join('')
     insertHtmlAtCursor(safeHtml)
-    // 行数を更新
-    if (editorRef.current) {
-      setLineCount(parseHtmlToLines(editorRef.current.innerHTML).length)
-    }
-  }, [])
+    refreshLines()
+  }, [refreshLines])
 
   const handleSave = () => {
-    const lines = editorRef.current
-      ? parseHtmlToLines(editorRef.current.innerHTML)
-      : ['']
-    const clampedIdx = Math.min(insertIdx, lines.length - 1)
-    storage.saveTemplate({ lines, insertAfterIndex: clampedIdx })
+    const current = editorRef.current ? htmlToLines(editorRef.current.innerHTML) : lines
+    const clampedIdx = Math.min(Math.max(insertIdx, -1), current.length - 1)
+    storage.saveTemplate({ lines: current, insertAfterIndex: clampedIdx })
     setToast('保存しました')
     setTimeout(() => goTo('settings'), 900)
   }
 
-  // プレビューはボタンで表示
-  const [showPreview, setShowPreview] = useState(false)
-  const previewLines = showPreview && editorRef.current
-    ? parseHtmlToLines(editorRef.current.innerHTML)
+  const previewHTML = showPreview
+    ? buildTemplateHTML({ lines, insertAfterIndex: insertIdx }, REST_DECLARATIONS[0])
     : null
-  const previewHTML = previewLines
-    ? buildTemplateHTML({ lines: previewLines, insertAfterIndex: insertIdx }, REST_DECLARATIONS[0])
-    : null
+
+  const hasContent = lines.length > 0 && lines[0] !== ''
 
   return (
     <div className="screen-scroll">
       <div className="subscreen-header">
         <button className="back-btn" onClick={() => goTo('settings')}>← 戻る</button>
         <h2 className="subscreen-title">テンプレート編集</h2>
-        <p className="hint">noteの記事をそのまま貼り付けできます。リンクも保持されます。</p>
+        <p className="hint">貼り付け後「挿入位置を確定」を押してください。リンクはURLテキストに変換されます。</p>
       </div>
 
       <div
@@ -183,34 +173,48 @@ export function TemplateEditor() {
         contentEditable
         suppressContentEditableWarning
         data-placeholder="ここにnoteのテンプレートをペーストしてください"
-        onInput={handleInput}
         onPaste={handlePaste}
       />
 
-      <div className="insert-position-block">
-        <p className="label">宣言文の挿入位置</p>
-        <div className="insert-pos-row">
-          <button
-            className={`insert-pos-chip${insertIdx === -1 ? ' active' : ''}`}
-            onClick={() => setInsertIdx(-1)}
-          >先頭</button>
-          <button
-            className={`insert-pos-chip${insertIdx >= lineCount ? ' active' : ''}`}
-            onClick={() => setInsertIdx(lineCount)}
-          >末尾</button>
-        </div>
-      </div>
+      <button className="btn-secondary wide" onClick={refreshLines}>
+        挿入位置を確定（貼り付け後に押してください）
+      </button>
 
-      <button className="btn-secondary wide" onClick={() => setShowPreview(v => !v)}>
+      {hasContent && (
+        <div className="insert-position-block">
+          <p className="label">宣言文の挿入位置</p>
+          <div className="insert-position-list">
+            <button
+              className={`insert-pos-item${insertIdx === -1 ? ' active' : ''}`}
+              onClick={() => setInsertIdx(-1)}
+            >
+              <span className="insert-pos-dot" />
+              <span className="insert-pos-label">テンプレートの先頭</span>
+            </button>
+            {lines.map((line, i) => (
+              <button
+                key={i}
+                className={`insert-pos-item${insertIdx === i ? ' active' : ''}`}
+                onClick={() => setInsertIdx(i)}
+              >
+                <span className="insert-pos-dot" />
+                <span className="insert-pos-label">
+                  {i + 1}行目の後：{line.replace(/<[^>]+>/g, '').slice(0, 24) || '（空行）'}
+                  {line.replace(/<[^>]+>/g, '').length > 24 ? '…' : ''}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <button className="btn-secondary wide" onClick={() => { refreshLines(); setShowPreview(v => !v) }}>
         {showPreview ? 'プレビューを閉じる' : 'プレビューを確認'}
       </button>
 
       {showPreview && previewHTML && (
         <div className="preview-section">
-          <div
-            className="template-preview"
-            dangerouslySetInnerHTML={{ __html: previewHTML }}
-          />
+          <div className="template-preview" dangerouslySetInnerHTML={{ __html: previewHTML }} />
         </div>
       )}
 
