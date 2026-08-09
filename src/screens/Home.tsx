@@ -160,19 +160,6 @@ export function Home() {
                 title="タグを編集"
               >#</button>
             </div>
-            {tags.length > 0 && (
-              <div className="bubble-tag-list">
-                {tags.map(t => (
-                  <a
-                    key={t.id}
-                    className="bubble-tag-link"
-                    href={`https://note.com/hashtag/${encodeURIComponent(t.text)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >#{t.text}</a>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 

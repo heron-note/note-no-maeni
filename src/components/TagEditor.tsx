@@ -32,7 +32,12 @@ export function TagEditor({ tags, onChange, onClose }: {
           {tags.length === 0 && <p className="bookmark-empty">まだ登録されていません</p>}
           {tags.map(t => (
             <div key={t.id} className="bookmark-item">
-              <span className="bookmark-item-name">#{t.text}</span>
+              <a
+                className="bookmark-item-name tag-editor-link"
+                href={`https://note.com/hashtag/${encodeURIComponent(t.text)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >#{t.text}</a>
               <button className="bookmark-delete-btn" onClick={() => onChange(tags.filter(x => x.id !== t.id))}>削除</button>
             </div>
           ))}

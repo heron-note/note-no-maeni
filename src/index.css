@@ -240,16 +240,10 @@ html, body, #root {
 .bubble-action-btn:hover { background: var(--border); }
 .bubble-action-btn:disabled { opacity: 0.4; cursor: default; }
 .bubble-action-edit { margin-left: 2px; }
-.bubble-tag-list {
-  display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px;
+.tag-editor-link {
+  color: var(--write); text-decoration: none;
 }
-.bubble-tag-link {
-  font-size: 12px; color: var(--write); text-decoration: none;
-  background: color-mix(in srgb, var(--write) 12%, transparent);
-  border-radius: 20px; padding: 2px 8px;
-  white-space: nowrap;
-}
-.bubble-tag-link:hover { text-decoration: underline; }
+.tag-editor-link:hover { text-decoration: underline; }
 
 /* ===== BOOKMARK EDITOR ===== */
 .bookmark-editor {
