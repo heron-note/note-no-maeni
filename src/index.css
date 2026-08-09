@@ -239,6 +239,8 @@ html, body, #root {
 }
 .bubble-icon-btn:hover { color: var(--text); }
 .bubble-icon-btn:disabled { opacity: 0.35; cursor: default; }
+.bubble-icon-sub { opacity: 0.5; }
+.bubble-icon-sub:hover { opacity: 0.8; }
 .tag-editor-link {
   color: var(--write); text-decoration: none;
 }
