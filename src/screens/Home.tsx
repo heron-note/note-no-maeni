@@ -146,7 +146,6 @@ export function Home() {
         </button>
       </div>
       <Calendar logs={logs} />
-      <WikiHintCard />
 
       {stampDeclaration && (
         <StampOverlay
