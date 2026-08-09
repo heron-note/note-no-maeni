@@ -5,13 +5,14 @@ interface HelpStep {
   key: string
   title: string
   description: string
+  above?: boolean
 }
 
 const STEPS: HelpStep[] = [
   { key: 'chara', title: 'キャラクター', description: 'タップするとハートが飛び出るよ！毎日会いにきてね。' },
-  { key: 'wiki-hint', title: '今日の豆知識', description: 'Wikipediaからランダムに表示されるよ。気になるキーワードをヒントに、今日書くネタを考えてみよう。↻で更新、「全文を読む」で詳しい内容も確認できるよ。' },
-  { key: 'wiki-choice', title: '今日の選択', description: '「書く」か「休む」かを選ぼう。選ぶとスタンプが押されて今日の記録になるよ。' },
-  { key: 'template-btn', title: 'テンプレートを編集', description: 'noteの記事テンプレートを保存できるよ。「休む」を選んで「コピーしてnoteへ」を押すと、テンプレートの好きな位置に休もっ化計画の宣言とランダムな一言が自動で挿入された文章がコピーされるよ。あとはnoteに貼り付けるだけで記事が完成！投稿のハードルをぐっと下げてくれるよ。' },
+  { key: 'wiki-hint', title: '今日の豆知識', description: 'Wikipediaからランダムに表示されるよ。気になるキーワードをヒントに、今日書くネタを考えてみよう。↻で更新、「全文を読む」で詳しい内容も確認できるよ。', above: true },
+  { key: 'wiki-choice', title: '今日の選択', description: '「書く」か「休む」かを選ぼう。選ぶとスタンプが押されて今日の記録になるよ。', above: true },
+  { key: 'template-btn', title: 'テンプレートを編集', description: 'noteの記事テンプレートを保存できるよ。「休む」を選んで「コピーしてnoteへ」を押すと、テンプレートの好きな位置に休もっ化計画の宣言とランダムな一言が自動で挿入された文章がコピーされるよ。あとはnoteに貼り付けるだけで記事が完成！投稿のハードルをぐっと下げてくれるよ。', above: true },
   { key: 'recommend-btn', title: 'おすすめ記事', description: '登録したnoteクリエイターの記事をランダムで提案してくれるよ。鉛筆アイコンでリストを編集できるよ。' },
   { key: 'tag-btn', title: 'お気に入りタグ', description: '登録したハッシュタグ一覧を開くよ。noteの記事一覧へすぐ飛べるよ。' },
   { key: 'chat-btn', title: 'AIに相談', description: 'AIと会話してネタ出しや構成の壁打ちができるよ。設定からGroq APIキーを登録してね。' },
@@ -61,9 +62,9 @@ export function HelpOverlay({ onDone }: Props) {
     ? Math.max(16, Math.min(vw - TOOLTIP_W - 16, rect.left + rect.width / 2 - TOOLTIP_W / 2))
     : (vw - TOOLTIP_W) / 2
   const tooltipTop = rect
-    ? (vh - (rect.bottom + PAD) >= TOOLTIP_H + 16
-        ? rect.bottom + PAD + 8
-        : Math.max(16, rect.top - PAD - 8 - TOOLTIP_H))
+    ? (current.above || vh - (rect.bottom + PAD) < TOOLTIP_H + 16
+        ? Math.max(16, rect.top - PAD - 16 - TOOLTIP_H)
+        : rect.bottom + PAD + 8)
     : (vh - TOOLTIP_H) / 2
 
   return (
