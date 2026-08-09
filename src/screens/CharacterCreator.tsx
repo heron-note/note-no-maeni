@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import JSZip from 'jszip'
 import { useAppStore } from '../store/useAppStore'
 import { Toast } from '../components/Toast'
-import { storage } from '../utils/storage'
 
 const CANVAS_SIZE = 320
 const CROP_SIZE = 256
@@ -26,30 +25,16 @@ const STATES: Array<{ key: string; label: string; desc: string }> = [
   },
 ]
 
-const POSE_PROMPTS: Record<string, string> = {
+const POSE_SUFFIXES: Record<string, string> = {
   normal: 'standing naturally, neutral expression, full body',
   write: 'writing in a notebook, focused cheerful expression, full body',
   rest: 'resting or sleeping comfortably, peaceful relaxed expression, full body',
 }
 
-async function buildPrompt(description: string, pose: string, apiKey: string): Promise<string> {
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an AI image prompt translator. Convert the character description into a concise English image generation prompt. Always append these style tags: "Japanese anime style illustration, white solid background, clean edges". Output ONLY the prompt text, no intro text or quotes.',
-        },
-        { role: 'user', content: `Character: ${description}\nPose: ${pose}` },
-      ],
-    }),
-  })
-  const data = await res.json()
-  if (data.error) throw new Error(data.error.message)
-  return data.choices[0].message.content.trim()
+const STYLE_TAGS = 'Japanese anime style illustration, white solid background, clean edges'
+
+function buildPrompt(description: string, poseKey: string): string {
+  return `${description}, ${POSE_SUFFIXES[poseKey]}, ${STYLE_TAGS}`
 }
 
 function pollinationsUrl(prompt: string, seed: number): string {
@@ -438,8 +423,6 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
 
 function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, string>) => void }) {
   const [desc, setDesc] = useState('')
-  const [generating, setGenerating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [prompts, setPrompts] = useState<Record<string, string> | null>(null)
   const [seeds, setSeeds] = useState<Record<string, number> | null>(null)
   const [imgLoaded, setImgLoaded] = useState<Record<string, boolean>>({})
@@ -448,24 +431,11 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
     ? Object.fromEntries(STATES.map(s => [s.key, pollinationsUrl(prompts[s.key], seeds[s.key])]))
     : null
 
-  const handleGenerate = async () => {
-    const apiKey = storage.loadGeminiKey()
-    if (!apiKey) { setError('設定からGroq APIキーを登録してください'); return }
+  const handleGenerate = () => {
     if (!desc.trim()) return
-    setGenerating(true)
-    setError(null)
     setImgLoaded({})
-    try {
-      const results = await Promise.all(
-        STATES.map(s => buildPrompt(desc, POSE_PROMPTS[s.key], apiKey))
-      )
-      setPrompts(Object.fromEntries(STATES.map((s, i) => [s.key, results[i]])))
-      setSeeds(Object.fromEntries(STATES.map(s => [s.key, Math.floor(Math.random() * 1000000)])))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '生成に失敗しました')
-    } finally {
-      setGenerating(false)
-    }
+    setPrompts(Object.fromEntries(STATES.map(s => [s.key, buildPrompt(desc, s.key)])))
+    setSeeds(Object.fromEntries(STATES.map(s => [s.key, Math.floor(Math.random() * 1000000)])))
   }
 
   const reroll = (key: string) => {
@@ -477,18 +447,17 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
 
   return (
     <div className="ai-gen-panel">
-      <p className="hint">どんな画像を作りたい？キャラクターの特徴を入力してください。GroqのAPIキーが必要です。</p>
+      <p className="hint">どんな画像を作りたい？キャラクターの特徴を入力してください。</p>
       <textarea
         className="ai-gen-input"
         rows={2}
         placeholder="例：黒スーツを着た銀髪の男性、きりっとした目つき"
         value={desc}
-        onChange={e => { setDesc(e.target.value); setError(null) }}
+        onChange={e => setDesc(e.target.value)}
       />
-      <button className="btn-primary wide" onClick={handleGenerate} disabled={generating || !desc.trim()}>
-        {generating ? 'プロンプト生成中…' : '生成する'}
+      <button className="btn-primary wide" onClick={handleGenerate} disabled={!desc.trim()}>
+        生成する
       </button>
-      {error && <p className="ai-gen-error">{error}</p>}
       {urls && (
         <>
           <div className="ai-gen-previews">
