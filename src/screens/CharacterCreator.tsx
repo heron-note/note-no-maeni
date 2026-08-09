@@ -515,6 +515,20 @@ function AIGenPanel({ onLoadToNormal }: { onLoadToNormal: (url: string) => void 
           </div>
         </>
       )}
+      {prompt && (
+        <details className="ai-prompt-details">
+          <summary className="ai-prompt-summary">生成プロンプトを見る</summary>
+          <div className="ai-prompt-body">
+            <p className="ai-prompt-text">{prompt}</p>
+            <button
+              className="btn-secondary"
+              onClick={() => navigator.clipboard.writeText(prompt)}
+            >
+              コピー
+            </button>
+          </div>
+        </details>
+      )}
     </div>
   )
 }
@@ -545,7 +559,7 @@ export function CharacterCreator() {
         ctx.drawImage(charImg, 0, 0, CROP_SIZE, CROP_SIZE)
         const overlayImg = new Image()
         overlayImg.onload = () => {
-          const maxH = CROP_SIZE * 0.5
+          const maxH = CROP_SIZE * 0.65
           const scale = Math.min(CROP_SIZE / overlayImg.width, maxH / overlayImg.height)
           const w = overlayImg.width * scale
           const h = overlayImg.height * scale

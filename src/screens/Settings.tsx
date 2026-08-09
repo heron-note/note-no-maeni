@@ -83,6 +83,21 @@ export function Settings() {
         <button className="btn-secondary wide" onClick={() => goTo('character-creator')}>
           相棒クリエイト
         </button>
+        {localStorage.getItem('nob_custom_img_normal') && (
+          <button
+            className="btn-secondary wide"
+            onClick={() => {
+              const url = localStorage.getItem('nob_custom_img_normal')
+              if (!url) return
+              const a = document.createElement('a')
+              a.href = url
+              a.download = 'mychar.png'
+              a.click()
+            }}
+          >
+            マイキャラをダウンロード
+          </button>
+        )}
       </div>
 
       <div className="settings-row">

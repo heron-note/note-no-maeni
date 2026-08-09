@@ -70,6 +70,22 @@ export function Onboarding() {
         <button className="btn-secondary wide" style={{ marginTop: '8px' }} onClick={handleGoCreator}>
           相棒クリエイト
         </button>
+        {localStorage.getItem('nob_custom_img_normal') && (
+          <button
+            className="btn-secondary wide"
+            style={{ marginTop: '8px' }}
+            onClick={() => {
+              const url = localStorage.getItem('nob_custom_img_normal')
+              if (!url) return
+              const a = document.createElement('a')
+              a.href = url
+              a.download = 'mychar.png'
+              a.click()
+            }}
+          >
+            マイキャラをダウンロード
+          </button>
+        )}
       </div>
 
       <button className="btn-primary wide" onClick={handleStart}>

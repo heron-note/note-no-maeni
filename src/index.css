@@ -499,6 +499,11 @@ html, body, #root {
 .ai-gen-actions .btn-primary { flex: 1; }
 .ai-gen-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px; color: var(--text-light); font-size: 13px; }
 .ai-gen-divider::before, .ai-gen-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.ai-prompt-details { margin-top: 8px; }
+.ai-prompt-summary { font-size: 12px; color: var(--text-light); cursor: pointer; user-select: none; padding: 4px 0; }
+.ai-prompt-body { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.ai-prompt-text { font-size: 11px; color: var(--text-light); background: var(--bg-sub, #f5f5f5); border-radius: 6px; padding: 8px; word-break: break-all; line-height: 1.5; margin: 0; }
+.ai-prompt-body .btn-secondary { align-self: flex-end; font-size: 12px; padding: 4px 12px; }
 
 /* ===== HELP ===== */
 .top-bar-right { display: flex; align-items: center; gap: 4px; }
