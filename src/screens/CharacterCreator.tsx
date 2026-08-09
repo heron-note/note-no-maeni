@@ -26,12 +26,14 @@ const STATES: Array<{ key: string; label: string; desc: string }> = [
 ]
 
 const POSE_SUFFIXES: Record<string, string> = {
-  normal: 'standing naturally, neutral expression, full body',
-  write: 'writing in a notebook, focused cheerful expression, full body',
-  rest: 'resting or sleeping comfortably, peaceful relaxed expression, full body',
+  normal: 'standing upright, looking forward, neutral expression',
+  write: 'writing or studying, holding a pen, looking at paper or book',
+  rest: 'sleeping or lying down, eyes closed, fully relaxed and lazy',
 }
 
-const STYLE_TAGS = 'chibi mascot character, 2D flat design, simple flat illustration, no shading, no 3D, no gradient, Japanese anime style, plain white background, character only, no background decoration, no frame, no circle, no vignette, full body isolated'
+const STYLE_TAGS = 'single character only, pure white background, full body, 2D flat design, simple flat illustration, no shading, no 3D, no gradient, chibi mascot, Japanese anime style'
+
+const NEGATIVE_PROMPT = 'background,circle,oval,frame,border,decoration,pattern,texture,gradient background,vignette,3D,shadow,multiple characters,scenery,environment'
 
 function hasJapanese(text: string): boolean {
   return /[\u3000-\u9fff]/.test(text)
@@ -49,11 +51,11 @@ async function toEnglish(text: string): Promise<string> {
 }
 
 function buildPrompt(description: string, poseKey: string): string {
-  return `${description}, ${POSE_SUFFIXES[poseKey]}, ${STYLE_TAGS}`
+  return `${STYLE_TAGS}, ${description}, ${POSE_SUFFIXES[poseKey]}`
 }
 
 function pollinationsUrl(prompt: string, seed: number): string {
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&seed=${seed}&nologo=true&model=flux`
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&seed=${seed}&nologo=true&model=flux&negative_prompt=${encodeURIComponent(NEGATIVE_PROMPT)}`
 }
 
 interface CropRef {
