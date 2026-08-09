@@ -31,7 +31,7 @@ const POSE_SUFFIXES: Record<string, string> = {
   rest: 'resting or sleeping comfortably, peaceful relaxed expression, full body',
 }
 
-const STYLE_TAGS = 'Japanese anime style illustration, white solid background, clean edges'
+const STYLE_TAGS = 'chibi mascot character, Japanese anime style, plain white background, character only, no background decoration, no frame, no circle, no vignette, full body isolated'
 
 function buildPrompt(description: string, poseKey: string): string {
   return `${description}, ${POSE_SUFFIXES[poseKey]}, ${STYLE_TAGS}`
@@ -426,21 +426,34 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
   const [prompts, setPrompts] = useState<Record<string, string> | null>(null)
   const [seeds, setSeeds] = useState<Record<string, number> | null>(null)
   const [imgLoaded, setImgLoaded] = useState<Record<string, boolean>>({})
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({})
 
   const urls: Record<string, string> | null = prompts && seeds
     ? Object.fromEntries(STATES.map(s => [s.key, pollinationsUrl(prompts[s.key], seeds[s.key])]))
     : null
+
+  const staggerReveal = (resetKey?: string) => {
+    const reset: Record<string, boolean> = {}
+    if (resetKey) { reset[resetKey] = false; setRevealed(prev => ({ ...prev, ...reset })) }
+    else setRevealed({})
+    const keys = resetKey ? [resetKey] : STATES.map(s => s.key)
+    keys.forEach((k, i) => {
+      setTimeout(() => setRevealed(prev => ({ ...prev, [k]: true })), i * 1500)
+    })
+  }
 
   const handleGenerate = () => {
     if (!desc.trim()) return
     setImgLoaded({})
     setPrompts(Object.fromEntries(STATES.map(s => [s.key, buildPrompt(desc, s.key)])))
     setSeeds(Object.fromEntries(STATES.map(s => [s.key, Math.floor(Math.random() * 1000000)])))
+    staggerReveal()
   }
 
   const reroll = (key: string) => {
     setSeeds(prev => prev ? { ...prev, [key]: Math.floor(Math.random() * 1000000) } : prev)
     setImgLoaded(prev => ({ ...prev, [key]: false }))
+    staggerReveal(key)
   }
 
   const allLoaded = urls !== null && STATES.every(s => imgLoaded[s.key])
@@ -468,7 +481,7 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
                   {!imgLoaded[s.key] && <span className="ai-gen-loading">生成中</span>}
                   <img
                     key={urls[s.key]}
-                    src={urls[s.key]}
+                    src={revealed[s.key] ? urls[s.key] : undefined}
                     alt={s.label}
                     className={`ai-gen-img${imgLoaded[s.key] ? ' loaded' : ''}`}
                     onLoad={() => setImgLoaded(prev => ({ ...prev, [s.key]: true }))}
