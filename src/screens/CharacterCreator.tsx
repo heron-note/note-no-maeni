@@ -447,14 +447,10 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
     ? Object.fromEntries(STATES.map(s => [s.key, pollinationsUrl(prompts[s.key], seeds[s.key])]))
     : null
 
-  const staggerReveal = (resetKey?: string) => {
-    const reset: Record<string, boolean> = {}
-    if (resetKey) { reset[resetKey] = false; setRevealed(prev => ({ ...prev, ...reset })) }
-    else setRevealed({})
-    const keys = resetKey ? [resetKey] : STATES.map(s => s.key)
-    keys.forEach((k, i) => {
-      setTimeout(() => setRevealed(prev => ({ ...prev, [k]: true })), i * 3000)
-    })
+  const revealNext = (doneKey: string) => {
+    const idx = STATES.findIndex(s => s.key === doneKey)
+    const next = STATES[idx + 1]
+    if (next) setRevealed(prev => ({ ...prev, [next.key]: true }))
   }
 
   const [translating, setTranslating] = useState(false)
@@ -468,14 +464,14 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
     const sharedSeed = Math.floor(Math.random() * 1000000)
     setPrompts(Object.fromEntries(STATES.map(s => [s.key, buildPrompt(englishDesc, s.key)])))
     setSeeds(Object.fromEntries(STATES.map(s => [s.key, sharedSeed])))
-    staggerReveal()
+    setRevealed({ [STATES[0].key]: true })
   }
 
   const rerollAll = () => {
     const sharedSeed = Math.floor(Math.random() * 1000000)
     setSeeds(prev => prev ? Object.fromEntries(STATES.map(s => [s.key, sharedSeed])) : prev)
     setImgLoaded({})
-    staggerReveal()
+    setRevealed({ [STATES[0].key]: true })
   }
 
   const allLoaded = urls !== null && STATES.every(s => imgLoaded[s.key])
@@ -506,8 +502,8 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
                     src={revealed[s.key] ? urls[s.key] : undefined}
                     alt={s.label}
                     className={`ai-gen-img${imgLoaded[s.key] ? ' loaded' : ''}`}
-                    onLoad={() => setImgLoaded(prev => ({ ...prev, [s.key]: true }))}
-                    onError={() => setImgLoaded(prev => ({ ...prev, [s.key]: true }))}
+                    onLoad={() => { setImgLoaded(prev => ({ ...prev, [s.key]: true })); revealNext(s.key) }}
+                    onError={() => { setImgLoaded(prev => ({ ...prev, [s.key]: true })); revealNext(s.key) }}
                   />
                 </div>
               </div>
