@@ -9,6 +9,7 @@ import { RecommendOverlay } from '../components/RecommendOverlay'
 import { TagEditor } from '../components/TagEditor'
 import { ChatOverlay } from '../components/ChatOverlay'
 import { HelpOverlay } from '../components/HelpOverlay'
+import { PwaInstallHint } from '../components/PwaInstallHint'
 import { WikiHintCard } from '../components/WikiHintCard'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
 import { storage, todayStr } from '../utils/storage'
@@ -120,6 +121,7 @@ export function Home() {
           )}
         </button>
         <div className="top-bar-right">
+          <PwaInstallHint />
           <button data-help="help-btn" className="icon-btn" onClick={() => setShowHelp(true)} aria-label="ヘルプ">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>

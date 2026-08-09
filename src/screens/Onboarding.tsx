@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { importData } from '../utils/transfer'
 import { speakVoicevox } from '../utils/voicevox'
+import { PwaInstallHint } from '../components/PwaInstallHint'
 
 export function Onboarding() {
   const [name, setName] = useState('')
@@ -42,6 +43,9 @@ export function Onboarding() {
 
   return (
     <div className="screen-scroll">
+      <div className="onboarding-pwa-row">
+        <PwaInstallHint />
+      </div>
       <div className="logo-block">
         <div className="logo-icon">
           <img src="assets/images/logo.png" alt="noteのまえに" width={160} height={160} />
