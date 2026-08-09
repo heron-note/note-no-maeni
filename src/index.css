@@ -582,9 +582,15 @@ html, body, #root {
   font-size: 13px; color: var(--text-light); text-align: center;
   margin: auto; padding: 24px 0;
 }
-.chat-bubble-wrap { display: flex; }
-.chat-bubble-wrap.user  { justify-content: flex-end; }
-.chat-bubble-wrap.model { justify-content: flex-start; }
+.chat-bubble-wrap { display: flex; flex-direction: column; }
+.chat-bubble-wrap.user  { align-items: flex-end; }
+.chat-bubble-wrap.model { align-items: flex-start; }
+.chat-speak-btn {
+  margin-top: 4px; background: none; border: none; cursor: pointer;
+  color: var(--text-light); padding: 2px 4px; border-radius: 4px;
+  display: flex; align-items: center; transition: color 0.12s;
+}
+.chat-speak-btn:hover, .chat-speak-btn.speaking { color: var(--write); }
 .chat-bubble {
   max-width: 80%; padding: 9px 13px; border-radius: 16px;
   font-size: 14px; line-height: 1.65; white-space: pre-wrap; word-break: break-word;
@@ -613,6 +619,14 @@ html, body, #root {
   outline: none;
 }
 .chat-input:focus { border-color: var(--write); }
+.chat-mic-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: none; flex-shrink: 0;
+  background: var(--secondary); color: var(--text-light); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s, color 0.12s;
+}
+.chat-mic-btn.listening { background: var(--primary); color: #fff; }
+.chat-mic-btn:disabled { opacity: 0.4; cursor: default; }
 .chat-send-btn {
   width: 40px; height: 40px; border-radius: 50%; border: none; flex-shrink: 0;
   background: var(--write); color: #fff; cursor: pointer;

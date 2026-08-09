@@ -104,7 +104,7 @@ export function Home() {
   return (
     <div className="screen-inner">
       <div className="top-bar">
-        <button className="icon-btn sound-btn" onClick={toggleSound} aria-label={soundOn ? '音声オフ' : '音声オン'}>
+        <button data-help="sound-btn" className="icon-btn sound-btn" onClick={toggleSound} aria-label={soundOn ? '音声オフ' : '音声オン'}>
           {soundOn ? (
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -120,7 +120,7 @@ export function Home() {
           )}
         </button>
         <div className="top-bar-right">
-          <button className="icon-btn" onClick={() => setShowHelp(true)} aria-label="ヘルプ">
+          <button data-help="help-btn" className="icon-btn" onClick={() => setShowHelp(true)} aria-label="ヘルプ">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
@@ -212,13 +212,11 @@ export function Home() {
         <p className="greeting-sub">今日のnote、どうする？</p>
       </div>
 
-      <div data-help="wiki-card">
-        <WikiHintCard
-          onWrite={() => handleChoice('write')}
-          onRest={() => handleChoice('rest')}
-          onEditTemplate={() => goTo('template-editor')}
-        />
-      </div>
+      <WikiHintCard
+        onWrite={() => handleChoice('write')}
+        onRest={() => handleChoice('rest')}
+        onEditTemplate={() => goTo('template-editor')}
+      />
 
       <Calendar logs={logs} />
 

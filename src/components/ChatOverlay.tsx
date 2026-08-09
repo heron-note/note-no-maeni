@@ -34,6 +34,39 @@ export function ChatOverlay({ userName, onClose }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null)
   const sheetRef = useRef<HTMLDivElement>(null)
   const dragStartY = useRef<number | null>(null)
+  const [isListening, setIsListening] = useState(false)
+  const [speakingIdx, setSpeakingIdx] = useState<number | null>(null)
+
+  const handleVoiceInput = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) { setError('このブラウザは音声入力に対応していません'); return }
+    const rec = new SR()
+    rec.lang = 'ja-JP'
+    rec.interimResults = false
+    setIsListening(true)
+    rec.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript
+      setInput(prev => prev ? prev + transcript : transcript)
+    }
+    rec.onerror = () => setIsListening(false)
+    rec.onend = () => setIsListening(false)
+    rec.start()
+  }
+
+  const handleSpeak = (text: string, idx: number) => {
+    if (speakingIdx === idx) {
+      window.speechSynthesis.cancel()
+      setSpeakingIdx(null)
+      return
+    }
+    window.speechSynthesis.cancel()
+    const utt = new SpeechSynthesisUtterance(text)
+    utt.lang = 'ja-JP'
+    utt.onend = () => setSpeakingIdx(null)
+    utt.onerror = () => setSpeakingIdx(null)
+    setSpeakingIdx(idx)
+    window.speechSynthesis.speak(utt)
+  }
 
   const [showPersonality, setShowPersonality] = useState(false)
   const [personality, setPersonality] = useState(() => storage.loadCharPersonality())
@@ -181,6 +214,22 @@ export function ChatOverlay({ userName, onClose }: Props) {
               {messages.map((m, i) => (
                 <div key={i} className={`chat-bubble-wrap ${m.role}`}>
                   <div className="chat-bubble">{m.text}</div>
+                  {m.role === 'model' && (
+                    <button
+                      className={`chat-speak-btn${speakingIdx === i ? ' speaking' : ''}`}
+                      onClick={() => handleSpeak(m.text, i)}
+                      aria-label={speakingIdx === i ? '停止' : '読み上げ'}
+                    >
+                      {speakingIdx === i ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                        </svg>
+                      )}
+                    </button>
+                  )}
                 </div>
               ))}
               {loading && (
@@ -206,6 +255,19 @@ export function ChatOverlay({ userName, onClose }: Props) {
                   if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend() }
                 }}
               />
+              <button
+                className={`chat-mic-btn${isListening ? ' listening' : ''}`}
+                onClick={handleVoiceInput}
+                disabled={loading}
+                aria-label={isListening ? '録音中' : '音声入力'}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+              </button>
               <button
                 className="chat-send-btn"
                 onClick={handleSend}

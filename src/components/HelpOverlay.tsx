@@ -8,12 +8,16 @@ interface HelpStep {
 }
 
 const STEPS: HelpStep[] = [
-  { key: 'chara', title: 'キャラクター', description: 'タップするとハートが飛び出るよ！かわいがってね。' },
-  { key: 'wiki-card', title: '今日の選択', description: '「書く」か「休む」かを選ぼう。スタンプが押されて今日の記録になるよ。' },
+  { key: 'chara', title: 'キャラクター', description: 'タップするとハートが飛び出るよ！毎日会いにきてね。' },
+  { key: 'wiki-hint', title: '今日の豆知識', description: 'Wikipediaからランダムに表示されるよ。気になるキーワードをヒントに、今日書くネタを考えてみよう。↻で更新、「全文を読む」で詳しい内容も確認できるよ。' },
+  { key: 'wiki-choice', title: '今日の選択', description: '「書く」か「休む」かを選ぼう。選ぶとスタンプが押されて今日の記録になるよ。' },
+  { key: 'template-btn', title: 'テンプレートを編集', description: 'noteの下書きで作ったテンプレートをここで保存できるよ。「休む」を選んだあとのコピー文章の好きな場所に休もっ化計画を書いて、noteの下書きに貼り付けて投稿しよう。' },
   { key: 'recommend-btn', title: 'おすすめ記事', description: '登録したnoteクリエイターの記事をランダムで提案してくれるよ。鉛筆アイコンでリストを編集できるよ。' },
   { key: 'tag-btn', title: 'お気に入りタグ', description: '登録したハッシュタグ一覧を開くよ。noteの記事一覧へすぐ飛べるよ。' },
   { key: 'chat-btn', title: 'AIに相談', description: 'AIと会話してネタ出しや構成の壁打ちができるよ。設定からGroq APIキーを登録してね。' },
   { key: 'settings-btn', title: '設定', description: '名前・キャラクター・AIキーなどをここで設定できるよ。' },
+  { key: 'sound-btn', title: '音のON/OFF', description: 'タップすると効果音をON/OFFできるよ。静かな場所でも安心。' },
+  { key: 'help-btn', title: 'ヘルプ', description: 'このボタンでいつでもヘルプを見直せるよ。わからなくなったらここから！以上でヘルプ終了だよ、楽しんでね！' },
 ]
 
 const PAD = 12

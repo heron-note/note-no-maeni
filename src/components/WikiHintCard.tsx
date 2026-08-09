@@ -26,7 +26,7 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
 
   return (
     <>
-      <div className="wiki-hint-card">
+      <div data-help="wiki-hint" className="wiki-hint-card">
         <div className="wiki-hint-header">
           <span className="wiki-hint-label">今日の豆知識</span>
           <button className="wiki-hint-refresh" onClick={refresh} disabled={loading} aria-label="更新">
@@ -44,7 +44,7 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
         >
           全文を読む →
         </button>
-        <div className="choice-block wiki-choice-block">
+        <div data-help="wiki-choice" className="choice-block wiki-choice-block">
           <button className="choice-btn write" onClick={onWrite}>
             <span className="choice-icon">🟨</span>
             <span className="choice-main">書く</span>
@@ -56,7 +56,7 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
             <span className="choice-sub">今日はのんびり</span>
           </button>
         </div>
-        <button className="template-shortcut-btn" onClick={onEditTemplate}>
+        <button data-help="template-btn" className="template-shortcut-btn" onClick={onEditTemplate}>
           ✏️ 休もっ化計画テンプレートを編集
         </button>
       </div>
