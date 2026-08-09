@@ -453,8 +453,15 @@ html, body, #root {
   to   { transform: translateY(100%); }
 }
 .wiki-modal-header {
+  display: flex; flex-direction: column;
+  margin-bottom: 12px; touch-action: none; cursor: grab;
+}
+.wiki-drag-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: var(--border); margin: 0 auto 10px;
+}
+.wiki-modal-header-row {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-  margin-bottom: 12px;
 }
 .wiki-modal-title { font-size: 18px; font-weight: 900; flex: 1; }
 .wiki-modal-body {
