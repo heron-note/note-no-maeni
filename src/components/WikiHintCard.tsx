@@ -53,7 +53,7 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
           <button className="choice-btn rest" onClick={onRest}>
             <span className="choice-icon">🟦</span>
             <span className="choice-main">休む</span>
-            <span className="choice-sub">書くプレッシャーをリセット</span>
+            <span className="choice-sub">今日はのんびり</span>
           </button>
         </div>
         <button className="template-shortcut-btn" onClick={onEditTemplate}>
