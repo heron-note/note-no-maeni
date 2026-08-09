@@ -107,7 +107,24 @@ export function ChatOverlay({ userName, onClose }: Props) {
       const reply = await sendGeminiMessage(apiKey, messages, text, SYSTEM_PROMPT(userName, personality))
       setMessages([...next, { role: 'model', text: reply }])
     } catch (e) {
-      setError(e instanceof Error ? e.message : '通信エラーが発生しました')
+      const msg = e instanceof Error ? e.message : '通信エラーが発生しました'
+      if (msg === 'MODEL_UNAVAILABLE') {
+        // 廃止モデルを除外して次の候補に自動切替
+        setModels(prev => {
+          const filtered = prev.filter(m => m.id !== selectedModel)
+          if (filtered.length > 0) {
+            const next = filtered[0]
+            setSelectedModel(next.id)
+            storage.saveGeminiModel(next.id)
+            setError(`モデルが利用できないため「${next.name}」に切り替えました。もう一度送信してください。`)
+          } else {
+            setError('利用可能なモデルがありません。APIキーを確認してください。')
+          }
+          return filtered
+        })
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
       setTimeout(() => inputRef.current?.focus(), 50)
