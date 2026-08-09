@@ -6,11 +6,12 @@ import { StampOverlay } from '../components/StampOverlay'
 import { WriteOverlay } from '../components/WriteOverlay'
 import { BookmarkEditor } from '../components/BookmarkEditor'
 import { RecommendOverlay } from '../components/RecommendOverlay'
+import { TagEditor } from '../components/TagEditor'
 import { WikiHintCard } from '../components/WikiHintCard'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
 import { storage, todayStr } from '../utils/storage'
 import { selectRecommend, recordRecommend } from '../utils/recommend'
-import type { ChoiceType, Declaration, Bookmark } from '../types'
+import type { ChoiceType, Declaration, Bookmark, NoteTag } from '../types'
 
 export function Home() {
   const user = useAppStore(s => s.user)
@@ -34,7 +35,9 @@ export function Home() {
   const [writeReaction, setWriteReaction] = useState<string | null>(null)
   const [soundOn, setSoundOn] = useState(() => storage.loadSoundEnabled())
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(() => storage.loadBookmarks())
+  const [tags, setTags] = useState<NoteTag[]>(() => storage.loadTags())
   const [showEditor, setShowEditor] = useState(false)
+  const [showTagEditor, setShowTagEditor] = useState(false)
   const [recommended, setRecommended] = useState<Bookmark | null>(null)
 
   const isFirstVisit = Object.keys(logs).length === 0
@@ -48,6 +51,11 @@ export function Home() {
   const handleBookmarksChange = (next: Bookmark[]) => {
     storage.saveBookmarks(next)
     setBookmarks(next)
+  }
+
+  const handleTagsChange = (next: NoteTag[]) => {
+    storage.saveTags(next)
+    setTags(next)
   }
 
   const handleRecommend = () => {
@@ -94,16 +102,68 @@ export function Home() {
         </button>
         <button className="icon-btn" onClick={() => goTo('settings')}>⚙</button>
       </div>
-      <div className="chara-block">
-        <img
-          className="chara-img"
-          src={charImgPath(ch, charState)}
-          alt="相棒"
-          onClick={handleCharaTap}
-          onTouchStart={handleCharaTap}
-          style={{ cursor: 'pointer' }}
-        />
+
+      <div className="chara-bubble-row">
+        {/* 左: 吹き出しパネル */}
+        <div className="bubble-panel">
+          {/* 上: おすすめ */}
+          <div className="speech-bubble">
+            <div className="bubble-action-row">
+              <button
+                className="bubble-action-btn"
+                onClick={handleRecommend}
+                disabled={bookmarks.length === 0}
+                aria-label="おすすめ"
+                title="おすすめ"
+              >♫</button>
+              <button
+                className="bubble-action-btn bubble-action-edit"
+                onClick={() => setShowEditor(true)}
+                aria-label="おすすめ編集"
+                title="おすすめ編集"
+              >✏</button>
+            </div>
+          </div>
+
+          {/* 下: タグ */}
+          <div className="speech-bubble">
+            <div className="bubble-action-row">
+              <button
+                className="bubble-action-btn"
+                onClick={() => setShowTagEditor(true)}
+                aria-label="タグ編集"
+                title="タグを編集"
+              >#</button>
+            </div>
+            {tags.length > 0 && (
+              <div className="bubble-tag-list">
+                {tags.map(t => (
+                  <a
+                    key={t.id}
+                    className="bubble-tag-link"
+                    href={`https://note.com/hashtag/${encodeURIComponent(t.text)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >#{t.text}</a>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 右: キャラクター */}
+        <div className="chara-block">
+          <img
+            className="chara-img"
+            src={charImgPath(ch, charState)}
+            alt="相棒"
+            onClick={handleCharaTap}
+            onTouchStart={handleCharaTap}
+            style={{ cursor: 'pointer' }}
+          />
+        </div>
       </div>
+
       <div className="heart-burst-wrap">
         {heartBursts.map(({ id, x, y }) =>
           [0, 1, 2, 3, 4, 5, 6].map(i => {
@@ -123,28 +183,18 @@ export function Home() {
           })
         )}
       </div>
+
       <div className="greeting-block">
         <p className="greeting">{isFirstVisit ? 'はじめまして' : 'おかえり'}、{name}さん。</p>
         <p className="greeting-sub">今日のnote、どうする？</p>
       </div>
+
       <WikiHintCard
         onWrite={() => handleChoice('write')}
         onRest={() => handleChoice('rest')}
         onEditTemplate={() => goTo('template-editor')}
       />
 
-      <div className="recommend-bar">
-        <button
-          className="btn-recommend"
-          onClick={handleRecommend}
-          disabled={bookmarks.length === 0}
-        >
-          おすすめ
-        </button>
-        <button className="btn-recommend-edit" onClick={() => setShowEditor(true)}>
-          おすすめ編集
-        </button>
-      </div>
       <Calendar logs={logs} />
 
       {stampDeclaration && (
@@ -164,6 +214,13 @@ export function Home() {
           bookmarks={bookmarks}
           onChange={handleBookmarksChange}
           onClose={() => setShowEditor(false)}
+        />
+      )}
+      {showTagEditor && (
+        <TagEditor
+          tags={tags}
+          onChange={handleTagsChange}
+          onClose={() => setShowTagEditor(false)}
         />
       )}
       {recommended && (

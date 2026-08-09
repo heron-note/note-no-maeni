@@ -193,17 +193,59 @@ html, body, #root {
 .choice-main { font-size: 17px; font-weight: 800; }
 .choice-sub  { font-size: 11px; color: var(--text-light); text-align: center; }
 
-/* ===== RECOMMEND ===== */
-.recommend-bar { display: flex; gap: 10px; width: 100%; max-width: 320px; }
-.btn-recommend {
-  flex: 1; padding: 10px 0; border-radius: 12px; border: none; cursor: pointer;
-  background: var(--write); color: #fff; font-size: 15px; font-weight: 700;
+/* ===== CHARA + BUBBLE ROW ===== */
+.chara-bubble-row {
+  display: flex; flex-direction: row; align-items: center;
+  gap: 0; width: 100%; max-width: 360px;
 }
-.btn-recommend:disabled { opacity: 0.4; cursor: default; }
-.btn-recommend-edit {
-  padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--border);
-  background: var(--surface); color: var(--text-light); font-size: 13px; cursor: pointer;
+.bubble-panel {
+  display: flex; flex-direction: column; gap: 8px;
+  flex: 1; min-width: 0;
 }
+.speech-bubble {
+  position: relative;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 8px 10px;
+  box-shadow: var(--shadow);
+}
+/* right-pointing tail toward character */
+.speech-bubble::after {
+  content: '';
+  position: absolute;
+  right: -10px; top: 50%; transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-left-color: var(--border);
+}
+.speech-bubble::before {
+  content: '';
+  position: absolute;
+  right: -8px; top: 50%; transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-left-color: var(--surface);
+  z-index: 1;
+}
+.bubble-action-row { display: flex; gap: 6px; align-items: center; }
+.bubble-action-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--border);
+  background: var(--bg); color: var(--text); font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; transition: background 0.12s;
+}
+.bubble-action-btn:hover { background: var(--border); }
+.bubble-action-btn:disabled { opacity: 0.4; cursor: default; }
+.bubble-action-edit { margin-left: 2px; }
+.bubble-tag-list {
+  display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px;
+}
+.bubble-tag-link {
+  font-size: 12px; color: var(--write); text-decoration: none;
+  background: color-mix(in srgb, var(--write) 12%, transparent);
+  border-radius: 20px; padding: 2px 8px;
+  white-space: nowrap;
+}
+.bubble-tag-link:hover { text-decoration: underline; }
 
 /* ===== BOOKMARK EDITOR ===== */
 .bookmark-editor {

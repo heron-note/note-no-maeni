@@ -34,6 +34,11 @@ export interface Template {
   insertAfterIndex: number  // -1=先頭, 0..N-1=行後, N=末尾
 }
 
+export interface NoteTag {
+  id: string
+  text: string  // # なし
+}
+
 export interface Bookmark {
   id: string
   name: string

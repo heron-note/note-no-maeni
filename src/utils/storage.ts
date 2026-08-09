@@ -30,6 +30,9 @@ export const storage = {
 
   loadBookmarks: () => safeLoad<Bookmark[]>('nob_bookmarks') ?? [],
   saveBookmarks: (v: Bookmark[]) => localStorage.setItem('nob_bookmarks', JSON.stringify(v)),
+
+  loadTags: () => safeLoad<import('../types').NoteTag[]>('nob_tags') ?? [],
+  saveTags: (v: import('../types').NoteTag[]) => localStorage.setItem('nob_tags', JSON.stringify(v)),
 }
 
 export function todayStr(): string {
