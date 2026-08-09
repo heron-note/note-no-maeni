@@ -35,8 +35,14 @@ export function ChatOverlay({ userName, onClose }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const dragStartY = useRef<number | null>(null)
 
-  const personality = storage.loadCharPersonality()
+  const [showPersonality, setShowPersonality] = useState(false)
+  const [personality, setPersonality] = useState(() => storage.loadCharPersonality())
   const hasKey = apiKey !== ''
+
+  const handleSavePersonality = () => {
+    storage.saveCharPersonality(personality)
+    setShowPersonality(false)
+  }
 
   useEffect(() => {
     if (hasKey) setTimeout(() => inputRef.current?.focus(), 300)
@@ -120,8 +126,28 @@ export function ChatOverlay({ userName, onClose }: Props) {
           <div className="chat-drag-handle" />
           <div className="chat-header-row">
             <span className="chat-title">AIに相談する</span>
-            <button className="icon-btn" onClick={handleClose}>✕</button>
+            <div className="chat-header-actions">
+              <button className="icon-btn" onClick={e => { e.stopPropagation(); setShowPersonality(v => !v) }} aria-label="性格・口調設定">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+              </button>
+              <button className="icon-btn" onClick={handleClose}>✕</button>
+            </div>
           </div>
+          {showPersonality && (
+            <div className="chat-personality-panel" onClick={e => e.stopPropagation()}>
+              <p className="chat-personality-label">AIの性格・口調</p>
+              <textarea
+                className="chat-personality-input"
+                rows={3}
+                placeholder="例：明るくてちょっと天然。語尾に「だよ～」をつける"
+                value={personality}
+                onChange={e => setPersonality(e.target.value)}
+              />
+              <button className="btn-primary wide" onClick={handleSavePersonality}>保存して閉じる</button>
+            </div>
+          )}
         </div>
 
         {!hasKey && (
