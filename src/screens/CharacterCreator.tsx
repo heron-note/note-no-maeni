@@ -27,8 +27,14 @@ const STATES: Array<{ key: string; label: string; desc: string }> = [
 
 const POSE_SUFFIXES: Record<string, string> = {
   normal: 'front view, facing viewer, full body, standing, neutral expression, empty hands',
-  write: 'front view, facing viewer, full body, standing, smiling, holding a pencil',
-  rest: 'front view, facing viewer, full body, standing, sleepy expression, hugging a pillow',
+  write: 'front view, facing viewer, full body, standing, motivated and enthusiastic expression, energetically holding a pen, excited to write',
+  rest: 'front view, facing viewer, full body, sitting or lying down, relaxed and drowsy expression, lazily resting, peaceful and carefree',
+}
+
+const POSE_LABELS: Record<string, string> = {
+  normal: '通常',
+  write: '書く',
+  rest: '休む',
 }
 
 const STYLE_TAGS = 'white background, anime illustration, flat color, 2D, chibi, kawaii, yuru-chara, Japanese anime style, simple design, full body, white background'
@@ -438,20 +444,21 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
 
 function AIGenPanel({ onLoadToNormal, onCopied }: { onLoadToNormal: (url: string) => void; onCopied: () => void }) {
   const [desc, setDesc] = useState('')
-  const [prompt, setPrompt] = useState<string | null>(null)
+  const [translatedDesc, setTranslatedDesc] = useState<string | null>(null)
   const [seed, setSeed] = useState<number | null>(null)
   const [imgLoaded, setImgLoaded] = useState(false)
   const [translating, setTranslating] = useState(false)
 
-  const url = prompt && seed != null ? pollinationsUrl(prompt, seed) : null
+  const normalPrompt = translatedDesc ? buildPrompt(translatedDesc, 'normal') : null
+  const url = normalPrompt && seed != null ? pollinationsUrl(normalPrompt, seed) : null
 
   const handleGenerate = async () => {
     if (!desc.trim()) return
     setTranslating(true)
     setImgLoaded(false)
-    const englishDesc = await toEnglish(desc)
+    const en = await toEnglish(desc)
     setTranslating(false)
-    setPrompt(buildPrompt(englishDesc, 'normal'))
+    setTranslatedDesc(en)
     setSeed(Math.floor(Math.random() * 1000000))
   }
 
@@ -494,17 +501,25 @@ function AIGenPanel({ onLoadToNormal, onCopied }: { onLoadToNormal: (url: string
           </div>
         </>
       )}
-      {prompt && (
+      {translatedDesc && (
         <details className="ai-prompt-details">
-          <summary className="ai-prompt-summary">生成プロンプトを見る</summary>
+          <summary className="ai-prompt-summary">生成プロンプトを見る（3ポーズ）</summary>
           <div className="ai-prompt-body">
-            <p className="ai-prompt-text">{prompt}</p>
-            <button
-              className="btn-secondary"
-              onClick={() => navigator.clipboard.writeText(prompt).then(onCopied)}
-            >
-              コピー
-            </button>
+            {(['normal', 'write', 'rest'] as const).map(pose => {
+              const p = buildPrompt(translatedDesc, pose)
+              return (
+                <div key={pose} className="ai-prompt-pose-block">
+                  <p className="ai-prompt-pose-label">{POSE_LABELS[pose]}</p>
+                  <p className="ai-prompt-text">{p}</p>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => navigator.clipboard.writeText(p).then(onCopied)}
+                  >
+                    コピー
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </details>
       )}
