@@ -1,4 +1,19 @@
-const MODEL = 'gemini-2.5-flash'
+const FALLBACK_MODEL = 'gemini-2.5-flash'
+let resolvedModel: string | null = null
+
+async function getModel(): Promise<string> {
+  if (resolvedModel) return resolvedModel
+  try {
+    const res = await fetch('/ai-config.json', { cache: 'no-store' })
+    if (res.ok) {
+      const cfg = await res.json()
+      resolvedModel = cfg.geminiModel ?? FALLBACK_MODEL
+    }
+  } catch {
+    // ignore
+  }
+  return resolvedModel ?? FALLBACK_MODEL
+}
 
 export interface ChatMessage {
   role: 'user' | 'model'
@@ -16,8 +31,9 @@ export async function sendGeminiMessage(
     { role: 'user', parts: [{ text: userText }] },
   ]
 
+  const model = await getModel()
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
