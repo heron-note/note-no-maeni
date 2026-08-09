@@ -20,15 +20,26 @@ export function Home() {
   const goHome = useAppStore(s => s.goHome)
   const logToday = useAppStore(s => s.logToday)
 
-  const [heartBursts, setHeartBursts] = useState<{ id: number; x: number; y: number }[]>([])
+  type HeartBurst = { id: number; x: number; y: number; particles: { dx: number; dy: number }[] }
+  const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
 
-  const handleCharaTap = (e: React.MouseEvent | React.TouchEvent) => {
-    const point = 'touches' in e
-      ? { x: e.touches[0]?.clientX ?? 0, y: e.touches[0]?.clientY ?? 0 }
-      : { x: (e as React.MouseEvent).clientX, y: (e as React.MouseEvent).clientY }
-    const id = Date.now()
-    setHeartBursts(prev => [...prev, { id, ...point }])
-    setTimeout(() => setHeartBursts(prev => prev.filter(b => b.id !== id)), 750)
+  const triggerBurst = (x: number, y: number) => {
+    setHeartBursts(prev => {
+      if (prev.length > 0) return prev
+      const particles = Array.from({ length: 7 }, (_, i) => {
+        const angle = (i / 7) * Math.PI * 2
+        const dist = 48 + Math.random() * 32
+        return { dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist }
+      })
+      const id = Date.now()
+      setTimeout(() => setHeartBursts([]), 750)
+      return [{ id, x, y, particles }]
+    })
+  }
+
+  const handleCharaTap = (e: React.PointerEvent) => {
+    e.preventDefault()
+    triggerBurst(e.clientX, e.clientY)
   }
 
   const [stampDeclaration, setStampDeclaration] = useState<Declaration | null>(null)
@@ -100,7 +111,12 @@ export function Home() {
             </svg>
           )}
         </button>
-        <button className="icon-btn" onClick={() => goTo('settings')}>⚙</button>
+        <button className="icon-btn" onClick={() => goTo('settings')} aria-label="設定">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
       </div>
 
       <div className="chara-bubble-row">
@@ -121,7 +137,12 @@ export function Home() {
                 onClick={() => setShowEditor(true)}
                 aria-label="おすすめ編集"
                 title="おすすめ編集"
-              >✏</button>
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
             </div>
           </div>
 
@@ -157,30 +178,23 @@ export function Home() {
             className="chara-img"
             src={charImgPath(ch, charState)}
             alt="相棒"
-            onClick={handleCharaTap}
-            onTouchStart={handleCharaTap}
+            onPointerDown={handleCharaTap}
             style={{ cursor: 'pointer' }}
           />
         </div>
       </div>
 
       <div className="heart-burst-wrap">
-        {heartBursts.map(({ id, x, y }) =>
-          [0, 1, 2, 3, 4, 5, 6].map(i => {
-            const angle = (i / 7) * Math.PI * 2
-            const dist = 48 + Math.random() * 32
-            const dx = Math.cos(angle) * dist
-            const dy = Math.sin(angle) * dist
-            return (
-              <span
-                key={`${id}-${i}`}
-                className="heart-particle"
-                style={{ left: x, top: y, '--dx': `${dx}px`, '--dy': `${dy}px` } as React.CSSProperties}
-              >
-                ❤️
-              </span>
-            )
-          })
+        {heartBursts.flatMap(({ id, x, y, particles }) =>
+          particles.map(({ dx, dy }, i) => (
+            <span
+              key={`${id}-${i}`}
+              className="heart-particle"
+              style={{ left: x, top: y, '--dx': `${dx}px`, '--dy': `${dy}px` } as React.CSSProperties}
+            >
+              ❤️
+            </span>
+          ))
         )}
       </div>
 

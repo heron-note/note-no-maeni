@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { Toast } from '../components/Toast'
 import { exportData, importData } from '../utils/transfer'
+
+type HeartBurst = { id: number; x: number; y: number; particles: { dx: number; dy: number }[] }
 
 export function Settings() {
   const user = useAppStore(s => s.user)
@@ -15,6 +17,21 @@ export function Settings() {
   const [char, setChar] = useState(user?.character ?? 'kuma')
   const [toast, setToast] = useState<string | null>(null)
   const importRef = useRef<HTMLInputElement>(null)
+  const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
+
+  const triggerBurst = (pos: { x: number; y: number }) => {
+    setHeartBursts(prev => {
+      if (prev.length > 0) return prev
+      const particles = Array.from({ length: 7 }, (_, i) => {
+        const angle = (i / 7) * Math.PI * 2
+        const dist = 48 + Math.random() * 32
+        return { dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist }
+      })
+      const id = Date.now()
+      setTimeout(() => setHeartBursts([]), 750)
+      return [{ id, ...pos, particles }]
+    })
+  }
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -58,7 +75,7 @@ export function Settings() {
 
       <div className="settings-row">
         <p className="label">相棒</p>
-        <CharGrid selected={char} onSelect={setChar} />
+        <CharGrid selected={char} onSelect={setChar} onSelectWithPos={(_, pos) => triggerBurst(pos)} />
         <button className="btn-secondary wide" onClick={() => goTo('character-creator')}>
           相棒クリエイト
         </button>
@@ -79,6 +96,19 @@ export function Settings() {
       </div>
 
       <Toast message={toast} onDone={() => setToast(null)} />
+      <div className="heart-burst-wrap">
+        {heartBursts.flatMap(({ id, x, y, particles }) =>
+          particles.map(({ dx, dy }, i) => (
+            <span
+              key={`${id}-${i}`}
+              className="heart-particle"
+              style={{ left: x, top: y, '--dx': `${dx}px`, '--dy': `${dy}px` } as React.CSSProperties}
+            >
+              ❤️
+            </span>
+          ))
+        )}
+      </div>
     </div>
   )
 }

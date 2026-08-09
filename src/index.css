@@ -195,12 +195,16 @@ html, body, #root {
 
 /* ===== CHARA + BUBBLE ROW ===== */
 .chara-bubble-row {
-  display: flex; flex-direction: row; align-items: center;
-  gap: 0; width: 100%; max-width: 360px;
+  position: relative;
+  display: flex; justify-content: center; align-items: center;
+  width: 100%; min-height: 156px;
 }
 .bubble-panel {
+  position: absolute;
+  right: calc(50% + 78px); /* 70px = half chara-img, 8px gap */
+  top: 50%; transform: translateY(-50%);
+  width: 116px;
   display: flex; flex-direction: column; gap: 8px;
-  flex: 1; min-width: 0;
 }
 .speech-bubble {
   position: relative;

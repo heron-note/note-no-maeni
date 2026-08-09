@@ -26,7 +26,7 @@ interface AppStore {
 export const useAppStore = create<AppStore>((set, get) => ({
   screen: 'onboarding',
   user: null,
-  logs: {},
+  logs: storage.loadLogs(),
   choice: null,
   declaration: null,
 
