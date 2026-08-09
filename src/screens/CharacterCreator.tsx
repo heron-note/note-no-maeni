@@ -31,9 +31,9 @@ const POSE_SUFFIXES: Record<string, string> = {
   rest: 'sleeping or lying down, eyes closed, fully relaxed and lazy',
 }
 
-const STYLE_TAGS = 'anime illustration, flat color, 2D, chibi, kawaii, yuru-chara, Japanese anime style, simple design, full body, plain white background, character standing on white'
+const STYLE_TAGS = 'white background, anime illustration, flat color, 2D, chibi, kawaii, yuru-chara, Japanese anime style, simple design, full body, white background'
 
-const NEGATIVE_PROMPT = '3d,3d render,photorealistic,realistic,photo,render,cgi,profile picture,avatar,icon,badge,emblem,circle background,round background,circular frame,oval frame,colored background,textured background,gradient background,scenery,landscape,frame,border,decoration,pattern,vignette,shadow,multiple characters,environment,watermark'
+const NEGATIVE_PROMPT = '3d,3d render,photorealistic,realistic,photo,render,cgi,profile picture,avatar,icon,badge,emblem,circle background,round background,circular frame,oval frame,colored background,green background,blue background,red background,yellow background,textured background,gradient background,scenery,landscape,frame,border,decoration,pattern,vignette,shadow,multiple characters,environment,watermark'
 
 function hasJapanese(text: string): boolean {
   return /[\u3000-\u9fff]/.test(text)
@@ -51,7 +51,7 @@ async function toEnglish(text: string): Promise<string> {
 }
 
 function buildPrompt(description: string, poseKey: string): string {
-  return `${STYLE_TAGS}, ${description}, ${POSE_SUFFIXES[poseKey]}`
+  return `${STYLE_TAGS}, ${description} character, ${POSE_SUFFIXES[poseKey]}, white background`
 }
 
 function pollinationsUrl(prompt: string, seed: number): string {
