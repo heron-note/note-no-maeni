@@ -1,4 +1,4 @@
-const FALLBACK_MODEL = 'gemini-1.5-flash'
+const FALLBACK_MODEL = 'gemini-2.0-flash'
 let resolvedModel: string | null = null
 
 async function getModel(): Promise<string> {
