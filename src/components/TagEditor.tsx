@@ -24,7 +24,7 @@ export function TagEditor({ tags, onChange, onClose }: {
     <div className="stamp-overlay" onClick={onClose}>
       <div className="bookmark-editor" onClick={e => e.stopPropagation()}>
         <div className="bookmark-editor-header">
-          <span className="subscreen-title">タグ編集</span>
+          <span className="subscreen-title">お気に入りタグ</span>
           <button className="icon-btn" onClick={onClose}>✕</button>
         </div>
 
