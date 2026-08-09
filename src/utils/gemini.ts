@@ -1,3 +1,5 @@
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
 const FALLBACK_MODEL = 'gemini-2.0-flash'
 let resolvedModel: string | null = null
 
@@ -26,40 +28,35 @@ export async function sendGeminiMessage(
   userText: string,
   systemPrompt: string,
 ): Promise<string> {
-  const contents = [
-    ...history.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
-    { role: 'user', parts: [{ text: userText }] },
-  ]
+  const modelName = await getModel()
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({
+    model: modelName,
+    systemInstruction: systemPrompt,
+  })
 
-  const model = await getModel()
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents,
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-      }),
-    },
-  )
+  const chat = model.startChat({
+    history: history.map(m => ({
+      role: m.role,
+      parts: [{ text: m.text }],
+    })),
+  })
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    const raw: string = err?.error?.message ?? `HTTP ${res.status}`
-    if (res.status === 401 || raw.includes('API_KEY_INVALID')) {
+  try {
+    const result = await chat.sendMessage(userText)
+    const text = result.response.text()
+    if (!text) throw new Error('応答が空でした')
+    return text
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg.includes('API_KEY_INVALID') || msg.includes('401')) {
       throw new Error('APIキーが無効です。チャット画面で再入力してください。')
     }
-    if (raw.includes('free_tier') || raw.includes('Quota exceeded') || res.status === 429) {
-      const retryMatch = raw.match(/retry in ([\d.]+)s/)
+    if (msg.includes('429') || msg.includes('Quota') || msg.includes('quota')) {
+      const retryMatch = msg.match(/retry in ([\d.]+)s/)
       const retryMsg = retryMatch ? `約${Math.ceil(Number(retryMatch[1]))}秒後に再試行してください。` : 'しばらくしてから再試行してください。'
       throw new Error(`リクエスト上限に達しました。${retryMsg}`)
     }
-    throw new Error(raw)
+    throw new Error(msg)
   }
-
-  const data = await res.json()
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-  if (!text) throw new Error('応答が空でした')
-  return text
 }
