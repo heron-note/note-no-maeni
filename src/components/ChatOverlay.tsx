@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { sendGeminiMessage } from '../utils/gemini'
 import { storage } from '../utils/storage'
+import { Toast } from './Toast'
 import type { ChatMessage } from '../utils/gemini'
 
 interface Props {
@@ -26,6 +27,7 @@ export function ChatOverlay({ userName, onClose }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [closing, setClosing] = useState(false)
+  const [copyToast, setCopyToast] = useState<string | null>(null)
   const [apiKey, setApiKey] = useState(() => storage.loadGeminiKey() ?? '')
   const [keyInput, setKeyInput] = useState('')
   const [keyError, setKeyError] = useState<string | null>(null)
@@ -191,7 +193,7 @@ export function ChatOverlay({ userName, onClose }: Props) {
                   onClick={e => {
                     e.stopPropagation()
                     const text = messages.map(m => `${m.role === 'user' ? 'あなた' : 'AI'}: ${m.text}`).join('\n\n')
-                    navigator.clipboard.writeText(text)
+                    navigator.clipboard.writeText(text).then(() => setCopyToast('コピーしました'))
                   }}
                   aria-label="全文コピー"
                 >
@@ -324,6 +326,7 @@ export function ChatOverlay({ userName, onClose }: Props) {
           </>
         )}
       </div>
+      <Toast message={copyToast} onDone={() => setCopyToast(null)} />
     </div>
   )
 }

@@ -436,7 +436,7 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
   )
 }
 
-function AIGenPanel({ onLoadToNormal }: { onLoadToNormal: (url: string) => void }) {
+function AIGenPanel({ onLoadToNormal, onCopied }: { onLoadToNormal: (url: string) => void; onCopied: () => void }) {
   const [desc, setDesc] = useState('')
   const [prompt, setPrompt] = useState<string | null>(null)
   const [seed, setSeed] = useState<number | null>(null)
@@ -501,7 +501,7 @@ function AIGenPanel({ onLoadToNormal }: { onLoadToNormal: (url: string) => void 
             <p className="ai-prompt-text">{prompt}</p>
             <button
               className="btn-secondary"
-              onClick={() => navigator.clipboard.writeText(prompt)}
+              onClick={() => navigator.clipboard.writeText(prompt).then(onCopied)}
             >
               コピー
             </button>
@@ -614,7 +614,10 @@ export function CharacterCreator() {
         <p className="hint">AIで画像を生成するか、自分で用意した画像をアップロードして相棒をつくろう。書く・休むの画像は自動合成されます。</p>
       </div>
 
-      <AIGenPanel onLoadToNormal={url => { setAiUrl(url); setExports({ normal: null, write: null, rest: null }) }} />
+      <AIGenPanel
+        onLoadToNormal={url => { setAiUrl(url); setExports({ normal: null, write: null, rest: null }) }}
+        onCopied={() => setToast('コピーしました')}
+      />
 
       <div className="ai-gen-divider"><span>位置を調整する</span></div>
 
