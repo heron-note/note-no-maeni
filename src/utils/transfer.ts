@@ -1,31 +1,65 @@
-export function exportData(): void {
+import { encryptText, decryptText } from './crypto'
+
+const ENCRYPTED_MARKER = '__enc_v1__'
+
+function collectData(): Record<string, string> {
   const data: Record<string, string> = {}
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)!
-    if (key.startsWith('nob_')) {
-      data[key] = localStorage.getItem(key)!
-    }
+    if (key.startsWith('nob_')) data[key] = localStorage.getItem(key)!
   }
-  const json = JSON.stringify(data, null, 2)
-  const blob = new Blob([json], { type: 'application/json' })
+  return data
+}
+
+function saveFile(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `note-no-maeni-backup-${new Date().toISOString().slice(0, 10)}.json`
+  a.download = filename
   a.click()
   URL.revokeObjectURL(url)
 }
 
-export function importData(file: File): Promise<void> {
+export async function exportData(): Promise<void> {
+  const data = collectData()
+  const filename = `note-no-maeni-backup-${new Date().toISOString().slice(0, 10)}.json`
+  const password = window.prompt('バックアップを暗号化するパスワードを入力してください。\n空欄にすると暗号化せずに保存します。')
+  if (password === null) return // キャンセル
+
+  if (password === '') {
+    saveFile(JSON.stringify(data, null, 2), filename)
+    return
+  }
+
+  const encrypted = await encryptText(JSON.stringify(data), password)
+  saveFile(JSON.stringify({ [ENCRYPTED_MARKER]: encrypted }), filename)
+}
+
+export async function importData(file: File): Promise<void> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = e => {
+    reader.onload = async e => {
       try {
-        const data = JSON.parse(e.target!.result as string) as Record<string, string>
-        if (typeof data !== 'object' || Array.isArray(data)) {
-          reject(new Error('invalid'))
-          return
+        const parsed = JSON.parse(e.target!.result as string) as Record<string, string>
+        if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+          reject(new Error('invalid')); return
         }
+
+        let data: Record<string, string>
+
+        if (ENCRYPTED_MARKER in parsed) {
+          const password = window.prompt('このファイルは暗号化されています。パスワードを入力してください。')
+          if (password === null) { reject(new Error('cancelled')); return }
+          try {
+            data = JSON.parse(await decryptText(parsed[ENCRYPTED_MARKER], password))
+          } catch {
+            reject(new Error('パスワードが正しくありません')); return
+          }
+        } else {
+          data = parsed
+        }
+
         for (const [key, value] of Object.entries(data)) {
           if (key.startsWith('nob_') && typeof value === 'string') {
             localStorage.setItem(key, value)

@@ -43,8 +43,9 @@ export function Settings() {
       await importData(file)
       init()
       setToast('インポートしました')
-    } catch {
-      setToast('ファイルが正しくありません')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ''
+      setToast(msg === 'cancelled' ? '' : msg || 'ファイルが正しくありません')
     }
     e.target.value = ''
   }
@@ -121,7 +122,7 @@ export function Settings() {
       </button>
 
       <div className="transfer-row">
-        <button className="btn-secondary wide" onClick={exportData}>
+        <button className="btn-secondary wide" onClick={() => exportData().catch(() => {})}>
           データをエクスポート
         </button>
         <input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
