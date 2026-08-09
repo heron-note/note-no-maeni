@@ -57,6 +57,9 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate, onChat }: Props)
             <span className="choice-sub">今日はのんびり</span>
           </button>
           <button data-help="chat-btn" className="choice-btn choice-btn-ai" onClick={onChat} aria-label="AIに相談">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
             <span className="choice-main">AI</span>
           </button>
         </div>
