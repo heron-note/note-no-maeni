@@ -18,6 +18,7 @@ export function Settings() {
   const [char, setChar] = useState(user?.character ?? 'kuma')
   const [toast, setToast] = useState<string | null>(null)
   const [geminiKey, setGeminiKey] = useState(() => storage.loadGeminiKey() ?? '')
+  const [charPersonality, setCharPersonality] = useState(() => storage.loadCharPersonality())
   const importRef = useRef<HTMLInputElement>(null)
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
 
@@ -99,6 +100,20 @@ export function Settings() {
             Google AI Studio でキーを取得 →
           </a>
         </p>
+      </div>
+
+      <div className="settings-row">
+        <p className="label">AIの性格・口調</p>
+        <textarea
+          className="text-input"
+          rows={3}
+          placeholder="例：明るくてちょっと天然。語尾に「だよ～」をつける"
+          value={charPersonality}
+          onChange={e => setCharPersonality(e.target.value)}
+          onBlur={() => storage.saveCharPersonality(charPersonality)}
+          style={{ resize: 'vertical' }}
+        />
+        <p className="settings-hint">未入力の場合はデフォルトの口調で会話します</p>
       </div>
 
       <button className="btn-primary wide" onClick={handleSave}>

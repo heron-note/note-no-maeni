@@ -9,8 +9,17 @@ interface Props {
   onGoSettings: () => void
 }
 
-const SYSTEM_PROMPT = (name: string) =>
-  `あなたはnoteクリエイターの創作を応援するAIアシスタントです。${name ? `ユーザーの名前は${name}さんです。` : ''}noteの記事ネタ出し、構成案の相談、文章の壁打ちなど、noteを書く活動全般をサポートしてください。フレンドリーで親しみやすい口調で会話してください。`
+const SYSTEM_PROMPT = (name: string, personality: string) => {
+  const parts = [
+    'あなたはnoteクリエイターの創作を応援するAIアシスタントです。',
+    name ? `ユーザーの名前は${name}さんです。` : '',
+    'noteの記事ネタ出し、構成案の相談、文章の壁打ちなど、noteを書く活動全般をサポートしてください。',
+    personality
+      ? `以下の性格・口調で会話してください：${personality}`
+      : 'フレンドリーで親しみやすい口調で会話してください。',
+  ]
+  return parts.filter(Boolean).join('')
+}
 
 export function ChatOverlay({ userName, onClose, onGoSettings }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -22,6 +31,7 @@ export function ChatOverlay({ userName, onClose, onGoSettings }: Props) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const apiKey = storage.loadGeminiKey()
+  const personality = storage.loadCharPersonality()
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -44,7 +54,7 @@ export function ChatOverlay({ userName, onClose, onGoSettings }: Props) {
     setError(null)
 
     try {
-      const reply = await sendGeminiMessage(apiKey, messages, text, SYSTEM_PROMPT(userName))
+      const reply = await sendGeminiMessage(apiKey, messages, text, SYSTEM_PROMPT(userName, personality))
       setMessages([...next, { role: 'model', text: reply }])
     } catch (e) {
       setError(e instanceof Error ? e.message : '通信エラーが発生しました')
