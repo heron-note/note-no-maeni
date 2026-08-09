@@ -22,6 +22,7 @@
 
 html, body, #root {
   height: 100%;
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: 'Hiragino Kaku Gothic ProN','Hiragino Sans','Noto Sans JP',sans-serif;
