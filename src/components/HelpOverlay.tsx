@@ -61,11 +61,14 @@ export function HelpOverlay({ onDone }: Props) {
   const tooltipLeft = rect
     ? Math.max(16, Math.min(vw - TOOLTIP_W - 16, rect.left + rect.width / 2 - TOOLTIP_W / 2))
     : (vw - TOOLTIP_W) / 2
-  const tooltipTop = rect
-    ? (current.above || vh - (rect.bottom + PAD) < TOOLTIP_H + 16
-        ? Math.max(16, rect.top - PAD - 16 - TOOLTIP_H)
-        : rect.bottom + PAD + 8)
-    : (vh - TOOLTIP_H) / 2
+  const placeAbove = rect ? (current.above || vh - (rect.bottom + PAD) < TOOLTIP_H + 16) : false
+  const tooltipStyle: React.CSSProperties = {
+    left: tooltipLeft,
+    width: TOOLTIP_W,
+    ...(placeAbove && rect
+      ? { bottom: vh - ry + 16 }
+      : { top: rect ? rect.bottom + PAD + 8 : (vh - TOOLTIP_H) / 2 }),
+  }
 
   return (
     <div className="help-overlay" onClick={handleNext}>
@@ -83,7 +86,7 @@ export function HelpOverlay({ onDone }: Props) {
 
       <div
         className="help-tooltip"
-        style={{ left: tooltipLeft, top: tooltipTop, width: TOOLTIP_W }}
+        style={tooltipStyle}
         onClick={e => e.stopPropagation()}
       >
         <p className="help-step-count">{step + 1} / {STEPS.length}</p>
