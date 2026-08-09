@@ -42,6 +42,22 @@ export function ChatOverlay({ userName, onClose }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
+  useEffect(() => {
+    if (!apiKey) return
+    fetchGeminiModels(apiKey)
+      .then(list => {
+        if (list.length === 0) return
+        setModels(list)
+        const saved = storage.loadGeminiModel()
+        const matched = saved ? list.find(m => m.id === saved) : null
+        const chosen = matched ?? list[0]
+        setSelectedModel(chosen.id)
+        storage.saveGeminiModel(chosen.id)
+      })
+      .catch(() => {}) // エラーは無視（チャット自体は使える）
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiKey])
+
   const handleSaveKey = async () => {
     const k = keyInput.trim()
     if (!k) { setKeyError('APIキーを入力してください'); return }
