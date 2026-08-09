@@ -28,7 +28,15 @@ export async function sendGeminiMessage(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err?.error?.message ?? `HTTP ${res.status}`)
+    const raw: string = err?.error?.message ?? `HTTP ${res.status}`
+    if (res.status === 401 || raw.includes('API_KEY_INVALID')) throw new Error('APIキーが無効です。チャット画面で再入力してください。')
+    if (raw.includes('free_tier') || raw.includes('Quota exceeded')) {
+      const retryMatch = raw.match(/retry in ([\d.]+)s/)
+      const retryMsg = retryMatch ? `約${Math.ceil(Number(retryMatch[1]))}秒後に再試行してください。` : '時間をおいて再試行してください。'
+      throw new Error(`無料枠の上限に達しました。${retryMsg}`)
+    }
+    if (res.status === 429) throw new Error('リクエストが多すぎます。しばらくしてから再試行してください。')
+    throw new Error(raw)
   }
 
   const data = await res.json()
