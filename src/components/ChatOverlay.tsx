@@ -83,16 +83,16 @@ export function ChatOverlay({ userName, onClose }: Props) {
 
         {!hasKey && (
           <div className="chat-no-key">
-            <p className="chat-no-key-title">Gemini APIキーを入力してください</p>
+            <p className="chat-no-key-title">Groq APIキーを入力してください</p>
             <p className="chat-no-key-desc">
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">
-                Google AI Studio で無料取得 →
+              <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">
+                Groq Console で無料取得（クレカ不要）→
               </a>
             </p>
             <input
               type="password"
               className="text-input"
-              placeholder="AIzaSy..."
+              placeholder="gsk_..."
               autoComplete="off"
               value={keyInput}
               onChange={e => { setKeyInput(e.target.value); setKeyError(null) }}

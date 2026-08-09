@@ -1,6 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
-
-const FALLBACK_MODEL = 'gemini-2.0-flash'
+const FALLBACK_MODEL = 'llama-3.1-8b-instant'
 let resolvedModel: string | null = null
 
 async function getModel(): Promise<string> {
@@ -9,7 +7,7 @@ async function getModel(): Promise<string> {
     const res = await fetch(`${import.meta.env.BASE_URL}ai-config.json`, { cache: 'no-store' })
     if (res.ok) {
       const cfg = await res.json()
-      resolvedModel = cfg.geminiModel ?? FALLBACK_MODEL
+      resolvedModel = cfg.aiModel ?? FALLBACK_MODEL
     }
   } catch {
     // ignore
@@ -29,34 +27,36 @@ export async function sendGeminiMessage(
   systemPrompt: string,
 ): Promise<string> {
   const modelName = await getModel()
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({
-    model: modelName,
-    systemInstruction: systemPrompt,
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...history.map(m => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.text })),
+    { role: 'user', content: userText },
+  ]
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model: modelName, messages }),
   })
 
-  const chat = model.startChat({
-    history: history.map(m => ({
-      role: m.role,
-      parts: [{ text: m.text }],
-    })),
-  })
+  const data = await res.json()
 
-  try {
-    const result = await chat.sendMessage(userText)
-    const text = result.response.text()
-    if (!text) throw new Error('応答が空でした')
-    return text
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    if (msg.includes('API_KEY_INVALID') || msg.includes('401')) {
-      throw new Error('APIキーが無効です。チャット画面で再入力してください。')
-    }
-    if (msg.includes('429') || msg.includes('Quota') || msg.includes('quota')) {
+  if (!res.ok) {
+    const msg = data.error?.message ?? `HTTP ${res.status}`
+    if (res.status === 401) throw new Error('APIキーが無効です。再入力してください。')
+    if (res.status === 429) {
       const retryMatch = msg.match(/retry in ([\d.]+)s/)
       const retryMsg = retryMatch ? `約${Math.ceil(Number(retryMatch[1]))}秒後に再試行してください。` : 'しばらくしてから再試行してください。'
       throw new Error(`リクエスト上限に達しました。${retryMsg}`)
     }
     throw new Error(msg)
   }
+
+  const text = data.choices?.[0]?.message?.content
+  if (!text) throw new Error('応答が空でした')
+  return text
 }

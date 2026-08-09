@@ -86,19 +86,19 @@ export function Settings() {
       </div>
 
       <div className="settings-row">
-        <p className="label">Gemini APIキー</p>
+        <p className="label">Groq APIキー</p>
         <input
           type="password"
           className="text-input"
-          placeholder="AIzaSy..."
+          placeholder="gsk_..."
           autoComplete="off"
           value={geminiKey}
           onChange={e => setGeminiKey(e.target.value)}
           onBlur={() => storage.saveGeminiKey(geminiKey)}
         />
         <p className="settings-hint">
-          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">
-            Google AI Studio でキーを取得 →
+          <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">
+            Groq Console でキーを無料取得（クレカ不要）→
           </a>
         </p>
       </div>
