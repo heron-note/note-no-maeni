@@ -98,6 +98,8 @@ export function ChatOverlay({ userName, onClose }: Props) {
   const handleSavePersonality = () => {
     storage.saveCharPersonality(personality)
     setShowPersonality(false)
+    setMessages([])
+    setError(null)
   }
 
   useEffect(() => {
