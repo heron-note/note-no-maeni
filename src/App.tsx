@@ -46,7 +46,20 @@ export function App() {
 
   const onSplashDone = useCallback(() => {
     setSplash(false)
-    preloadedAudio.current?.play().catch(() => {})
+    const audio = preloadedAudio.current
+    if (!audio) return
+    try {
+      const ctx = new AudioContext()
+      const source = ctx.createMediaElementSource(audio)
+      const gain = ctx.createGain()
+      gain.gain.value = 2.0
+      source.connect(gain)
+      gain.connect(ctx.destination)
+      ctx.resume().then(() => audio.play().catch(() => ctx.close()))
+      audio.onended = () => ctx.close()
+    } catch {
+      audio.play().catch(() => {})
+    }
   }, [])
 
   if (splash) return <SplashScreen onDone={onSplashDone} />

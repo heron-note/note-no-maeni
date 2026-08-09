@@ -10,10 +10,27 @@ export function preloadVoicevox(key: VoicevoxKey): HTMLAudioElement {
   return a
 }
 
+function playFileWithContext(url: string, gain = 2.0): void {
+  try {
+    const ctx = new AudioContext()
+    const audio = new Audio(url)
+    const source = ctx.createMediaElementSource(audio)
+    const gainNode = ctx.createGain()
+    gainNode.gain.value = gain
+    source.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    ctx.resume().then(() => audio.play().catch(() => ctx.close()))
+    audio.onended = () => ctx.close()
+  } catch {
+    const a = new Audio(url)
+    a.volume = 1
+    a.play().catch(() => {})
+  }
+}
+
 export function speakVoicevox(key: VoicevoxKey): void {
   if (!storage.loadSoundEnabled()) return
-  const a = new Audio(`${BASE}assets/sounds/${key}${EXT}`)
-  a.play().catch(() => {})
+  playFileWithContext(`${BASE}assets/sounds/${key}${EXT}`)
 }
 
 export type VoicevoxKey =

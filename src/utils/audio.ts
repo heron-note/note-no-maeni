@@ -4,10 +4,28 @@ const audioTest = new Audio()
 const EXT = audioTest.canPlayType('audio/ogg; codecs=opus') ? '.ogg' : '.mp3'
 const BASE = import.meta.env.BASE_URL
 
+// AudioContext 経由で再生（iOS でメディア音量チャンネルを使う + gain ブースト）
+function playFileWithContext(url: string, gain = 2.0): void {
+  try {
+    const ctx = new AudioContext()
+    const audio = new Audio(url)
+    const source = ctx.createMediaElementSource(audio)
+    const gainNode = ctx.createGain()
+    gainNode.gain.value = gain
+    source.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    ctx.resume().then(() => audio.play().catch(() => ctx.close()))
+    audio.onended = () => ctx.close()
+  } catch {
+    const a = new Audio(url)
+    a.volume = 1
+    a.play().catch(() => {})
+  }
+}
+
 export function playStampSound(): void {
   if (!storage.loadSoundEnabled()) return
-  const a = new Audio(`${BASE}assets/sounds/blow4${EXT}`)
-  a.play().catch(() => {})
+  playFileWithContext(`${BASE}assets/sounds/blow4${EXT}`)
 }
 
 export function playPowan(): void {
@@ -21,14 +39,12 @@ export function playPowan(): void {
 
     osc.type = 'sine'
     const now = ctx.currentTime
-    // ぽわん：低→高→低 の周波数カーブ
     osc.frequency.setValueAtTime(220, now)
     osc.frequency.linearRampToValueAtTime(660, now + 0.06)
     osc.frequency.exponentialRampToValueAtTime(180, now + 0.45)
 
-    // 音量：ふわっと立ち上がって消える
     gain.gain.setValueAtTime(0, now)
-    gain.gain.linearRampToValueAtTime(0.35, now + 0.04)
+    gain.gain.linearRampToValueAtTime(0.8, now + 0.04)
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45)
 
     osc.start(now)
