@@ -33,6 +33,9 @@ export const storage = {
 
   loadTags: () => safeLoad<import('../types').NoteTag[]>('nob_tags') ?? [],
   saveTags: (v: import('../types').NoteTag[]) => localStorage.setItem('nob_tags', JSON.stringify(v)),
+
+  loadLastLogin: () => localStorage.getItem('nob_last_login'),
+  saveLastLogin: (date: string) => localStorage.setItem('nob_last_login', date),
 }
 
 export function todayStr(): string {

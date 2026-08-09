@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { charImgPath } from '../characters'
 import { Calendar } from '../components/Calendar'
@@ -51,7 +51,11 @@ export function Home() {
   const [showTagEditor, setShowTagEditor] = useState(false)
   const [recommended, setRecommended] = useState<Bookmark | null>(null)
 
-  const isFirstVisit = Object.keys(logs).length === 0
+  const [isFirstVisit] = useState(() => storage.loadLastLogin() === null)
+
+  useEffect(() => {
+    storage.saveLastLogin(todayStr())
+  }, [])
 
   const toggleSound = () => {
     const next = !soundOn
