@@ -118,7 +118,7 @@ html, body, #root {
 .btn-secondary:active { background: var(--border); transform: scale(0.97); }
 .btn-secondary.wide { width: 100%; max-width: 320px; }
 .creator-btn-row { display: flex; gap: 8px; width: 100%; max-width: 320px; }
-.creator-btn-row .btn-secondary { flex: 1; }
+.creator-btn-row .btn-secondary { flex: 1; font-size: 13px; padding: 13px 8px; white-space: nowrap; }
 
 
 .icon-btn  {
