@@ -156,7 +156,7 @@ html, body, #root {
 .char-name  { font-size: 13px; font-weight: 700; }
 
 /* ===== HOME ===== */
-.top-bar { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; align-items: center; }
+.top-bar { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; align-items: center; z-index: 10; }
 .chara-block { display: flex; align-items: center; justify-content: center; position: relative; }
 .heart-burst-wrap { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 200; }
 .heart-particle {
