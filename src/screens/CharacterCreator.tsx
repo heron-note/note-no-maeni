@@ -26,9 +26,9 @@ const STATES: Array<{ key: string; label: string; desc: string }> = [
 ]
 
 const POSE_SUFFIXES: Record<string, string> = {
-  normal: 'standing upright, looking forward, neutral expression',
-  write: 'writing or studying, holding a pen, looking at paper or book',
-  rest: 'sleeping or lying down, eyes closed, fully relaxed and lazy',
+  normal: 'standing upright, looking forward, neutral expression, empty hands',
+  write: 'standing upright, looking forward, smiling, holding a pencil in one hand',
+  rest: 'standing upright, looking forward, sleepy expression, hugging a pillow',
 }
 
 const STYLE_TAGS = 'white background, anime illustration, flat color, 2D, chibi, kawaii, yuru-chara, Japanese anime style, simple design, full body, white background'
