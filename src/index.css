@@ -201,9 +201,9 @@ html, body, #root {
 }
 .bubble-panel {
   position: absolute;
-  right: calc(50% + 78px); /* 70px = half chara-img, 8px gap */
+  left: 0;
+  right: calc(50% + 76px); /* half chara(70px) + gap(6px) */
   top: 50%; transform: translateY(-50%);
-  width: 116px;
   display: flex; flex-direction: column; gap: 8px;
 }
 .speech-bubble {
@@ -232,8 +232,8 @@ html, body, #root {
 }
 .bubble-action-row { display: flex; gap: 6px; align-items: center; }
 .bubble-action-btn {
-  width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--border);
-  background: var(--bg); color: var(--text); font-size: 16px;
+  width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--border);
+  background: var(--bg); color: var(--text); font-size: 14px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; flex-shrink: 0; transition: background 0.12s;
 }
