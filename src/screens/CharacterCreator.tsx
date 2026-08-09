@@ -528,35 +528,47 @@ export function CharacterCreator() {
 
   const allReady = !!exports.normal
 
-  const createComposite = (charDataUrl: string, overlayUrl: string): Promise<string> =>
+  const loadImg = (src: string): Promise<HTMLImageElement> =>
     new Promise(resolve => {
-      const canvas = document.createElement('canvas')
-      canvas.width = CROP_SIZE; canvas.height = CROP_SIZE
-      const ctx = canvas.getContext('2d')!
-      const charImg = new Image()
-      charImg.onload = () => {
-        ctx.drawImage(charImg, 0, 0, CROP_SIZE, CROP_SIZE)
-        const overlayImg = new Image()
-        overlayImg.onload = () => {
-          const maxH = CROP_SIZE * 0.65
-          const scale = Math.min(CROP_SIZE / overlayImg.width, maxH / overlayImg.height)
-          const w = overlayImg.width * scale
-          const h = overlayImg.height * scale
-          ctx.drawImage(overlayImg, (CROP_SIZE - w) / 2, CROP_SIZE - h, w, h)
-          resolve(canvas.toDataURL('image/png'))
-        }
-        overlayImg.onerror = () => resolve(charDataUrl)
-        overlayImg.src = overlayUrl
-      }
-      charImg.src = charDataUrl
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = () => resolve(img)
+      img.src = src
     })
+
+  const createComposite = async (charDataUrl: string, leftUrl: string, rightUrl: string): Promise<string> => {
+    const canvas = document.createElement('canvas')
+    canvas.width = CROP_SIZE; canvas.height = CROP_SIZE
+    const ctx = canvas.getContext('2d')!
+    const [charImg, leftImg, rightImg] = await Promise.all([
+      loadImg(charDataUrl), loadImg(leftUrl), loadImg(rightUrl),
+    ])
+    ctx.drawImage(charImg, 0, 0, CROP_SIZE, CROP_SIZE)
+    const maxW = CROP_SIZE * 0.42
+    const maxH = CROP_SIZE * 0.58
+    const lScale = Math.min(maxW / leftImg.width, maxH / leftImg.height)
+    const lw = leftImg.width * lScale, lh = leftImg.height * lScale
+    ctx.drawImage(leftImg, 0, CROP_SIZE - lh, lw, lh)
+    const rScale = Math.min(maxW / rightImg.width, maxH / rightImg.height)
+    const rw = rightImg.width * rScale, rh = rightImg.height * rScale
+    ctx.drawImage(rightImg, CROP_SIZE - rw, CROP_SIZE - rh, rw, rh)
+    return canvas.toDataURL('image/png')
+  }
 
   const handleApply = async () => {
     const normalDataUrl = exports.normal
     if (!normalDataUrl) return
     const base = import.meta.env.BASE_URL
-    const writeDataUrl = await createComposite(normalDataUrl, `${base}assets/images/overlays/write_overlay.png`)
-    const restDataUrl = await createComposite(normalDataUrl, `${base}assets/images/overlays/rest_overlay.png`).catch(() => normalDataUrl)
+    const writeDataUrl = await createComposite(
+      normalDataUrl,
+      `${base}assets/images/overlays/write_left.png`,
+      `${base}assets/images/overlays/write_right.png`,
+    )
+    const restDataUrl = await createComposite(
+      normalDataUrl,
+      `${base}assets/images/overlays/rest_left.png`,
+      `${base}assets/images/overlays/rest_right.png`,
+    ).catch(() => normalDataUrl)
     localStorage.setItem('nob_custom_img_normal', normalDataUrl)
     localStorage.setItem('nob_custom_img_write', writeDataUrl)
     localStorage.setItem('nob_custom_img_rest', restDataUrl)
@@ -569,8 +581,16 @@ export function CharacterCreator() {
     if (!allReady) return
     const normalDataUrl = exports.normal!
     const base = import.meta.env.BASE_URL
-    const writeDataUrl = await createComposite(normalDataUrl, `${base}assets/images/overlays/write_overlay.png`)
-    const restDataUrl = await createComposite(normalDataUrl, `${base}assets/images/overlays/rest_overlay.png`).catch(() => normalDataUrl)
+    const writeDataUrl = await createComposite(
+      normalDataUrl,
+      `${base}assets/images/overlays/write_left.png`,
+      `${base}assets/images/overlays/write_right.png`,
+    )
+    const restDataUrl = await createComposite(
+      normalDataUrl,
+      `${base}assets/images/overlays/rest_left.png`,
+      `${base}assets/images/overlays/rest_right.png`,
+    ).catch(() => normalDataUrl)
     const zip = new JSZip()
     const folder = zip.folder('mychar')!
     for (const [key, dataUrl] of [['normal', normalDataUrl], ['write', writeDataUrl], ['rest', restDataUrl]]) {
