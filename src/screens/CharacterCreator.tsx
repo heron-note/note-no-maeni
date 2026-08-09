@@ -31,7 +31,7 @@ const POSE_SUFFIXES: Record<string, string> = {
   rest: 'resting or sleeping comfortably, peaceful relaxed expression, full body',
 }
 
-const STYLE_TAGS = 'chibi mascot character, Japanese anime style, plain white background, character only, no background decoration, no frame, no circle, no vignette, full body isolated'
+const STYLE_TAGS = 'chibi mascot character, 2D flat design, simple flat illustration, no shading, no 3D, no gradient, Japanese anime style, plain white background, character only, no background decoration, no frame, no circle, no vignette, full body isolated'
 
 function hasJapanese(text: string): boolean {
   return /[\u3000-\u9fff]/.test(text)
