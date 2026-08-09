@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { Toast } from '../components/Toast'
 import { exportData, importData } from '../utils/transfer'
+import { storage } from '../utils/storage'
 
 type HeartBurst = { id: number; x: number; y: number; particles: { dx: number; dy: number }[] }
 
@@ -16,6 +17,7 @@ export function Settings() {
   const [name, setName] = useState(user?.name ?? '')
   const [char, setChar] = useState(user?.character ?? 'kuma')
   const [toast, setToast] = useState<string | null>(null)
+  const [geminiKey, setGeminiKey] = useState(() => storage.loadGeminiKey() ?? '')
   const importRef = useRef<HTMLInputElement>(null)
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
 
@@ -79,6 +81,24 @@ export function Settings() {
         <button className="btn-secondary wide" onClick={() => goTo('character-creator')}>
           相棒クリエイト
         </button>
+      </div>
+
+      <div className="settings-row">
+        <p className="label">Gemini APIキー</p>
+        <input
+          type="password"
+          className="text-input"
+          placeholder="AIzaSy..."
+          autoComplete="off"
+          value={geminiKey}
+          onChange={e => setGeminiKey(e.target.value)}
+          onBlur={() => storage.saveGeminiKey(geminiKey)}
+        />
+        <p className="settings-hint">
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">
+            Google AI Studio でキーを取得 →
+          </a>
+        </p>
       </div>
 
       <button className="btn-primary wide" onClick={handleSave}>

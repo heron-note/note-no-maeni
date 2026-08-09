@@ -36,6 +36,9 @@ export const storage = {
 
   loadLastLogin: () => localStorage.getItem('nob_last_login'),
   saveLastLogin: (date: string) => localStorage.setItem('nob_last_login', date),
+
+  loadGeminiKey: () => localStorage.getItem('nob_gemini_key'),
+  saveGeminiKey: (v: string) => localStorage.setItem('nob_gemini_key', v),
 }
 
 export function todayStr(): string {

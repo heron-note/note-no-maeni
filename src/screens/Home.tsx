@@ -7,6 +7,7 @@ import { WriteOverlay } from '../components/WriteOverlay'
 import { BookmarkEditor } from '../components/BookmarkEditor'
 import { RecommendOverlay } from '../components/RecommendOverlay'
 import { TagEditor } from '../components/TagEditor'
+import { ChatOverlay } from '../components/ChatOverlay'
 import { WikiHintCard } from '../components/WikiHintCard'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
 import { storage, todayStr } from '../utils/storage'
@@ -50,6 +51,7 @@ export function Home() {
   const [showEditor, setShowEditor] = useState(false)
   const [showTagEditor, setShowTagEditor] = useState(false)
   const [recommended, setRecommended] = useState<Bookmark | null>(null)
+  const [showChat, setShowChat] = useState(false)
 
   const [isFirstVisit] = useState(() => storage.loadLastLogin() === null)
 
@@ -160,7 +162,7 @@ export function Home() {
           </div>
         </div>
 
-        {/* 右: キャラクター */}
+        {/* 中央: キャラクター */}
         <div className="chara-block">
           <img
             className="chara-img"
@@ -170,6 +172,13 @@ export function Home() {
             style={{ cursor: 'pointer' }}
           />
         </div>
+
+        {/* 右: チャットアイコン */}
+        <button className="chat-open-btn" onClick={() => setShowChat(true)} aria-label="AIに相談する">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </button>
       </div>
 
       <div className="heart-burst-wrap">
@@ -223,6 +232,13 @@ export function Home() {
           tags={tags}
           onChange={handleTagsChange}
           onClose={() => setShowTagEditor(false)}
+        />
+      )}
+      {showChat && (
+        <ChatOverlay
+          userName={name}
+          onClose={() => setShowChat(false)}
+          onGoSettings={() => { setShowChat(false); goTo('settings') }}
         />
       )}
       {recommended && (
