@@ -238,7 +238,6 @@ export function Home() {
         <ChatOverlay
           userName={name}
           onClose={() => setShowChat(false)}
-          onGoSettings={() => { setShowChat(false); goTo('settings') }}
         />
       )}
       {recommended && (

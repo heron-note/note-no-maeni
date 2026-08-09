@@ -6,7 +6,6 @@ import type { ChatMessage } from '../utils/gemini'
 interface Props {
   userName: string
   onClose: () => void
-  onGoSettings: () => void
 }
 
 const SYSTEM_PROMPT = (name: string, personality: string) => {
@@ -21,21 +20,32 @@ const SYSTEM_PROMPT = (name: string, personality: string) => {
   return parts.filter(Boolean).join('')
 }
 
-export function ChatOverlay({ userName, onClose, onGoSettings }: Props) {
+export function ChatOverlay({ userName, onClose }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [closing, setClosing] = useState(false)
+  const [apiKey, setApiKey] = useState(() => storage.loadGeminiKey() ?? '')
+  const [keyInput, setKeyInput] = useState('')
+  const [keyError, setKeyError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  const apiKey = storage.loadGeminiKey()
   const personality = storage.loadCharPersonality()
+  const hasKey = apiKey !== ''
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
+
+  const handleSaveKey = () => {
+    const k = keyInput.trim()
+    if (!k) { setKeyError('APIキーを入力してください'); return }
+    storage.saveGeminiKey(k)
+    setApiKey(k)
+    setKeyInput('')
+  }
 
   const handleClose = () => {
     setClosing(true)
@@ -44,8 +54,7 @@ export function ChatOverlay({ userName, onClose, onGoSettings }: Props) {
 
   const handleSend = async () => {
     const text = input.trim()
-    if (!text || loading) return
-    if (!apiKey) { setError('設定画面でGemini APIキーを入力してください'); return }
+    if (!text || loading || !hasKey) return
 
     const next: ChatMessage[] = [...messages, { role: 'user', text }]
     setMessages(next)
@@ -54,7 +63,7 @@ export function ChatOverlay({ userName, onClose, onGoSettings }: Props) {
     setError(null)
 
     try {
-      const reply = await sendGeminiMessage(apiKey, messages, text, SYSTEM_PROMPT(userName, personality))
+      const reply = await sendGeminiMessage(apiKey!, messages, text, SYSTEM_PROMPT(userName, personality))
       setMessages([...next, { role: 'model', text: reply }])
     } catch (e) {
       setError(e instanceof Error ? e.message : '通信エラーが発生しました')
@@ -72,14 +81,29 @@ export function ChatOverlay({ userName, onClose, onGoSettings }: Props) {
           <button className="icon-btn" onClick={handleClose}>✕</button>
         </div>
 
-        {!apiKey && (
+        {!hasKey && (
           <div className="chat-no-key">
-            <p>Gemini APIキーが設定されていません。</p>
-            <button className="btn-primary wide" onClick={onGoSettings}>設定画面へ</button>
+            <p className="chat-no-key-title">Gemini APIキーを入力してください</p>
+            <p className="chat-no-key-desc">
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">
+                Google AI Studio で無料取得 →
+              </a>
+            </p>
+            <input
+              type="password"
+              className="text-input"
+              placeholder="AIzaSy..."
+              autoComplete="off"
+              value={keyInput}
+              onChange={e => { setKeyInput(e.target.value); setKeyError(null) }}
+              onKeyDown={e => e.key === 'Enter' && handleSaveKey()}
+            />
+            {keyError && <p className="chat-error">{keyError}</p>}
+            <button className="btn-primary wide" onClick={handleSaveKey}>保存して始める</button>
           </div>
         )}
 
-        {apiKey && (
+        {hasKey && (
           <>
             <div className="chat-messages">
               {messages.length === 0 && (
