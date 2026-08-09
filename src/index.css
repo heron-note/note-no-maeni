@@ -389,6 +389,8 @@ html, body, #root {
   transition: background 0.15s;
 }
 .wiki-hint-note-btn:hover { background: #FFE0DC; }
+.wiki-choice-block { margin-top: 4px; }
+.wiki-hint-card .template-shortcut-btn { margin-top: 0; }
 
 /* ===== REACTION ===== */
 .bubble {

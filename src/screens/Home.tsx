@@ -127,21 +127,11 @@ export function Home() {
         <p className="greeting">{isFirstVisit ? 'はじめまして' : 'おかえり'}、{name}さん。</p>
         <p className="greeting-sub">今日のnote、どうする？</p>
       </div>
-      <div className="choice-block">
-        <button className="choice-btn write" onClick={() => handleChoice('write')}>
-          <span className="choice-icon">🟨</span>
-          <span className="choice-main">書く</span>
-          <span className="choice-sub">1行でも書く</span>
-        </button>
-        <button className="choice-btn rest" onClick={() => handleChoice('rest')}>
-          <span className="choice-icon">🟦</span>
-          <span className="choice-main">休む</span>
-          <span className="choice-sub">書くプレッシャーをリセット</span>
-        </button>
-      </div>
-      <button className="template-shortcut-btn" onClick={() => goTo('template-editor')}>
-        ✏️ 休もっ化計画テンプレートを編集
-      </button>
+      <WikiHintCard
+        onWrite={() => handleChoice('write')}
+        onRest={() => handleChoice('rest')}
+        onEditTemplate={() => goTo('template-editor')}
+      />
 
       <div className="recommend-bar">
         <button

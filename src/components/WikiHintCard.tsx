@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react'
 import { fetchWikiHint } from '../utils/wikipedia'
 import type { WikiHint } from '../utils/wikipedia'
 
-export function WikiHintCard() {
+interface Props {
+  onWrite: () => void
+  onRest: () => void
+  onEditTemplate: () => void
+}
+
+export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
   const [hint, setHint] = useState<WikiHint | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -19,7 +25,7 @@ export function WikiHintCard() {
   return (
     <div className="wiki-hint-card">
       <div className="wiki-hint-header">
-        <span className="wiki-hint-label">今日のネタ候補</span>
+        <span className="wiki-hint-label">今日の豆知識</span>
         <button className="wiki-hint-refresh" onClick={refresh} disabled={loading} aria-label="更新">
           ↻
         </button>
@@ -30,18 +36,28 @@ export function WikiHintCard() {
         <>
           <p className="wiki-hint-title">{hint.title}</p>
           <p className="wiki-hint-extract">{hint.extract}</p>
-          <div className="wiki-hint-actions">
-            {hint.pageUrl && (
-              <a className="wiki-hint-wiki-btn" href={hint.pageUrl} target="_blank" rel="noopener noreferrer">
-                詳しく読む
-              </a>
-            )}
-            <a className="wiki-hint-note-btn" href="https://note.com/notes/new" target="_blank" rel="noopener noreferrer">
-              このテーマで書く ↗
+          {hint.pageUrl && (
+            <a className="wiki-hint-wiki-btn" href={hint.pageUrl} target="_blank" rel="noopener noreferrer">
+              詳しく読む
             </a>
-          </div>
+          )}
         </>
       ) : null}
+      <div className="choice-block wiki-choice-block">
+        <button className="choice-btn write" onClick={onWrite}>
+          <span className="choice-icon">🟨</span>
+          <span className="choice-main">書く</span>
+          <span className="choice-sub">1行でも書く</span>
+        </button>
+        <button className="choice-btn rest" onClick={onRest}>
+          <span className="choice-icon">🟦</span>
+          <span className="choice-main">休む</span>
+          <span className="choice-sub">書くプレッシャーをリセット</span>
+        </button>
+      </div>
+      <button className="template-shortcut-btn" onClick={onEditTemplate}>
+        ✏️ 休もっ化計画テンプレートを編集
+      </button>
     </div>
   )
 }
