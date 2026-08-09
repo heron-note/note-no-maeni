@@ -36,20 +36,29 @@ export function ChatOverlay({ userName, onClose }: Props) {
   const dragStartY = useRef<number | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [speakingIdx, setSpeakingIdx] = useState<number | null>(null)
+  const recognitionRef = useRef<any>(null)
 
   const handleVoiceInput = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SR) { setError('このブラウザは音声入力に対応していません'); return }
+    if (isListening) {
+      recognitionRef.current?.stop()
+      return
+    }
     const rec = new SR()
+    recognitionRef.current = rec
     rec.lang = 'ja-JP'
     rec.interimResults = false
+    rec.continuous = false
     setIsListening(true)
     rec.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript
+      const transcript = Array.from(e.results as any[])
+        .map((r: any) => r[0].transcript)
+        .join('')
       setInput(prev => prev ? prev + transcript : transcript)
     }
-    rec.onerror = () => setIsListening(false)
-    rec.onend = () => setIsListening(false)
+    rec.onerror = () => { setIsListening(false); recognitionRef.current = null }
+    rec.onend = () => { setIsListening(false); recognitionRef.current = null }
     rec.start()
   }
 
