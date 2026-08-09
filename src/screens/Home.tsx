@@ -8,6 +8,7 @@ import { BookmarkEditor } from '../components/BookmarkEditor'
 import { RecommendOverlay } from '../components/RecommendOverlay'
 import { TagEditor } from '../components/TagEditor'
 import { ChatOverlay } from '../components/ChatOverlay'
+import { HelpOverlay } from '../components/HelpOverlay'
 import { WikiHintCard } from '../components/WikiHintCard'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
 import { storage, todayStr } from '../utils/storage'
@@ -54,6 +55,7 @@ export function Home() {
   const [showChat, setShowChat] = useState(false)
 
   const [isFirstVisit] = useState(() => storage.loadLastLogin() === null)
+  const [showHelp, setShowHelp] = useState(() => !storage.loadHelpDone())
 
   useEffect(() => {
     storage.saveLastLogin(todayStr())
@@ -117,12 +119,21 @@ export function Home() {
             </svg>
           )}
         </button>
-        <button className="icon-btn" onClick={() => goTo('settings')} aria-label="設定">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-        </button>
+        <div className="top-bar-right">
+          <button className="icon-btn" onClick={() => setShowHelp(true)} aria-label="ヘルプ">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </button>
+          <button data-help="settings-btn" className="icon-btn" onClick={() => goTo('settings')} aria-label="設定">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="chara-bubble-row">
@@ -131,7 +142,7 @@ export function Home() {
           {/* 上: おすすめ */}
           <div className="speech-bubble">
             <div className="bubble-action-row">
-              <button className="bubble-icon-btn" onClick={handleRecommend} disabled={bookmarks.length === 0} aria-label="おすすめ">
+              <button data-help="recommend-btn" className="bubble-icon-btn" onClick={handleRecommend} disabled={bookmarks.length === 0} aria-label="おすすめ">
                 {/* music note */}
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 18V5l12-2v13"/>
@@ -151,7 +162,7 @@ export function Home() {
           {/* 下: タグ */}
           <div className="speech-bubble">
             <div className="bubble-action-row">
-              <button className="bubble-icon-btn" onClick={() => setShowTagEditor(true)} aria-label="タグ編集">
+              <button data-help="tag-btn" className="bubble-icon-btn" onClick={() => setShowTagEditor(true)} aria-label="タグ編集">
                 {/* hashtag */}
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/>
@@ -165,6 +176,7 @@ export function Home() {
         {/* 中央: キャラクター */}
         <div className="chara-block">
           <img
+            data-help="chara"
             className="chara-img"
             src={charImgPath(ch, charState)}
             alt="相棒"
@@ -174,7 +186,7 @@ export function Home() {
         </div>
 
         {/* 右: チャットアイコン */}
-        <button className="chat-open-btn" onClick={() => setShowChat(true)} aria-label="AIに相談する">
+        <button data-help="chat-btn" className="chat-open-btn" onClick={() => setShowChat(true)} aria-label="AIに相談する">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
@@ -200,11 +212,13 @@ export function Home() {
         <p className="greeting-sub">今日のnote、どうする？</p>
       </div>
 
-      <WikiHintCard
-        onWrite={() => handleChoice('write')}
-        onRest={() => handleChoice('rest')}
-        onEditTemplate={() => goTo('template-editor')}
-      />
+      <div data-help="wiki-card">
+        <WikiHintCard
+          onWrite={() => handleChoice('write')}
+          onRest={() => handleChoice('rest')}
+          onEditTemplate={() => goTo('template-editor')}
+        />
+      </div>
 
       <Calendar logs={logs} />
 
@@ -239,6 +253,9 @@ export function Home() {
           userName={name}
           onClose={() => setShowChat(false)}
         />
+      )}
+      {showHelp && (
+        <HelpOverlay onDone={() => setShowHelp(false)} />
       )}
       {recommended && (
         <RecommendOverlay

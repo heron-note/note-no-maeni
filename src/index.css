@@ -478,6 +478,32 @@ html, body, #root {
 .wiki-choice-block { margin-top: 4px; max-width: 100%; justify-content: center; }
 .wiki-hint-card .template-shortcut-btn { margin-top: 0; }
 
+/* ===== HELP ===== */
+.top-bar-right { display: flex; align-items: center; gap: 4px; }
+
+.help-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9000;
+  cursor: pointer;
+}
+.help-tooltip {
+  position: fixed;
+  background: var(--surface); border-radius: 14px;
+  padding: 16px; box-shadow: 0 4px 32px rgba(0,0,0,0.3);
+  z-index: 9001; pointer-events: auto; cursor: default;
+}
+.help-step-count { font-size: 11px; color: var(--text-light); margin-bottom: 4px; }
+.help-tooltip-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+.help-tooltip-desc { font-size: 13px; color: var(--text-light); line-height: 1.6; margin-bottom: 12px; }
+.help-next-btn {
+  width: 100%; padding: 10px; background: var(--primary); color: #fff;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.help-skip-btn {
+  position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); right: 20px;
+  z-index: 9001; background: none; border: none;
+  font-size: 13px; color: rgba(255,255,255,0.75); cursor: pointer; pointer-events: auto;
+}
+
 /* ===== CHAT ===== */
 .chat-open-btn {
   position: absolute;
