@@ -1,3 +1,5 @@
+import { storage } from './storage'
+
 export interface ChatMessage {
   role: 'user' | 'model'
   text: string
@@ -14,8 +16,9 @@ export async function sendGeminiMessage(
     { role: 'user', parts: [{ text: userText }] },
   ]
 
+  const model = storage.loadGeminiModel() || 'gemini-1.5-flash'
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

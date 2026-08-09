@@ -18,6 +18,7 @@ export function Settings() {
   const [char, setChar] = useState(user?.character ?? 'kuma')
   const [toast, setToast] = useState<string | null>(null)
   const [geminiKey, setGeminiKey] = useState(() => storage.loadGeminiKey() ?? '')
+  const [geminiModel, setGeminiModel] = useState(() => storage.loadGeminiModel() ?? 'gemini-1.5-flash')
   const [charPersonality, setCharPersonality] = useState(() => storage.loadCharPersonality())
   const importRef = useRef<HTMLInputElement>(null)
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
@@ -101,6 +102,15 @@ export function Settings() {
             Google AI Studio でキーを取得 →
           </a>
         </p>
+        <input
+          type="text"
+          className="text-input"
+          placeholder="gemini-1.5-flash"
+          value={geminiModel}
+          onChange={e => setGeminiModel(e.target.value)}
+          onBlur={() => storage.saveGeminiModel(geminiModel || 'gemini-1.5-flash')}
+        />
+        <p className="settings-hint">モデル名（空欄は gemini-1.5-flash）</p>
       </div>
 
       <div className="settings-row">
