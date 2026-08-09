@@ -11,9 +11,7 @@ const FALLBACKS: WikiHint[] = [
 ]
 
 async function fetchOnce(): Promise<WikiHint | null> {
-  const res = await fetch('https://ja.wikipedia.org/api/rest_v1/page/random/summary', {
-    headers: { 'User-Agent': 'noteのまえに/1.0' },
-  })
+  const res = await fetch('https://ja.wikipedia.org/api/rest_v1/page/random/summary')
   if (!res.ok) return null
   const data = await res.json()
   const extract: string = data.extract ?? ''
