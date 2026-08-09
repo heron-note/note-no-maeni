@@ -36,6 +36,10 @@ export function ChatOverlay({ userName, onClose }: Props) {
   const hasKey = apiKey !== ''
 
   useEffect(() => {
+    if (hasKey) setTimeout(() => inputRef.current?.focus(), 300)
+  }, [])
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
