@@ -396,6 +396,11 @@ html, body, #root {
   display: flex; flex-direction: column;
   padding: 20px 20px env(safe-area-inset-bottom, 16px);
   box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
+  animation: wiki-slide-in 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes wiki-slide-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 .wiki-modal-header {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
