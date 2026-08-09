@@ -23,12 +23,6 @@ function parseSpreadsheet(text: string, existing: Bookmark[]): { valid: { name: 
   return { valid, skipped }
 }
 
-function parseClipboard(text: string): { name: string; url: string } | null {
-  const match = text.match(/^(.+?)：(https?:\/\/.+)$/)
-  if (match) return { name: stripNote(match[1].trim()), url: match[2].trim() }
-  return null
-}
-
 function newId() {
   return `bm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 }
@@ -84,40 +78,6 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
   }
 
   const DOTS = ['○○○', '●○○', '●●○', '●●●']
-
-  const handleClipboard = async () => {
-    try {
-      if (navigator.clipboard.read) {
-        const items = await navigator.clipboard.read()
-        for (const item of items) {
-          if (item.types.includes('text/html')) {
-            const blob = await item.getType('text/html')
-            const html = await blob.text()
-            const div = document.createElement('div')
-            div.innerHTML = html
-            const anchor = div.querySelector('a[href]') as HTMLAnchorElement | null
-            if (anchor?.href) {
-              setName(stripNote(anchor.textContent?.trim() ?? ''))
-              setUrl(anchor.href)
-              setError(null)
-              return
-            }
-          }
-        }
-      }
-      const text = await navigator.clipboard.readText()
-      const parsed = parseClipboard(text)
-      if (parsed) {
-        setName(parsed.name)
-        setUrl(parsed.url)
-        setError(null)
-      } else {
-        setError('読み込めませんでした。ブックマークレットを実行してから押してください')
-      }
-    } catch {
-      setError('クリップボードへのアクセスが許可されていません')
-    }
-  }
 
   return (
     <div className="stamp-overlay" onClick={onClose}>
@@ -207,9 +167,6 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
               onChange={e => setUrl(e.target.value)}
             />
             {error && <p className="bookmark-error">{error}</p>}
-            <button className="btn-secondary wide" onClick={handleClipboard}>
-              クリップボードから読み込む
-            </button>
             <button className="btn-primary wide" onClick={handleAdd}>追加する</button>
           </div>
         </div>
