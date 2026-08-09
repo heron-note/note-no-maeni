@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { playPowan } from '../utils/audio'
 
 export function SplashScreen({ onDone }: { onDone: () => void }) {
   const [hiding, setHiding] = useState(false)
@@ -7,6 +8,7 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
   const dismiss = () => {
     if (doneRef.current) return
     doneRef.current = true
+    playPowan()
     setHiding(true)
     setTimeout(() => onDone(), 400)
   }
