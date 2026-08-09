@@ -33,7 +33,7 @@ let cache: ContentConfig | null = null
 async function loadContentConfig(): Promise<ContentConfig> {
   if (cache) return cache
   try {
-    const res = await fetch('/content-config.json', { cache: 'no-store' })
+    const res = await fetch(`${import.meta.env.BASE_URL}content-config.json`, { cache: 'no-store' })
     if (res.ok) cache = await res.json()
   } catch {
     // ignore

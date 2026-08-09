@@ -1,10 +1,10 @@
-const FALLBACK_MODEL = 'gemini-2.5-flash'
+const FALLBACK_MODEL = 'gemini-1.5-flash'
 let resolvedModel: string | null = null
 
 async function getModel(): Promise<string> {
   if (resolvedModel) return resolvedModel
   try {
-    const res = await fetch('/ai-config.json', { cache: 'no-store' })
+    const res = await fetch(`${import.meta.env.BASE_URL}ai-config.json`, { cache: 'no-store' })
     if (res.ok) {
       const cfg = await res.json()
       resolvedModel = cfg.geminiModel ?? FALLBACK_MODEL
