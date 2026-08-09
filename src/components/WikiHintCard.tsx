@@ -33,16 +33,17 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
             ↻
           </button>
         </div>
-        {loading ? (
-          <p className="wiki-hint-loading">取得中…</p>
-        ) : hint ? (
-          <>
-            <p className="wiki-hint-title">{hint.title}</p>
-            <button className="wiki-hint-wiki-btn" onClick={() => setShowModal(true)}>
-              全文を読む →
-            </button>
-          </>
-        ) : null}
+        <p className="wiki-hint-title" style={loading ? { visibility: 'hidden' } : undefined}>
+          {hint?.title ?? '　'}
+        </p>
+        <button
+          className="wiki-hint-wiki-btn"
+          onClick={() => setShowModal(true)}
+          disabled={loading || !hint}
+          style={loading ? { visibility: 'hidden' } : undefined}
+        >
+          全文を読む →
+        </button>
         <div className="choice-block wiki-choice-block">
           <button className="choice-btn write" onClick={onWrite}>
             <span className="choice-icon">🟨</span>
