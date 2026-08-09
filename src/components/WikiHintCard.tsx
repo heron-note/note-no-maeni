@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchWikiHint } from '../utils/wikipedia'
+import { fetchWikiHint, refreshWikiHint } from '../utils/wikipedia'
 import type { WikiHint } from '../utils/wikipedia'
 
 interface Props {
@@ -19,7 +19,7 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
   const refresh = () => {
     setLoading(true)
     setHint(null)
-    fetchWikiHint().then(h => { setHint(h); setLoading(false) })
+    refreshWikiHint().then(h => { setHint(h); setLoading(false) })
   }
 
   return (

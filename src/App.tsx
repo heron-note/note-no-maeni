@@ -9,6 +9,7 @@ import { SplashScreen } from './components/SplashScreen'
 import { preloadVoicevox } from './utils/voicevox'
 import type { VoicevoxKey } from './utils/voicevox'
 import { storage } from './utils/storage'
+import { prefetchWikiHint } from './utils/wikipedia'
 import type { ScreenName } from './types'
 import type { JSX } from 'react'
 
@@ -27,6 +28,7 @@ export function App() {
   const preloadedAudio = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
+    prefetchWikiHint()
     init()
     const state = useAppStore.getState()
     const user = state.user
