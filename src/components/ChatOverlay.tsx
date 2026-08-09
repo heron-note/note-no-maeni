@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { sendGeminiMessage } from '../utils/gemini'
+import { sendGeminiMessage, fetchGeminiModels } from '../utils/gemini'
 import { storage } from '../utils/storage'
-import type { ChatMessage } from '../utils/gemini'
+import type { ChatMessage, GeminiModel } from '../utils/gemini'
 
 interface Props {
   userName: string
@@ -29,6 +29,9 @@ export function ChatOverlay({ userName, onClose }: Props) {
   const [apiKey, setApiKey] = useState(() => storage.loadGeminiKey() ?? '')
   const [keyInput, setKeyInput] = useState('')
   const [keyError, setKeyError] = useState<string | null>(null)
+  const [models, setModels] = useState<GeminiModel[]>([])
+  const [selectedModel, setSelectedModel] = useState(() => storage.loadGeminiModel() ?? '')
+  const [fetchingModels, setFetchingModels] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -39,12 +42,34 @@ export function ChatOverlay({ userName, onClose }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  const handleSaveKey = () => {
+  const handleSaveKey = async () => {
     const k = keyInput.trim()
     if (!k) { setKeyError('APIキーを入力してください'); return }
-    storage.saveGeminiKey(k)
-    setApiKey(k)
-    setKeyInput('')
+    setFetchingModels(true)
+    setKeyError(null)
+    try {
+      const list = await fetchGeminiModels(k)
+      if (list.length === 0) { setKeyError('利用可能なモデルが見つかりませんでした'); return }
+      storage.saveGeminiKey(k)
+      setApiKey(k)
+      setModels(list)
+      // 保存済みモデルが一覧にあればそれを使う、なければ先頭を選択
+      const saved = storage.loadGeminiModel()
+      const matched = saved ? list.find(m => m.id === saved) : null
+      const chosen = matched ?? list[0]
+      setSelectedModel(chosen.id)
+      storage.saveGeminiModel(chosen.id)
+      setKeyInput('')
+    } catch {
+      setKeyError('APIキーが無効か、接続に失敗しました')
+    } finally {
+      setFetchingModels(false)
+    }
+  }
+
+  const handleModelChange = (id: string) => {
+    setSelectedModel(id)
+    storage.saveGeminiModel(id)
   }
 
   const handleClose = () => {
@@ -63,7 +88,7 @@ export function ChatOverlay({ userName, onClose }: Props) {
     setError(null)
 
     try {
-      const reply = await sendGeminiMessage(apiKey!, messages, text, SYSTEM_PROMPT(userName, personality))
+      const reply = await sendGeminiMessage(apiKey, messages, text, SYSTEM_PROMPT(userName, personality))
       setMessages([...next, { role: 'model', text: reply }])
     } catch (e) {
       setError(e instanceof Error ? e.message : '通信エラーが発生しました')
@@ -96,10 +121,12 @@ export function ChatOverlay({ userName, onClose }: Props) {
               autoComplete="off"
               value={keyInput}
               onChange={e => { setKeyInput(e.target.value); setKeyError(null) }}
-              onKeyDown={e => e.key === 'Enter' && handleSaveKey()}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSaveKey() }}
             />
             {keyError && <p className="chat-error">{keyError}</p>}
-            <button className="btn-primary wide" onClick={handleSaveKey}>保存して始める</button>
+            <button className="btn-primary wide" onClick={handleSaveKey} disabled={fetchingModels}>
+              {fetchingModels ? 'モデルを確認中...' : '保存して始める'}
+            </button>
           </div>
         )}
 
@@ -149,6 +176,24 @@ export function ChatOverlay({ userName, onClose }: Props) {
                 </svg>
               </button>
             </div>
+
+            {(models.length > 0 || selectedModel) && (
+              <div className="chat-model-row">
+                {models.length > 0 ? (
+                  <select
+                    className="chat-model-select"
+                    value={selectedModel}
+                    onChange={e => handleModelChange(e.target.value)}
+                  >
+                    {models.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="chat-model-label">{selectedModel}</span>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

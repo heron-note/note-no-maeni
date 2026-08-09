@@ -5,6 +5,25 @@ export interface ChatMessage {
   text: string
 }
 
+export interface GeminiModel {
+  id: string   // e.g. "gemini-2.0-flash"
+  name: string // display name
+}
+
+export async function fetchGeminiModels(apiKey: string): Promise<GeminiModel[]> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
+  )
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const data = await res.json()
+  return (data.models as { name: string; displayName?: string; supportedGenerationMethods?: string[] }[])
+    .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+    .map(m => ({
+      id: m.name.replace('models/', ''),
+      name: m.displayName ?? m.name.replace('models/', ''),
+    }))
+}
+
 export async function sendGeminiMessage(
   apiKey: string,
   history: ChatMessage[],
