@@ -38,7 +38,7 @@ function buildPrompt(description: string, poseKey: string): string {
 }
 
 function pollinationsUrl(prompt: string, seed: number): string {
-  return `https://pollinations.ai/p/${encodeURIComponent(prompt)}?width=512&height=512&seed=${seed}&nologo=true&model=flux`
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&seed=${seed}&nologo=true&model=flux`
 }
 
 interface CropRef {
