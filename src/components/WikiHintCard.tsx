@@ -38,9 +38,8 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
         ) : hint ? (
           <>
             <p className="wiki-hint-title">{hint.title}</p>
-            <p className="wiki-hint-extract">{hint.extract}</p>
             <button className="wiki-hint-wiki-btn" onClick={() => setShowModal(true)}>
-              詳しく読む
+              全文を読む →
             </button>
           </>
         ) : null}
