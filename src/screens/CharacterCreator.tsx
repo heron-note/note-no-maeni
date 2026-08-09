@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import JSZip from 'jszip'
 import { useAppStore } from '../store/useAppStore'
 import { Toast } from '../components/Toast'
+import { storage } from '../utils/storage'
 
 const CANVAS_SIZE = 320
 const CROP_SIZE = 256
@@ -24,6 +25,36 @@ const STATES: Array<{ key: string; label: string; desc: string }> = [
     desc: '「休む」のスタンプ画面に表示されます。ゆったりくつろいだ表情・ポーズが向いています。',
   },
 ]
+
+const POSE_PROMPTS: Record<string, string> = {
+  normal: 'standing naturally, neutral expression, full body',
+  write: 'writing in a notebook, focused cheerful expression, full body',
+  rest: 'resting or sleeping comfortably, peaceful relaxed expression, full body',
+}
+
+async function buildPrompt(description: string, pose: string, apiKey: string): Promise<string> {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an AI image prompt translator. Convert the character description into a concise English image generation prompt. Always append these style tags: "Japanese anime style illustration, white solid background, clean edges". Output ONLY the prompt text, no intro text or quotes.',
+        },
+        { role: 'user', content: `Character: ${description}\nPose: ${pose}` },
+      ],
+    }),
+  })
+  const data = await res.json()
+  if (data.error) throw new Error(data.error.message)
+  return data.choices[0].message.content.trim()
+}
+
+function pollinationsUrl(prompt: string, seed: number): string {
+  return `https://pollinations.ai/p/${encodeURIComponent(prompt)}?width=512&height=512&seed=${seed}&nologo=true&model=flux`
+}
 
 interface CropRef {
   offsetX: number
@@ -96,11 +127,12 @@ function removeBg(img: HTMLImageElement, tolerance: number): Promise<HTMLImageEl
   })
 }
 
-function CropPanel({ label, desc, onExport }: {
+function CropPanel({ label, desc, onExport, aiUrl }: {
   stateKey: string
   label: string
   desc: string
   onExport: (dataUrl: string | null) => void
+  aiUrl?: string
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const origImgRef = useRef<HTMLImageElement | null>(null)   // オリジナル
@@ -151,6 +183,25 @@ function CropPanel({ label, desc, onExport }: {
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
     return () => canvas.removeEventListener('touchmove', handleTouchMove)
   }, [hasImage])
+
+  useEffect(() => {
+    if (!aiUrl) return
+    const load = (el: HTMLImageElement) => {
+      origImgRef.current = el
+      initCrop(el)
+      setConfirmed(false)
+      setPreviewUrl(null)
+      setBgApplied(false)
+      onExport(null)
+      setHasImage(true)
+    }
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => load(img)
+    img.onerror = () => { const img2 = new Image(); img2.onload = () => load(img2); img2.src = aiUrl }
+    img.src = aiUrl
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiUrl])
 
   const getScaledDelta = (dx: number, dy: number) => {
     const canvas = canvasRef.current
@@ -385,6 +436,89 @@ function CropPanel({ label, desc, onExport }: {
   )
 }
 
+function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, string>) => void }) {
+  const [desc, setDesc] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [prompts, setPrompts] = useState<Record<string, string> | null>(null)
+  const [seeds, setSeeds] = useState<Record<string, number> | null>(null)
+  const [imgLoaded, setImgLoaded] = useState<Record<string, boolean>>({})
+
+  const urls: Record<string, string> | null = prompts && seeds
+    ? Object.fromEntries(STATES.map(s => [s.key, pollinationsUrl(prompts[s.key], seeds[s.key])]))
+    : null
+
+  const handleGenerate = async () => {
+    const apiKey = storage.loadGeminiKey()
+    if (!apiKey) { setError('設定からGroq APIキーを登録してください'); return }
+    if (!desc.trim()) return
+    setGenerating(true)
+    setError(null)
+    setImgLoaded({})
+    try {
+      const results = await Promise.all(
+        STATES.map(s => buildPrompt(desc, POSE_PROMPTS[s.key], apiKey))
+      )
+      setPrompts(Object.fromEntries(STATES.map((s, i) => [s.key, results[i]])))
+      setSeeds(Object.fromEntries(STATES.map(s => [s.key, Math.floor(Math.random() * 1000000)])))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '生成に失敗しました')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const reroll = (key: string) => {
+    setSeeds(prev => prev ? { ...prev, [key]: Math.floor(Math.random() * 1000000) } : prev)
+    setImgLoaded(prev => ({ ...prev, [key]: false }))
+  }
+
+  const allLoaded = urls !== null && STATES.every(s => imgLoaded[s.key])
+
+  return (
+    <div className="ai-gen-panel">
+      <p className="hint">どんな画像を作りたい？キャラクターの特徴を入力してください。GroqのAPIキーが必要です。</p>
+      <textarea
+        className="ai-gen-input"
+        rows={2}
+        placeholder="例：黒スーツを着た銀髪の男性、きりっとした目つき"
+        value={desc}
+        onChange={e => { setDesc(e.target.value); setError(null) }}
+      />
+      <button className="btn-primary wide" onClick={handleGenerate} disabled={generating || !desc.trim()}>
+        {generating ? 'プロンプト生成中…' : '生成する'}
+      </button>
+      {error && <p className="ai-gen-error">{error}</p>}
+      {urls && (
+        <>
+          <div className="ai-gen-previews">
+            {STATES.map(s => (
+              <div key={s.key} className="ai-gen-preview-item">
+                <span className="crop-state-badge">{s.label}</span>
+                <div className="ai-gen-img-wrap">
+                  {!imgLoaded[s.key] && <span className="ai-gen-loading">生成中</span>}
+                  <img
+                    key={urls[s.key]}
+                    src={urls[s.key]}
+                    alt={s.label}
+                    className={`ai-gen-img${imgLoaded[s.key] ? ' loaded' : ''}`}
+                    onLoad={() => setImgLoaded(prev => ({ ...prev, [s.key]: true }))}
+                    onError={() => setImgLoaded(prev => ({ ...prev, [s.key]: true }))}
+                  />
+                </div>
+                <button className="btn-secondary" onClick={() => reroll(s.key)} disabled={!imgLoaded[s.key]}>↻</button>
+              </div>
+            ))}
+          </div>
+          <button className="btn-primary wide" onClick={() => urls && onLoadToCrop(urls)} disabled={!allLoaded}>
+            {allLoaded ? 'この3枚を位置調整する ↓' : '画像生成中…'}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
 export function CharacterCreator() {
   const goTo = useAppStore(s => s.goTo)
   const user = useAppStore(s => s.user)
@@ -392,6 +526,7 @@ export function CharacterCreator() {
   const [exports, setExports] = useState<Record<string, string | null>>({
     normal: null, write: null, rest: null,
   })
+  const [aiUrls, setAiUrls] = useState<Record<string, string>>({})
   const [toast, setToast] = useState<string | null>(null)
 
   const setExport = useCallback((key: string, url: string | null) => {
@@ -442,8 +577,12 @@ export function CharacterCreator() {
           <button className="back-btn" onClick={() => goTo('settings')}>‹</button>
           <h2 className="subscreen-title">相棒クリエイト</h2>
         </div>
-        <p className="hint">3枚の画像をアップロードしてクロップすると、直接設定またはZIPダウンロードができます。</p>
+        <p className="hint">AIで画像を生成するか、自分で用意した画像をアップロードして相棒をつくろう。</p>
       </div>
+
+      <AIGenPanel onLoadToCrop={urls => { setAiUrls(urls); setExports({ normal: null, write: null, rest: null }) }} />
+
+      <div className="ai-gen-divider"><span>位置を調整する</span></div>
 
       {STATES.map(s => (
         <CropPanel
@@ -452,6 +591,7 @@ export function CharacterCreator() {
           label={s.label}
           desc={s.desc}
           onExport={url => setExport(s.key, url)}
+          aiUrl={aiUrls[s.key]}
         />
       ))}
 

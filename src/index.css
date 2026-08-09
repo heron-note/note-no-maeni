@@ -485,6 +485,19 @@ html, body, #root {
 }
 .wiki-hint-card .template-shortcut-btn { margin-top: 0; }
 
+/* ===== AI GEN ===== */
+.ai-gen-panel { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 4px; }
+.ai-gen-input { width: 100%; padding: 10px 12px; font-size: 15px; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); resize: none; font-family: inherit; box-sizing: border-box; }
+.ai-gen-error { font-size: 13px; color: #e04; }
+.ai-gen-previews { display: flex; gap: 8px; }
+.ai-gen-preview-item { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; }
+.ai-gen-img-wrap { width: 100%; aspect-ratio: 1; background: var(--border); border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative; }
+.ai-gen-loading { font-size: 11px; color: var(--text-light); position: absolute; }
+.ai-gen-img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s; }
+.ai-gen-img.loaded { opacity: 1; }
+.ai-gen-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px; color: var(--text-light); font-size: 13px; }
+.ai-gen-divider::before, .ai-gen-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
 /* ===== HELP ===== */
 .top-bar-right { display: flex; align-items: center; gap: 4px; }
 
