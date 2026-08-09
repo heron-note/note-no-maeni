@@ -5,23 +5,47 @@ export interface ChatMessage {
   text: string
 }
 
-export interface GeminiModel {
-  id: string   // e.g. "gemini-2.0-flash"
-  name: string // display name
-}
-
-export async function fetchGeminiModels(apiKey: string): Promise<GeminiModel[]> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
-  )
+async function listModels(apiKey: string): Promise<string[]> {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
-  return (data.models as { name: string; displayName?: string; supportedGenerationMethods?: string[] }[])
+  return (data.models as { name: string; supportedGenerationMethods?: string[] }[])
     .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
-    .map(m => ({
-      id: m.name.replace('models/', ''),
-      name: m.displayName ?? m.name.replace('models/', ''),
-    }))
+    .map(m => m.name.replace('models/', ''))
+}
+
+async function testModel(apiKey: string, modelId: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/${modelId}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+          generationConfig: { maxOutputTokens: 1 },
+        }),
+      },
+    )
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+/** 実際に動くモデルを自動検出して返す */
+export async function findWorkingModel(apiKey: string): Promise<string> {
+  const models = await listModels(apiKey)
+  // flash系を優先してソート
+  const sorted = [
+    ...models.filter(m => m.includes('flash') && !m.includes('lite')),
+    ...models.filter(m => m.includes('flash') && m.includes('lite')),
+    ...models.filter(m => !m.includes('flash')),
+  ]
+  for (const modelId of sorted) {
+    if (await testModel(apiKey, modelId)) return modelId
+  }
+  throw new Error('利用可能なモデルが見つかりませんでした。APIキーを確認してください。')
 }
 
 export async function sendGeminiMessage(
