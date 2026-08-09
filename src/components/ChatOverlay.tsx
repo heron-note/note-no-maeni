@@ -48,18 +48,32 @@ export function ChatOverlay({ userName, onClose }: Props) {
     const rec = new SR()
     recognitionRef.current = rec
     rec.lang = 'ja-JP'
-    rec.interimResults = false
-    rec.continuous = false
+    rec.interimResults = true
+    rec.continuous = true
+    rec.maxAlternatives = 1
     setIsListening(true)
     rec.onresult = (e: any) => {
-      const transcript = Array.from(e.results as any[])
-        .map((r: any) => r[0].transcript)
-        .join('')
-      setInput(prev => prev ? prev + transcript : transcript)
+      let transcript = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) transcript += e.results[i][0].transcript
+      }
+      if (transcript) setInput(prev => prev ? prev + transcript : transcript)
     }
-    rec.onerror = () => { setIsListening(false); recognitionRef.current = null }
+    rec.onerror = (e: any) => {
+      setIsListening(false)
+      recognitionRef.current = null
+      if (e.error && e.error !== 'aborted' && e.error !== 'no-speech') {
+        setError(`音声入力エラー: ${e.error}`)
+      }
+    }
     rec.onend = () => { setIsListening(false); recognitionRef.current = null }
-    rec.start()
+    try {
+      rec.start()
+    } catch {
+      setError('音声入力を開始できませんでした')
+      setIsListening(false)
+      recognitionRef.current = null
+    }
   }
 
   const handleSpeak = (text: string, idx: number) => {
