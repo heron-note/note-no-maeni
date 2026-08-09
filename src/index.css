@@ -553,7 +553,7 @@ html, body, #root {
 }
 .chat-input {
   flex: 1; resize: none; border: 1.5px solid var(--border); border-radius: 12px;
-  padding: 8px 12px; font-size: 14px; font-family: inherit;
+  padding: 8px 12px; font-size: 16px; font-family: inherit;
   background: var(--bg); color: var(--text); line-height: 1.5;
   outline: none;
 }
