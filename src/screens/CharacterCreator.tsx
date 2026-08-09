@@ -150,9 +150,6 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
   const [bgTolerance, setBgTolerance] = useState(25)
   const [bgApplied, setBgApplied] = useState(false)
   const [bgProcessing, setBgProcessing] = useState(false)
-  const [zoom, setZoom] = useState(1)
-  const fitScaleRef = useRef(1)
-
   const redraw = useCallback(() => {
     const canvas = canvasRef.current
     const img = drawImgRef.current
@@ -222,8 +219,6 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
   const initCrop = (img: HTMLImageElement) => {
     drawImgRef.current = img
     const fitScale = Math.min(CROP_SIZE / img.width, CROP_SIZE / img.height)
-    fitScaleRef.current = fitScale
-    setZoom(1)
     cropRef.current = {
       offsetX: CROP_OFF + (CROP_SIZE - img.width * fitScale) / 2,
       offsetY: CROP_OFF + (CROP_SIZE - img.height * fitScale) / 2,
@@ -300,17 +295,12 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
     cropRef.current.scale = clamped
     cropRef.current.offsetX = cx + (offsetX - cx) * f
     cropRef.current.offsetY = cy + (offsetY - cy) * f
-    setZoom(clamped / fitScaleRef.current)
     redraw()
   }
 
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault()
     applyZoom(cropRef.current.scale * (e.deltaY > 0 ? 0.9 : 1.1))
-  }
-
-  const handleZoomSlider = (v: number) => {
-    applyZoom(fitScaleRef.current * v)
   }
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -414,8 +404,7 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
               )}
             </div>
           </div>
-          <p className="hint crop-hint-move">ドラッグで移動、右のスライダーで拡縮。白枠内に収めてください。</p>
-          <div className="crop-canvas-row">
+          <p className="hint crop-hint-move">ドラッグで移動、ピンチまたはホイールで拡縮。白枠内に収めてください。</p>
           <canvas
             ref={canvasRef}
             width={CANVAS_SIZE}
@@ -430,16 +419,6 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
             onTouchMove={onTouchMove}
             onTouchEnd={stopDrag}
           />
-          <div className="zoom-slider-wrap">
-            <span className="zoom-slider-label">+</span>
-            <input
-              type="range" className="zoom-slider-vertical"
-              min={0.5} max={4} step={0.05} value={zoom}
-              onChange={e => handleZoomSlider(Number(e.target.value))}
-            />
-            <span className="zoom-slider-label">−</span>
-          </div>
-          </div>
           <button
             className={`btn-secondary wide${confirmed ? ' crop-confirmed' : ''}`}
             onClick={handleConfirm}
