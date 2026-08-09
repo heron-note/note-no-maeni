@@ -26,9 +26,9 @@ const STATES: Array<{ key: string; label: string; desc: string }> = [
 ]
 
 const POSE_SUFFIXES: Record<string, string> = {
-  normal: 'standing upright, looking forward, neutral expression, empty hands',
-  write: 'standing upright, looking forward, smiling, holding a pencil in one hand',
-  rest: 'standing upright, looking forward, sleepy expression, hugging a pillow',
+  normal: 'front view, facing viewer, full body, standing, neutral expression, empty hands',
+  write: 'front view, facing viewer, full body, standing, smiling, holding a pencil',
+  rest: 'front view, facing viewer, full body, standing, sleepy expression, hugging a pillow',
 }
 
 const STYLE_TAGS = 'white background, anime illustration, flat color, 2D, chibi, kawaii, yuru-chara, Japanese anime style, simple design, full body, white background'
@@ -51,7 +51,7 @@ async function toEnglish(text: string): Promise<string> {
 }
 
 function buildPrompt(description: string, poseKey: string): string {
-  return `${STYLE_TAGS}, ${description} character, ${POSE_SUFFIXES[poseKey]}, white background`
+  return `${POSE_SUFFIXES[poseKey]}, ${description} character, ${STYLE_TAGS}, white background`
 }
 
 function pollinationsUrl(prompt: string, seed: number): string {
