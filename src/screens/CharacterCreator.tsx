@@ -465,15 +465,17 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
     setImgLoaded({})
     const englishDesc = await toEnglish(desc)
     setTranslating(false)
+    const sharedSeed = Math.floor(Math.random() * 1000000)
     setPrompts(Object.fromEntries(STATES.map(s => [s.key, buildPrompt(englishDesc, s.key)])))
-    setSeeds(Object.fromEntries(STATES.map(s => [s.key, Math.floor(Math.random() * 1000000)])))
+    setSeeds(Object.fromEntries(STATES.map(s => [s.key, sharedSeed])))
     staggerReveal()
   }
 
-  const reroll = (key: string) => {
-    setSeeds(prev => prev ? { ...prev, [key]: Math.floor(Math.random() * 1000000) } : prev)
-    setImgLoaded(prev => ({ ...prev, [key]: false }))
-    staggerReveal(key)
+  const rerollAll = () => {
+    const sharedSeed = Math.floor(Math.random() * 1000000)
+    setSeeds(prev => prev ? Object.fromEntries(STATES.map(s => [s.key, sharedSeed])) : prev)
+    setImgLoaded({})
+    staggerReveal()
   }
 
   const allLoaded = urls !== null && STATES.every(s => imgLoaded[s.key])
@@ -508,13 +510,15 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
                     onError={() => setImgLoaded(prev => ({ ...prev, [s.key]: true }))}
                   />
                 </div>
-                <button className="btn-secondary" onClick={() => reroll(s.key)} disabled={!imgLoaded[s.key]}>↻</button>
               </div>
             ))}
           </div>
-          <button className="btn-primary wide" onClick={() => urls && onLoadToCrop(urls)} disabled={!allLoaded}>
-            {allLoaded ? 'この3枚を位置調整する ↓' : '画像生成中…'}
-          </button>
+          <div className="ai-gen-actions">
+            <button className="btn-secondary" onClick={rerollAll} disabled={!allLoaded}>↻ 別パターン</button>
+            <button className="btn-primary" onClick={() => urls && onLoadToCrop(urls)} disabled={!allLoaded}>
+              {allLoaded ? 'この3枚を位置調整する ↓' : '生成中…'}
+            </button>
+          </div>
         </>
       )}
     </div>
