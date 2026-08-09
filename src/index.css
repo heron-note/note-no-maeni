@@ -547,15 +547,48 @@ html, body, #root {
   position: fixed; inset: 0; z-index: 8000;
   background: rgba(0,0,0,0.55);
   display: flex; align-items: flex-end; justify-content: center;
+  animation: pwa-overlay-in 0.26s ease;
+}
+.pwa-hint-overlay.closing {
+  animation: pwa-overlay-out 0.26s ease forwards;
+}
+@keyframes pwa-overlay-in {
+  from { background: rgba(0,0,0,0); }
+  to   { background: rgba(0,0,0,0.55); }
+}
+@keyframes pwa-overlay-out {
+  from { background: rgba(0,0,0,0.55); }
+  to   { background: rgba(0,0,0,0); }
 }
 .pwa-hint-panel {
   background: var(--surface);
   border-radius: 20px 20px 0 0;
-  padding: 24px 20px 32px;
+  padding: 36px 20px 32px;
   width: 100%; max-width: 480px;
   max-height: 80vh; overflow-y: auto;
   position: relative;
   display: flex; flex-direction: column; gap: 16px;
+  animation: pwa-panel-in 0.3s cubic-bezier(0.22,1,0.36,1);
+}
+.pwa-hint-overlay.closing .pwa-hint-panel {
+  animation: pwa-panel-out 0.26s ease forwards;
+}
+@keyframes pwa-panel-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes pwa-panel-out {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+.pwa-hint-drag-handle-area {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 28px; display: flex; align-items: center; justify-content: center;
+  cursor: grab;
+}
+.pwa-hint-drag-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: var(--border);
 }
 .pwa-hint-close {
   position: absolute; top: 16px; right: 16px;
@@ -583,6 +616,12 @@ html, body, #root {
 .pwa-hint-steps li { font-size: 14px; line-height: 1.6; color: var(--text); }
 .pwa-hint-symbol { font-family: monospace; font-size: 15px; }
 .pwa-hint-note { font-size: 12px; color: var(--text-light); margin: 8px 0 0; }
+.pwa-hint-export {
+  background: var(--bg-sub, #f5f5f5); border-radius: 12px;
+  padding: 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.pwa-hint-export-title { font-size: 14px; font-weight: 700; color: var(--text); margin: 0; }
+.pwa-hint-export-desc { font-size: 12px; color: var(--text-light); margin: 0; line-height: 1.7; }
 
 .help-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9000;
