@@ -25,11 +25,9 @@ export function WikiArticleModal({ hint, onClose }: Props) {
           <h2 className="wiki-modal-title">{hint.title}</h2>
           <button className="icon-btn" onClick={onClose} aria-label="閉じる">✕</button>
         </div>
-        {loading ? (
-          <p className="wiki-hint-loading">取得中…</p>
-        ) : (
-          <p className="wiki-modal-body">{body}</p>
-        )}
+        <div className="wiki-modal-body">
+          {loading ? <span className="wiki-hint-loading">取得中…</span> : body}
+        </div>
         <div className="wiki-modal-footer">
           {hint.pageUrl ? (
             <a className="wiki-modal-source" href={hint.pageUrl} target="_blank" rel="noopener noreferrer">

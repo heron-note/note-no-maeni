@@ -404,7 +404,7 @@ html, body, #root {
 .wiki-modal-title { font-size: 18px; font-weight: 900; flex: 1; }
 .wiki-modal-body {
   font-size: 14px; line-height: 1.8; color: var(--text);
-  overflow-y: auto; flex: 1;
+  overflow-y: auto; flex: 1; white-space: pre-wrap;
 }
 .wiki-modal-footer {
   margin-top: 16px; padding-top: 12px;
