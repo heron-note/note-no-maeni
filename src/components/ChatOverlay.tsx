@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { sendGeminiMessage, findWorkingModel } from '../utils/gemini'
+import { sendGeminiMessage } from '../utils/gemini'
 import { storage } from '../utils/storage'
 import type { ChatMessage } from '../utils/gemini'
 
@@ -29,41 +29,22 @@ export function ChatOverlay({ userName, onClose }: Props) {
   const [apiKey, setApiKey] = useState(() => storage.loadGeminiKey() ?? '')
   const [keyInput, setKeyInput] = useState('')
   const [keyError, setKeyError] = useState<string | null>(null)
-  const [setupLoading, setSetupLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const personality = storage.loadCharPersonality()
   const hasKey = apiKey !== ''
 
-  // 保存済みキーでまだモデルが未確定なら自動検出
-  useEffect(() => {
-    if (!apiKey || storage.loadGeminiModel()) return
-    findWorkingModel(apiKey)
-      .then(model => storage.saveGeminiModel(model))
-      .catch(() => {})
-  }, [apiKey])
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  const handleSaveKey = async () => {
+  const handleSaveKey = () => {
     const k = keyInput.trim()
     if (!k) { setKeyError('APIキーを入力してください'); return }
-    setSetupLoading(true)
-    setKeyError(null)
-    try {
-      const model = await findWorkingModel(k)
-      storage.saveGeminiKey(k)
-      storage.saveGeminiModel(model)
-      setApiKey(k)
-      setKeyInput('')
-    } catch (e) {
-      setKeyError(e instanceof Error ? e.message : 'APIキーが無効か、接続に失敗しました')
-    } finally {
-      setSetupLoading(false)
-    }
+    storage.saveGeminiKey(k)
+    setApiKey(k)
+    setKeyInput('')
   }
 
   const handleClose = () => {
@@ -85,19 +66,7 @@ export function ChatOverlay({ userName, onClose }: Props) {
       const reply = await sendGeminiMessage(apiKey, messages, text, SYSTEM_PROMPT(userName, personality))
       setMessages([...next, { role: 'model', text: reply }])
     } catch (e) {
-      const msg = e instanceof Error ? e.message : '通信エラーが発生しました'
-      if (msg === 'MODEL_UNAVAILABLE') {
-        // 使えなくなったモデルを再検出して保存し、ユーザーに再送を促す
-        setError('AIの接続先を更新しています。しばらくお待ちください...')
-        findWorkingModel(apiKey)
-          .then(model => {
-            storage.saveGeminiModel(model)
-            setError('準備できました。もう一度送信してください。')
-          })
-          .catch(() => setError('利用可能なモデルが見つかりませんでした。APIキーを確認してください。'))
-      } else {
-        setError(msg)
-      }
+      setError(e instanceof Error ? e.message : '通信エラーが発生しました')
     } finally {
       setLoading(false)
       setTimeout(() => inputRef.current?.focus(), 50)
@@ -128,12 +97,9 @@ export function ChatOverlay({ userName, onClose }: Props) {
               value={keyInput}
               onChange={e => { setKeyInput(e.target.value); setKeyError(null) }}
               onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSaveKey() }}
-              disabled={setupLoading}
             />
             {keyError && <p className="chat-error">{keyError}</p>}
-            <button className="btn-primary wide" onClick={handleSaveKey} disabled={setupLoading}>
-              {setupLoading ? 'AIを準備しています...' : '保存して始める'}
-            </button>
+            <button className="btn-primary wide" onClick={handleSaveKey}>保存して始める</button>
           </div>
         )}
 

@@ -40,8 +40,6 @@ export const storage = {
   loadGeminiKey: () => localStorage.getItem('nob_gemini_key'),
   saveGeminiKey: (v: string) => localStorage.setItem('nob_gemini_key', v),
 
-  loadGeminiModel: () => localStorage.getItem('nob_gemini_model'),
-  saveGeminiModel: (v: string) => localStorage.setItem('nob_gemini_model', v),
 
   loadCharPersonality: () => localStorage.getItem('nob_char_personality') ?? '',
   saveCharPersonality: (v: string) => localStorage.setItem('nob_char_personality', v),
