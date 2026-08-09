@@ -481,6 +481,7 @@ html, body, #root {
   background: var(--card-bg); color: var(--text-light);
   font-size: 12px; font-weight: 700; letter-spacing: 0.03em;
   border: 1.5px solid var(--border);
+  justify-content: center;
 }
 .wiki-hint-card .template-shortcut-btn { margin-top: 0; }
 
