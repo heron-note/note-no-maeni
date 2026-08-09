@@ -476,6 +476,12 @@ html, body, #root {
   font-size: 11px; color: var(--text-light); text-decoration: underline;
 }
 .wiki-choice-block { margin-top: 4px; max-width: 100%; justify-content: center; }
+.choice-btn-ai {
+  flex: 0 0 auto; width: 44px; padding: 12px 4px;
+  background: var(--card-bg); color: var(--text-light);
+  font-size: 12px; font-weight: 700; letter-spacing: 0.03em;
+  border: 1.5px solid var(--border);
+}
 .wiki-hint-card .template-shortcut-btn { margin-top: 0; }
 
 /* ===== HELP ===== */

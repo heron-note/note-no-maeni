@@ -7,9 +7,10 @@ interface Props {
   onWrite: () => void
   onRest: () => void
   onEditTemplate: () => void
+  onChat: () => void
 }
 
-export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
+export function WikiHintCard({ onWrite, onRest, onEditTemplate, onChat }: Props) {
   const [hint, setHint] = useState<WikiHint | null>(null)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -54,6 +55,9 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
             <span className="choice-icon">🟦</span>
             <span className="choice-main">休む</span>
             <span className="choice-sub">今日はのんびり</span>
+          </button>
+          <button data-help="chat-btn" className="choice-btn choice-btn-ai" onClick={onChat} aria-label="AIに相談">
+            <span className="choice-main">AI</span>
           </button>
         </div>
         <button data-help="template-btn" className="template-shortcut-btn" onClick={onEditTemplate}>

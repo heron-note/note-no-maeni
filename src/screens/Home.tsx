@@ -185,12 +185,6 @@ export function Home() {
           />
         </div>
 
-        {/* 右: チャットアイコン */}
-        <button data-help="chat-btn" className="chat-open-btn" onClick={() => setShowChat(true)} aria-label="AIに相談する">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        </button>
       </div>
 
       <div className="heart-burst-wrap">
@@ -216,6 +210,7 @@ export function Home() {
         onWrite={() => handleChoice('write')}
         onRest={() => handleChoice('rest')}
         onEditTemplate={() => goTo('template-editor')}
+        onChat={() => setShowChat(true)}
       />
 
       <Calendar logs={logs} />
