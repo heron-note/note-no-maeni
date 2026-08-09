@@ -33,6 +33,21 @@ const POSE_SUFFIXES: Record<string, string> = {
 
 const STYLE_TAGS = 'chibi mascot character, Japanese anime style, plain white background, character only, no background decoration, no frame, no circle, no vignette, full body isolated'
 
+function hasJapanese(text: string): boolean {
+  return /[\u3000-\u9fff]/.test(text)
+}
+
+async function toEnglish(text: string): Promise<string> {
+  if (!hasJapanese(text)) return text
+  try {
+    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ja|en`)
+    const data = await res.json()
+    return data.responseData?.translatedText ?? text
+  } catch {
+    return text
+  }
+}
+
 function buildPrompt(description: string, poseKey: string): string {
   return `${description}, ${POSE_SUFFIXES[poseKey]}, ${STYLE_TAGS}`
 }
@@ -438,14 +453,19 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
     else setRevealed({})
     const keys = resetKey ? [resetKey] : STATES.map(s => s.key)
     keys.forEach((k, i) => {
-      setTimeout(() => setRevealed(prev => ({ ...prev, [k]: true })), i * 1500)
+      setTimeout(() => setRevealed(prev => ({ ...prev, [k]: true })), i * 3000)
     })
   }
 
-  const handleGenerate = () => {
+  const [translating, setTranslating] = useState(false)
+
+  const handleGenerate = async () => {
     if (!desc.trim()) return
+    setTranslating(true)
     setImgLoaded({})
-    setPrompts(Object.fromEntries(STATES.map(s => [s.key, buildPrompt(desc, s.key)])))
+    const englishDesc = await toEnglish(desc)
+    setTranslating(false)
+    setPrompts(Object.fromEntries(STATES.map(s => [s.key, buildPrompt(englishDesc, s.key)])))
     setSeeds(Object.fromEntries(STATES.map(s => [s.key, Math.floor(Math.random() * 1000000)])))
     staggerReveal()
   }
@@ -468,8 +488,8 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
         value={desc}
         onChange={e => setDesc(e.target.value)}
       />
-      <button className="btn-primary wide" onClick={handleGenerate} disabled={!desc.trim()}>
-        生成する
+      <button className="btn-primary wide" onClick={handleGenerate} disabled={translating || !desc.trim()}>
+        {translating ? '翻訳中…' : '生成する'}
       </button>
       {urls && (
         <>
