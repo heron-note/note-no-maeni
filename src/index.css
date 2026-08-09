@@ -572,6 +572,10 @@ html, body, #root {
   padding: 6px 12px 8px; border-top: 1px solid var(--border);
   display: flex; align-items: center; flex-shrink: 0;
 }
+.chat-model-row.chat-model-error {
+  background: color-mix(in srgb, #e55 10%, transparent);
+  border-top-color: #e55;
+}
 .chat-model-select {
   font-size: 12px; color: var(--text-light); background: none;
   border: none; outline: none; cursor: pointer; max-width: 100%;

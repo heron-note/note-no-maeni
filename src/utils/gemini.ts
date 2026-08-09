@@ -16,13 +16,8 @@ export async function fetchGeminiModels(apiKey: string): Promise<GeminiModel[]> 
   )
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
-  return (data.models as { name: string; displayName?: string; supportedGenerationMethods?: string[]; description?: string }[])
-    .filter(m =>
-      m.supportedGenerationMethods?.includes('generateContent') &&
-      !m.description?.includes('deprecated') &&
-      // バージョンなしのポインターモデルは廃止されやすいので除外
-      /[\d]/.test(m.name.replace('models/gemini-', ''))
-    )
+  return (data.models as { name: string; displayName?: string; supportedGenerationMethods?: string[] }[])
+    .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
     .map(m => ({
       id: m.name.replace('models/', ''),
       name: m.displayName ?? m.name.replace('models/', ''),
@@ -57,7 +52,7 @@ export async function sendGeminiMessage(
     const err = await res.json().catch(() => ({}))
     const raw: string = err?.error?.message ?? `HTTP ${res.status}`
     if (res.status === 401 || raw.includes('API_KEY_INVALID')) throw new Error('APIキーが無効です。チャット画面で再入力してください。')
-    if (raw.includes('no longer available') || raw.includes('not found')) throw new Error('MODEL_UNAVAILABLE')
+    if (raw.includes('no longer available') || raw.includes('not found for API version')) throw new Error('MODEL_UNAVAILABLE')
     if (raw.includes('free_tier') || raw.includes('Quota exceeded')) {
       const retryMatch = raw.match(/retry in ([\d.]+)s/)
       const retryMsg = retryMatch ? `約${Math.ceil(Number(retryMatch[1]))}秒後に再試行してください。` : '時間をおいて再試行してください。'

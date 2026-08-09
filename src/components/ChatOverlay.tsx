@@ -32,6 +32,7 @@ export function ChatOverlay({ userName, onClose }: Props) {
   const [models, setModels] = useState<GeminiModel[]>([])
   const [selectedModel, setSelectedModel] = useState(() => storage.loadGeminiModel() ?? '')
   const [fetchingModels, setFetchingModels] = useState(false)
+  const [modelError, setModelError] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -106,22 +107,12 @@ export function ChatOverlay({ userName, onClose }: Props) {
     try {
       const reply = await sendGeminiMessage(apiKey, messages, text, SYSTEM_PROMPT(userName, personality))
       setMessages([...next, { role: 'model', text: reply }])
+      setModelError(false)
     } catch (e) {
       const msg = e instanceof Error ? e.message : '通信エラーが発生しました'
       if (msg === 'MODEL_UNAVAILABLE') {
-        // 廃止モデルを除外して次の候補に自動切替
-        setModels(prev => {
-          const filtered = prev.filter(m => m.id !== selectedModel)
-          if (filtered.length > 0) {
-            const next = filtered[0]
-            setSelectedModel(next.id)
-            storage.saveGeminiModel(next.id)
-            setError(`モデルが利用できないため「${next.name}」に切り替えました。もう一度送信してください。`)
-          } else {
-            setError('利用可能なモデルがありません。APIキーを確認してください。')
-          }
-          return filtered
-        })
+        setModelError(true)
+        setError('このモデルは利用できません。下のセレクターから別のモデルを選択してください。')
       } else {
         setError(msg)
       }
@@ -185,6 +176,20 @@ export function ChatOverlay({ userName, onClose }: Props) {
               <div ref={bottomRef} />
             </div>
 
+            {models.length > 0 && (
+              <div className={`chat-model-row${modelError ? ' chat-model-error' : ''}`}>
+                <select
+                  className="chat-model-select"
+                  value={selectedModel}
+                  onChange={e => { handleModelChange(e.target.value); setModelError(false); setError(null) }}
+                >
+                  {models.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="chat-input-row">
               <textarea
                 ref={inputRef}
@@ -210,23 +215,6 @@ export function ChatOverlay({ userName, onClose }: Props) {
               </button>
             </div>
 
-            {(models.length > 0 || selectedModel) && (
-              <div className="chat-model-row">
-                {models.length > 0 ? (
-                  <select
-                    className="chat-model-select"
-                    value={selectedModel}
-                    onChange={e => handleModelChange(e.target.value)}
-                  >
-                    {models.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="chat-model-label">{selectedModel}</span>
-                )}
-              </div>
-            )}
           </>
         )}
       </div>
