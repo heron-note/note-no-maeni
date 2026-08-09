@@ -31,9 +31,9 @@ const POSE_SUFFIXES: Record<string, string> = {
   rest: 'sleeping or lying down, eyes closed, fully relaxed and lazy',
 }
 
-const STYLE_TAGS = 'single character only, pure white background, full body, 2D flat design, simple flat illustration, no shading, no 3D, no gradient, chibi mascot, Japanese anime style'
+const STYLE_TAGS = 'masterpiece, best quality, anime illustration, flat color, 2D, chibi, kawaii, yuru-chara, Japanese anime style, simple design, full body, white background, isolated character'
 
-const NEGATIVE_PROMPT = 'background,circle,oval,frame,border,decoration,pattern,texture,gradient background,vignette,3D,shadow,multiple characters,scenery,environment'
+const NEGATIVE_PROMPT = '3d,3d render,photorealistic,realistic,photo,render,cgi,background,scenery,landscape,circle,oval,frame,border,decoration,pattern,gradient,vignette,shadow,multiple characters,environment,watermark'
 
 function hasJapanese(text: string): boolean {
   return /[\u3000-\u9fff]/.test(text)
@@ -55,7 +55,7 @@ function buildPrompt(description: string, poseKey: string): string {
 }
 
 function pollinationsUrl(prompt: string, seed: number): string {
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&seed=${seed}&nologo=true&model=flux&negative_prompt=${encodeURIComponent(NEGATIVE_PROMPT)}`
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&seed=${seed}&nologo=true&model=turbo&negative_prompt=${encodeURIComponent(NEGATIVE_PROMPT)}`
 }
 
 interface CropRef {
