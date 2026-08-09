@@ -31,9 +31,9 @@ const POSE_SUFFIXES: Record<string, string> = {
   rest: 'sleeping or lying down, eyes closed, fully relaxed and lazy',
 }
 
-const STYLE_TAGS = 'masterpiece, best quality, anime illustration, flat color, 2D, chibi, kawaii, yuru-chara, Japanese anime style, simple design, full body, white background, isolated character'
+const STYLE_TAGS = 'anime illustration, flat color, 2D, chibi, kawaii, yuru-chara, Japanese anime style, simple design, full body, plain white background, character standing on white'
 
-const NEGATIVE_PROMPT = '3d,3d render,photorealistic,realistic,photo,render,cgi,background,scenery,landscape,circle,oval,frame,border,decoration,pattern,gradient,vignette,shadow,multiple characters,environment,watermark'
+const NEGATIVE_PROMPT = '3d,3d render,photorealistic,realistic,photo,render,cgi,profile picture,avatar,icon,badge,emblem,circle background,round background,circular frame,oval frame,colored background,textured background,gradient background,scenery,landscape,frame,border,decoration,pattern,vignette,shadow,multiple characters,environment,watermark'
 
 function hasJapanese(text: string): boolean {
   return /[\u3000-\u9fff]/.test(text)
