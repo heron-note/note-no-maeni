@@ -377,6 +377,7 @@ html, body, #root {
 .wiki-hint-refresh:disabled { opacity: 0.4; cursor: default; }
 .wiki-hint-loading { font-size: 13px; color: var(--text-light); }
 .wiki-hint-title { font-size: 15px; font-weight: 700; }
+.wiki-hint-title-loading { font-weight: 400; color: var(--text-light); font-style: italic; }
 .wiki-hint-extract { font-size: 13px; color: var(--text-light); line-height: 1.6; }
 .wiki-hint-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .wiki-hint-wiki-btn {

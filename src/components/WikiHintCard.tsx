@@ -33,8 +33,8 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
             ↻
           </button>
         </div>
-        <p className="wiki-hint-title" style={loading ? { visibility: 'hidden' } : undefined}>
-          {hint?.title ?? '　'}
+        <p className={`wiki-hint-title${loading ? ' wiki-hint-title-loading' : ''}`}>
+          {loading ? '取得中です...' : (hint?.title ?? '　')}
         </p>
         <button
           className="wiki-hint-wiki-btn"
