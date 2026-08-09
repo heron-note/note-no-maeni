@@ -169,6 +169,7 @@ export function Home() {
                   <line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>
                 </svg>
               </button>
+              <span className="bubble-icon-placeholder" aria-hidden="true" />
             </div>
           </div>
         </div>

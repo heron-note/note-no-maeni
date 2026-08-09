@@ -232,7 +232,7 @@ html, body, #root {
   border-left-color: var(--surface);
   z-index: 1;
 }
-.bubble-action-row { display: flex; gap: 10px; align-items: center; }
+.bubble-action-row { display: flex; align-items: center; justify-content: space-between; }
 .bubble-icon-btn {
   background: none; border: none; padding: 0; margin: 0;
   color: var(--text-light); cursor: pointer;
@@ -243,6 +243,7 @@ html, body, #root {
 .bubble-icon-btn:disabled { opacity: 0.35; cursor: default; }
 .bubble-icon-sub { opacity: 0.5; }
 .bubble-icon-sub:hover { opacity: 0.8; }
+.bubble-icon-placeholder { display: block; width: 13px; height: 13px; flex-shrink: 0; }
 .tag-editor-link {
   color: var(--write); text-decoration: none;
 }
