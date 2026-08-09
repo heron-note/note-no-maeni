@@ -402,6 +402,13 @@ html, body, #root {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
 }
+.wiki-modal-closing {
+  animation: wiki-slide-out 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes wiki-slide-out {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
 .wiki-modal-header {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
   margin-bottom: 12px;

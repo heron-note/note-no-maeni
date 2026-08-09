@@ -10,6 +10,7 @@ interface Props {
 export function WikiArticleModal({ hint, onClose }: Props) {
   const [body, setBody] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [closing, setClosing] = useState(false)
 
   useEffect(() => {
     fetchFullArticle(hint.title)
@@ -18,12 +19,17 @@ export function WikiArticleModal({ hint, onClose }: Props) {
       .finally(() => setLoading(false))
   }, [hint.title])
 
+  const handleClose = () => {
+    setClosing(true)
+    setTimeout(onClose, 280)
+  }
+
   return (
-    <div className="wiki-modal-overlay" onClick={onClose}>
-      <div className="wiki-modal" onClick={e => e.stopPropagation()}>
+    <div className="wiki-modal-overlay" onClick={handleClose}>
+      <div className={`wiki-modal${closing ? ' wiki-modal-closing' : ''}`} onClick={e => e.stopPropagation()}>
         <div className="wiki-modal-header">
           <h2 className="wiki-modal-title">{hint.title}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="閉じる">✕</button>
+          <button className="icon-btn" onClick={handleClose} aria-label="閉じる">✕</button>
         </div>
         <div className="wiki-modal-body">
           {loading ? <span className="wiki-hint-loading">取得中…</span> : body}
