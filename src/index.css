@@ -254,11 +254,11 @@ html, body, #root {
 /* ===== BOOKMARK EDITOR ===== */
 .bookmark-editor {
   background: var(--surface); border-radius: 20px; padding: 20px;
-  width: calc(100% - 32px); max-width: 360px; max-height: 80vh;
-  display: flex; flex-direction: column; gap: 12px; overflow: hidden;
+  width: calc(100% - 32px); max-width: 360px; max-height: 85vh;
+  display: flex; flex-direction: column; gap: 12px; overflow-y: auto;
 }
 .bookmark-editor-header { display: flex; align-items: center; justify-content: space-between; }
-.bookmark-list { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.bookmark-list { overflow-y: auto; max-height: 28vh; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
 .bookmark-empty { font-size: 13px; color: var(--text-light); text-align: center; padding: 12px 0; }
 .bookmark-item {
   display: flex; align-items: center; justify-content: space-between;
