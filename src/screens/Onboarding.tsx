@@ -34,11 +34,11 @@ export function Onboarding() {
     goHome()
   }
 
-  const handleGoCreator = () => {
+  const handleGoCreator = (mode: 'character-creator-simple' | 'character-creator') => {
     if (name.trim()) {
       saveUser({ name: name.trim(), character: char, onboarded: false })
     }
-    goTo('character-creator')
+    goTo(mode)
   }
 
   return (
@@ -71,9 +71,14 @@ export function Onboarding() {
       <div className="form-block">
         <p className="label">相棒を選んでください</p>
         <CharGrid selected={char} onSelect={setChar} />
-        <button className="btn-secondary wide" style={{ marginTop: '8px' }} onClick={handleGoCreator}>
-          相棒クリエイト
-        </button>
+        <div className="creator-btn-row" style={{ marginTop: '8px' }}>
+          <button className="btn-secondary" onClick={() => handleGoCreator('character-creator-simple')}>
+            相棒クリエイト
+          </button>
+          <button className="btn-secondary" onClick={() => handleGoCreator('character-creator')}>
+            AI相棒クリエイト
+          </button>
+        </div>
         {localStorage.getItem('nob_custom_img_normal') && (
           <button
             className="btn-secondary wide"

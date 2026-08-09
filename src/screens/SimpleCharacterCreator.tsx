@@ -25,39 +25,6 @@ const STATES: Array<{ key: string; label: string; desc: string }> = [
   },
 ]
 
-const POSE_SUFFIXES: Record<string, string> = {
-  normal: 'front view, facing viewer, full body, standing, neutral expression, empty hands',
-  write: 'front view, facing viewer, full body, standing, smiling, holding a pencil',
-  rest: 'front view, facing viewer, full body, standing, sleepy expression, hugging a pillow',
-}
-
-const STYLE_TAGS = 'white background, anime illustration, flat color, 2D, chibi, kawaii, yuru-chara, Japanese anime style, simple design, full body, white background'
-
-const NEGATIVE_PROMPT = '3d,3d render,photorealistic,realistic,photo,render,cgi,profile picture,avatar,icon,badge,emblem,circle background,round background,circular frame,oval frame,colored background,green background,blue background,red background,yellow background,textured background,gradient background,scenery,landscape,frame,border,decoration,pattern,vignette,shadow,multiple characters,environment,watermark'
-
-function hasJapanese(text: string): boolean {
-  return /[\u3000-\u9fff]/.test(text)
-}
-
-async function toEnglish(text: string): Promise<string> {
-  if (!hasJapanese(text)) return text
-  try {
-    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ja|en`)
-    const data = await res.json()
-    return data.responseData?.translatedText ?? text
-  } catch {
-    return text
-  }
-}
-
-function buildPrompt(description: string, poseKey: string): string {
-  return `${POSE_SUFFIXES[poseKey]}, ${description} character, ${STYLE_TAGS}, white background`
-}
-
-function pollinationsUrl(prompt: string, seed: number): string {
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&seed=${seed}&nologo=true&model=turbo&negative_prompt=${encodeURIComponent(NEGATIVE_PROMPT)}`
-}
-
 interface CropRef {
   offsetX: number
   offsetY: number
@@ -129,12 +96,11 @@ function removeBg(img: HTMLImageElement, tolerance: number): Promise<HTMLImageEl
   })
 }
 
-function CropPanel({ label, desc, onExport, aiUrl }: {
+function CropPanel({ label, desc, onExport }: {
   stateKey: string
   label: string
   desc: string
   onExport: (dataUrl: string | null) => void
-  aiUrl?: string
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const origImgRef = useRef<HTMLImageElement | null>(null)   // オリジナル
@@ -144,12 +110,12 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
     dragging: false, lastX: 0, lastY: 0, pinchDist: 0,
   })
   const [hasImage, setHasImage] = useState(false)
-  const [imageVersion, setImageVersion] = useState(0)
   const [confirmed, setConfirmed] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [bgTolerance, setBgTolerance] = useState(25)
   const [bgApplied, setBgApplied] = useState(false)
   const [bgProcessing, setBgProcessing] = useState(false)
+
   const redraw = useCallback(() => {
     const canvas = canvasRef.current
     const img = drawImgRef.current
@@ -171,7 +137,7 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
   useEffect(() => {
     if (hasImage) redraw()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasImage, imageVersion])
+  }, [hasImage])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -185,26 +151,6 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
     return () => canvas.removeEventListener('touchmove', handleTouchMove)
   }, [hasImage])
-
-  useEffect(() => {
-    if (!aiUrl) return
-    const load = (el: HTMLImageElement) => {
-      origImgRef.current = el
-      initCrop(el)
-      setConfirmed(false)
-      setPreviewUrl(null)
-      setBgApplied(false)
-      onExport(null)
-      setHasImage(true)
-      setImageVersion(v => v + 1)
-    }
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => load(img)
-    img.onerror = () => { const img2 = new Image(); img2.onload = () => load(img2); img2.src = aiUrl }
-    img.src = aiUrl
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiUrl])
 
   const getScaledDelta = (dx: number, dy: number) => {
     const canvas = canvasRef.current
@@ -238,7 +184,6 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
       setBgApplied(false)
       onExport(null)
       setHasImage(true)
-      setImageVersion(v => v + 1)
     }
     img.src = url
   }
@@ -287,20 +232,17 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
   }
   const stopDrag = () => { cropRef.current.dragging = false }
 
-  const applyZoom = (newScale: number) => {
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault()
+    const factor = e.deltaY > 0 ? 0.9 : 1.1
     const cx = CANVAS_SIZE / 2, cy = CANVAS_SIZE / 2
     const { offsetX, offsetY, scale } = cropRef.current
-    const clamped = Math.max(0.05, Math.min(20, newScale))
-    const f = clamped / scale
-    cropRef.current.scale = clamped
+    const newScale = Math.max(0.05, Math.min(20, scale * factor))
+    const f = newScale / scale
+    cropRef.current.scale = newScale
     cropRef.current.offsetX = cx + (offsetX - cx) * f
     cropRef.current.offsetY = cy + (offsetY - cy) * f
     redraw()
-  }
-
-  const onWheel = (e: React.WheelEvent) => {
-    e.preventDefault()
-    applyZoom(cropRef.current.scale * (e.deltaY > 0 ? 0.9 : 1.1))
   }
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -335,7 +277,14 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
       const pinchDist = cropRef.current.pinchDist || dist
       const factor = dist / pinchDist
       cropRef.current.pinchDist = dist
-      applyZoom(cropRef.current.scale * factor)
+      const cx = CANVAS_SIZE / 2, cy = CANVAS_SIZE / 2
+      const { offsetX, offsetY, scale } = cropRef.current
+      const newScale = Math.max(0.05, Math.min(20, scale * factor))
+      const f = newScale / scale
+      cropRef.current.scale = newScale
+      cropRef.current.offsetX = cx + (offsetX - cx) * f
+      cropRef.current.offsetY = cy + (offsetY - cy) * f
+      redraw()
     }
   }
 
@@ -404,7 +353,7 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
               )}
             </div>
           </div>
-          <p className="hint crop-hint-move">ドラッグで移動、ピンチまたはホイールで拡縮。白枠内に収めてください。</p>
+          <p className="hint crop-hint-move">ドラッグで移動・ピンチ/ホイールで拡縮。白枠内に収めてください。</p>
           <canvas
             ref={canvasRef}
             width={CANVAS_SIZE}
@@ -436,142 +385,26 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
   )
 }
 
-function AIGenPanel({ onLoadToNormal }: { onLoadToNormal: (url: string) => void }) {
-  const [desc, setDesc] = useState('')
-  const [prompt, setPrompt] = useState<string | null>(null)
-  const [seed, setSeed] = useState<number | null>(null)
-  const [imgLoaded, setImgLoaded] = useState(false)
-  const [translating, setTranslating] = useState(false)
-
-  const url = prompt && seed != null ? pollinationsUrl(prompt, seed) : null
-
-  const handleGenerate = async () => {
-    if (!desc.trim()) return
-    setTranslating(true)
-    setImgLoaded(false)
-    const englishDesc = await toEnglish(desc)
-    setTranslating(false)
-    setPrompt(buildPrompt(englishDesc, 'normal'))
-    setSeed(Math.floor(Math.random() * 1000000))
-  }
-
-  const reroll = () => {
-    setImgLoaded(false)
-    setSeed(Math.floor(Math.random() * 1000000))
-  }
-
-  return (
-    <div className="ai-gen-panel">
-      <p className="hint">どんな画像を作りたい？キャラクターの特徴を入力してください。</p>
-      <textarea
-        className="ai-gen-input"
-        rows={2}
-        placeholder="例：黒スーツを着た銀髪の男性、きりっとした目つき"
-        value={desc}
-        onChange={e => setDesc(e.target.value)}
-      />
-      <button className="btn-primary wide" onClick={handleGenerate} disabled={translating || !desc.trim()}>
-        {translating ? '翻訳中…' : '生成する'}
-      </button>
-      {url && (
-        <>
-          <div className="ai-gen-img-wrap" style={{ width: 140, margin: '0 auto' }}>
-            {!imgLoaded && <span className="ai-gen-loading">生成中</span>}
-            <img
-              key={url}
-              src={url}
-              alt="通常"
-              className={`ai-gen-img${imgLoaded ? ' loaded' : ''}`}
-              onLoad={() => setImgLoaded(true)}
-              onError={() => setImgLoaded(true)}
-            />
-          </div>
-          <div className="ai-gen-actions">
-            <button className="btn-secondary" onClick={reroll} disabled={!imgLoaded}>↻ 別パターン</button>
-            <button className="btn-primary" onClick={() => url && onLoadToNormal(url)} disabled={!imgLoaded}>
-              {imgLoaded ? 'この画像を使う ↓' : '生成中…'}
-            </button>
-          </div>
-        </>
-      )}
-      {prompt && (
-        <details className="ai-prompt-details">
-          <summary className="ai-prompt-summary">生成プロンプトを見る</summary>
-          <div className="ai-prompt-body">
-            <p className="ai-prompt-text">{prompt}</p>
-            <button
-              className="btn-secondary"
-              onClick={() => navigator.clipboard.writeText(prompt)}
-            >
-              コピー
-            </button>
-          </div>
-        </details>
-      )}
-    </div>
-  )
-}
-
-export function CharacterCreator() {
+export function SimpleCharacterCreator() {
   const goTo = useAppStore(s => s.goTo)
   const user = useAppStore(s => s.user)
   const saveUser = useAppStore(s => s.saveUser)
   const [exports, setExports] = useState<Record<string, string | null>>({
     normal: null, write: null, rest: null,
   })
-  const [aiUrl, setAiUrl] = useState<string>('')
   const [toast, setToast] = useState<string | null>(null)
 
   const setExport = useCallback((key: string, url: string | null) => {
     setExports(prev => ({ ...prev, [key]: url }))
   }, [])
 
-  const allReady = !!exports.normal
+  const allReady = STATES.every(s => exports[s.key])
 
-  const loadImg = (src: string): Promise<HTMLImageElement> =>
-    new Promise(resolve => {
-      const img = new Image()
-      img.onload = () => resolve(img)
-      img.onerror = () => resolve(img)
-      img.src = src
+  const handleApply = () => {
+    if (!allReady) return
+    STATES.forEach(s => {
+      localStorage.setItem(`nob_custom_img_${s.key}`, exports[s.key]!)
     })
-
-  const createComposite = async (charDataUrl: string, leftUrl: string, rightUrl: string): Promise<string> => {
-    const canvas = document.createElement('canvas')
-    canvas.width = CROP_SIZE; canvas.height = CROP_SIZE
-    const ctx = canvas.getContext('2d')!
-    const [charImg, leftImg, rightImg] = await Promise.all([
-      loadImg(charDataUrl), loadImg(leftUrl), loadImg(rightUrl),
-    ])
-    ctx.drawImage(charImg, 0, 0, CROP_SIZE, CROP_SIZE)
-    const maxW = CROP_SIZE * 0.42
-    const maxH = CROP_SIZE * 0.58
-    const lScale = Math.min(maxW / leftImg.width, maxH / leftImg.height)
-    const lw = leftImg.width * lScale, lh = leftImg.height * lScale
-    ctx.drawImage(leftImg, 0, CROP_SIZE - lh, lw, lh)
-    const rScale = Math.min(maxW / rightImg.width, maxH / rightImg.height)
-    const rw = rightImg.width * rScale, rh = rightImg.height * rScale
-    ctx.drawImage(rightImg, CROP_SIZE - rw, CROP_SIZE - rh, rw, rh)
-    return canvas.toDataURL('image/png')
-  }
-
-  const handleApply = async () => {
-    const normalDataUrl = exports.normal
-    if (!normalDataUrl) return
-    const base = import.meta.env.BASE_URL
-    const writeDataUrl = await createComposite(
-      normalDataUrl,
-      `${base}assets/images/overlays/write_left.png`,
-      `${base}assets/images/overlays/write_right.png`,
-    )
-    const restDataUrl = await createComposite(
-      normalDataUrl,
-      `${base}assets/images/overlays/rest_left.png`,
-      `${base}assets/images/overlays/rest_right.png`,
-    ).catch(() => normalDataUrl)
-    localStorage.setItem('nob_custom_img_normal', normalDataUrl)
-    localStorage.setItem('nob_custom_img_write', writeDataUrl)
-    localStorage.setItem('nob_custom_img_rest', restDataUrl)
     if (user) saveUser({ ...user, character: 'custom' })
     setToast('保存しました！')
     setTimeout(() => goTo(user?.onboarded ? 'settings' : 'onboarding'), 1200)
@@ -579,28 +412,26 @@ export function CharacterCreator() {
 
   const handleDownloadZip = async () => {
     if (!allReady) return
-    const normalDataUrl = exports.normal!
-    const base = import.meta.env.BASE_URL
-    const writeDataUrl = await createComposite(
-      normalDataUrl,
-      `${base}assets/images/overlays/write_left.png`,
-      `${base}assets/images/overlays/write_right.png`,
-    )
-    const restDataUrl = await createComposite(
-      normalDataUrl,
-      `${base}assets/images/overlays/rest_left.png`,
-      `${base}assets/images/overlays/rest_right.png`,
-    ).catch(() => normalDataUrl)
     const zip = new JSZip()
     const folder = zip.folder('mychar')!
-    for (const [key, dataUrl] of [['normal', normalDataUrl], ['write', writeDataUrl], ['rest', restDataUrl]]) {
-      folder.file(`${key}.png`, dataUrl.split(',')[1], { base64: true })
-    }
-    folder.file('char_def.json', JSON.stringify({ key: 'mychar', label: 'マイキャラ' }, null, 2))
+    STATES.forEach(s => {
+      const base64 = exports[s.key]!.split(',')[1]
+      folder.file(`${s.key}.png`, base64, { base64: true })
+    })
+    folder.file('char_def.json', JSON.stringify(
+      {
+        key: 'mychar',
+        label: 'マイキャラ',
+        comment: 'CHARSに { key: \'mychar\', label: \'マイキャラ\' } を追加し、png3枚を public/assets/images/characters/mychar/ に配置してください',
+      },
+      null, 2,
+    ))
     const blob = await zip.generateAsync({ type: 'blob' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url; a.download = 'mychar.zip'; a.click()
+    a.href = url
+    a.download = 'mychar.zip'
+    a.click()
     URL.revokeObjectURL(url)
   }
 
@@ -608,23 +439,21 @@ export function CharacterCreator() {
     <div className="screen-scroll">
       <div className="subscreen-header">
         <div className="subscreen-title-row">
-          <button className="back-btn" onClick={() => goTo('settings')}>‹</button>
-          <h2 className="subscreen-title">AI相棒クリエイト</h2>
+          <button className="back-btn" onClick={() => goTo(user?.onboarded ? 'settings' : 'onboarding')}>‹</button>
+          <h2 className="subscreen-title">相棒クリエイト</h2>
         </div>
-        <p className="hint">AIで画像を生成するか、自分で用意した画像をアップロードして相棒をつくろう。書く・休むの画像は自動合成されます。</p>
+        <p className="hint">通常・書く・休む の3枚の画像をそれぞれアップロードして相棒をつくろう。</p>
       </div>
 
-      <AIGenPanel onLoadToNormal={url => { setAiUrl(url); setExports({ normal: null, write: null, rest: null }) }} />
-
-      <div className="ai-gen-divider"><span>位置を調整する</span></div>
-
-      <CropPanel
-        stateKey="normal"
-        label={STATES[0].label}
-        desc={STATES[0].desc}
-        onExport={url => setExport('normal', url)}
-        aiUrl={aiUrl}
-      />
+      {STATES.map(s => (
+        <CropPanel
+          key={s.key}
+          stateKey={s.key}
+          label={s.label}
+          desc={s.desc}
+          onExport={url => setExport(s.key, url)}
+        />
+      ))}
 
       {allReady && (
         <div className="char-creator-actions">

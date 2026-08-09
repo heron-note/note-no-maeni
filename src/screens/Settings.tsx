@@ -80,9 +80,14 @@ export function Settings() {
       <div className="settings-row">
         <p className="label">相棒</p>
         <CharGrid selected={char} onSelect={setChar} onSelectWithPos={(_, pos) => triggerBurst(pos)} />
-        <button className="btn-secondary wide" onClick={() => goTo('character-creator')}>
-          相棒クリエイト
-        </button>
+        <div className="creator-btn-row">
+          <button className="btn-secondary" onClick={() => goTo('character-creator-simple')}>
+            相棒クリエイト
+          </button>
+          <button className="btn-secondary" onClick={() => goTo('character-creator')}>
+            AI相棒クリエイト
+          </button>
+        </div>
         {localStorage.getItem('nob_custom_img_normal') && (
           <button
             className="btn-secondary wide"

@@ -5,6 +5,7 @@ import { Home } from './screens/Home'
 import { Settings } from './screens/Settings'
 import { TemplateEditor } from './screens/TemplateEditor'
 import { CharacterCreator } from './screens/CharacterCreator'
+import { SimpleCharacterCreator } from './screens/SimpleCharacterCreator'
 import { SplashScreen } from './components/SplashScreen'
 import { preloadVoicevox } from './utils/voicevox'
 import type { VoicevoxKey } from './utils/voicevox'
@@ -19,7 +20,8 @@ const SCREENS: Record<ScreenName, JSX.Element> = {
   'home':              <Home />,
   'settings':          <Settings />,
   'template-editor':   <TemplateEditor />,
-  'character-creator': <CharacterCreator />,
+  'character-creator':        <CharacterCreator />,
+  'character-creator-simple': <SimpleCharacterCreator />,
 }
 
 export function App() {
