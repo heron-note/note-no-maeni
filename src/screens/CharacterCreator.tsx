@@ -144,11 +144,14 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
     dragging: false, lastX: 0, lastY: 0, pinchDist: 0,
   })
   const [hasImage, setHasImage] = useState(false)
+  const [imageVersion, setImageVersion] = useState(0)
   const [confirmed, setConfirmed] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [bgTolerance, setBgTolerance] = useState(25)
   const [bgApplied, setBgApplied] = useState(false)
   const [bgProcessing, setBgProcessing] = useState(false)
+  const [zoom, setZoom] = useState(1)
+  const fitScaleRef = useRef(1)
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current
@@ -171,7 +174,7 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
   useEffect(() => {
     if (hasImage) redraw()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasImage])
+  }, [hasImage, imageVersion])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -196,6 +199,7 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
       setBgApplied(false)
       onExport(null)
       setHasImage(true)
+      setImageVersion(v => v + 1)
     }
     const img = new Image()
     img.crossOrigin = 'anonymous'
@@ -218,6 +222,8 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
   const initCrop = (img: HTMLImageElement) => {
     drawImgRef.current = img
     const fitScale = Math.min(CROP_SIZE / img.width, CROP_SIZE / img.height)
+    fitScaleRef.current = fitScale
+    setZoom(1)
     cropRef.current = {
       offsetX: CROP_OFF + (CROP_SIZE - img.width * fitScale) / 2,
       offsetY: CROP_OFF + (CROP_SIZE - img.height * fitScale) / 2,
@@ -237,6 +243,7 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
       setBgApplied(false)
       onExport(null)
       setHasImage(true)
+      setImageVersion(v => v + 1)
     }
     img.src = url
   }
@@ -285,17 +292,25 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
   }
   const stopDrag = () => { cropRef.current.dragging = false }
 
-  const onWheel = (e: React.WheelEvent) => {
-    e.preventDefault()
-    const factor = e.deltaY > 0 ? 0.9 : 1.1
+  const applyZoom = (newScale: number) => {
     const cx = CANVAS_SIZE / 2, cy = CANVAS_SIZE / 2
     const { offsetX, offsetY, scale } = cropRef.current
-    const newScale = Math.max(0.05, Math.min(20, scale * factor))
-    const f = newScale / scale
-    cropRef.current.scale = newScale
+    const clamped = Math.max(0.05, Math.min(20, newScale))
+    const f = clamped / scale
+    cropRef.current.scale = clamped
     cropRef.current.offsetX = cx + (offsetX - cx) * f
     cropRef.current.offsetY = cy + (offsetY - cy) * f
+    setZoom(clamped / fitScaleRef.current)
     redraw()
+  }
+
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault()
+    applyZoom(cropRef.current.scale * (e.deltaY > 0 ? 0.9 : 1.1))
+  }
+
+  const handleZoomSlider = (v: number) => {
+    applyZoom(fitScaleRef.current * v)
   }
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -330,14 +345,7 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
       const pinchDist = cropRef.current.pinchDist || dist
       const factor = dist / pinchDist
       cropRef.current.pinchDist = dist
-      const cx = CANVAS_SIZE / 2, cy = CANVAS_SIZE / 2
-      const { offsetX, offsetY, scale } = cropRef.current
-      const newScale = Math.max(0.05, Math.min(20, scale * factor))
-      const f = newScale / scale
-      cropRef.current.scale = newScale
-      cropRef.current.offsetX = cx + (offsetX - cx) * f
-      cropRef.current.offsetY = cy + (offsetY - cy) * f
-      redraw()
+      applyZoom(cropRef.current.scale * factor)
     }
   }
 
@@ -406,7 +414,8 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
               )}
             </div>
           </div>
-          <p className="hint crop-hint-move">ドラッグで移動・ピンチ/ホイールで拡縮。白枠内に収めてください。</p>
+          <p className="hint crop-hint-move">ドラッグで移動、右のスライダーで拡縮。白枠内に収めてください。</p>
+          <div className="crop-canvas-row">
           <canvas
             ref={canvasRef}
             width={CANVAS_SIZE}
@@ -421,6 +430,16 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
             onTouchMove={onTouchMove}
             onTouchEnd={stopDrag}
           />
+          <div className="zoom-slider-wrap">
+            <span className="zoom-slider-label">+</span>
+            <input
+              type="range" className="zoom-slider-vertical"
+              min={0.5} max={4} step={0.05} value={zoom}
+              onChange={e => handleZoomSlider(Number(e.target.value))}
+            />
+            <span className="zoom-slider-label">−</span>
+          </div>
+          </div>
           <button
             className={`btn-secondary wide${confirmed ? ' crop-confirmed' : ''}`}
             onClick={handleConfirm}

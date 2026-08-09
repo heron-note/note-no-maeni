@@ -814,9 +814,13 @@ html, body, #root {
 .bg-tolerance-label { font-size: 13px; color: var(--text-light); display: flex; flex-direction: column; gap: 4px; }
 .bg-tolerance-slider { width: 100%; accent-color: var(--primary); }
 .bg-remove-btns { display: flex; gap: 8px; }
+.crop-canvas-row { display: flex; align-items: stretch; gap: 8px; }
+.zoom-slider-wrap { display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 4px 0; }
+.zoom-slider-label { font-size: 16px; font-weight: 700; color: var(--text-light); line-height: 1; }
+.zoom-slider-vertical { writing-mode: vertical-lr; direction: rtl; flex: 1; width: 28px; accent-color: var(--primary); cursor: pointer; }
 .crop-canvas {
   display: block;
-  width: 100%; max-width: 320px;
+  flex: 1; max-width: 320px;
   aspect-ratio: 1;
   cursor: grab;
   border-radius: var(--radius-sm);
