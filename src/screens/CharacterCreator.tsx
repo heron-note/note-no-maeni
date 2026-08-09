@@ -457,45 +457,29 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
   )
 }
 
-function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, string>) => void }) {
+function AIGenPanel({ onLoadToNormal }: { onLoadToNormal: (url: string) => void }) {
   const [desc, setDesc] = useState('')
-  const [prompts, setPrompts] = useState<Record<string, string> | null>(null)
-  const [seeds, setSeeds] = useState<Record<string, number> | null>(null)
-  const [imgLoaded, setImgLoaded] = useState<Record<string, boolean>>({})
-  const [revealed, setRevealed] = useState<Record<string, boolean>>({})
-
-  const urls: Record<string, string> | null = prompts && seeds
-    ? Object.fromEntries(STATES.map(s => [s.key, pollinationsUrl(prompts[s.key], seeds[s.key])]))
-    : null
-
-  const revealNext = (doneKey: string) => {
-    const idx = STATES.findIndex(s => s.key === doneKey)
-    const next = STATES[idx + 1]
-    if (next) setRevealed(prev => ({ ...prev, [next.key]: true }))
-  }
-
+  const [prompt, setPrompt] = useState<string | null>(null)
+  const [seed, setSeed] = useState<number | null>(null)
+  const [imgLoaded, setImgLoaded] = useState(false)
   const [translating, setTranslating] = useState(false)
+
+  const url = prompt && seed != null ? pollinationsUrl(prompt, seed) : null
 
   const handleGenerate = async () => {
     if (!desc.trim()) return
     setTranslating(true)
-    setImgLoaded({})
+    setImgLoaded(false)
     const englishDesc = await toEnglish(desc)
     setTranslating(false)
-    const sharedSeed = Math.floor(Math.random() * 1000000)
-    setPrompts(Object.fromEntries(STATES.map(s => [s.key, buildPrompt(englishDesc, s.key)])))
-    setSeeds(Object.fromEntries(STATES.map(s => [s.key, sharedSeed])))
-    setRevealed({ [STATES[0].key]: true })
+    setPrompt(buildPrompt(englishDesc, 'normal'))
+    setSeed(Math.floor(Math.random() * 1000000))
   }
 
-  const rerollAll = () => {
-    const sharedSeed = Math.floor(Math.random() * 1000000)
-    setSeeds(prev => prev ? Object.fromEntries(STATES.map(s => [s.key, sharedSeed])) : prev)
-    setImgLoaded({})
-    setRevealed({ [STATES[0].key]: true })
+  const reroll = () => {
+    setImgLoaded(false)
+    setSeed(Math.floor(Math.random() * 1000000))
   }
-
-  const allLoaded = urls !== null && STATES.every(s => imgLoaded[s.key])
 
   return (
     <div className="ai-gen-panel">
@@ -510,30 +494,23 @@ function AIGenPanel({ onLoadToCrop }: { onLoadToCrop: (urls: Record<string, stri
       <button className="btn-primary wide" onClick={handleGenerate} disabled={translating || !desc.trim()}>
         {translating ? '翻訳中…' : '生成する'}
       </button>
-      {urls && (
+      {url && (
         <>
-          <div className="ai-gen-previews">
-            {STATES.map(s => (
-              <div key={s.key} className="ai-gen-preview-item">
-                <span className="crop-state-badge">{s.label}</span>
-                <div className="ai-gen-img-wrap">
-                  {!imgLoaded[s.key] && <span className="ai-gen-loading">生成中</span>}
-                  <img
-                    key={urls[s.key]}
-                    src={revealed[s.key] ? urls[s.key] : undefined}
-                    alt={s.label}
-                    className={`ai-gen-img${imgLoaded[s.key] ? ' loaded' : ''}`}
-                    onLoad={() => { setImgLoaded(prev => ({ ...prev, [s.key]: true })); revealNext(s.key) }}
-                    onError={() => { setImgLoaded(prev => ({ ...prev, [s.key]: true })); revealNext(s.key) }}
-                  />
-                </div>
-              </div>
-            ))}
+          <div className="ai-gen-img-wrap" style={{ width: 140, margin: '0 auto' }}>
+            {!imgLoaded && <span className="ai-gen-loading">生成中</span>}
+            <img
+              key={url}
+              src={url}
+              alt="通常"
+              className={`ai-gen-img${imgLoaded ? ' loaded' : ''}`}
+              onLoad={() => setImgLoaded(true)}
+              onError={() => setImgLoaded(true)}
+            />
           </div>
           <div className="ai-gen-actions">
-            <button className="btn-secondary" onClick={rerollAll} disabled={!allLoaded}>↻ 別パターン</button>
-            <button className="btn-primary" onClick={() => urls && onLoadToCrop(urls)} disabled={!allLoaded}>
-              {allLoaded ? 'この3枚を位置調整する ↓' : '生成中…'}
+            <button className="btn-secondary" onClick={reroll} disabled={!imgLoaded}>↻ 別パターン</button>
+            <button className="btn-primary" onClick={() => url && onLoadToNormal(url)} disabled={!imgLoaded}>
+              {imgLoaded ? 'この画像を使う ↓' : '生成中…'}
             </button>
           </div>
         </>
@@ -549,20 +526,47 @@ export function CharacterCreator() {
   const [exports, setExports] = useState<Record<string, string | null>>({
     normal: null, write: null, rest: null,
   })
-  const [aiUrls, setAiUrls] = useState<Record<string, string>>({})
+  const [aiUrl, setAiUrl] = useState<string>('')
   const [toast, setToast] = useState<string | null>(null)
 
   const setExport = useCallback((key: string, url: string | null) => {
     setExports(prev => ({ ...prev, [key]: url }))
   }, [])
 
-  const allReady = STATES.every(s => exports[s.key])
+  const allReady = !!exports.normal
 
-  const handleApply = () => {
-    if (!allReady) return
-    STATES.forEach(s => {
-      localStorage.setItem(`nob_custom_img_${s.key}`, exports[s.key]!)
+  const createComposite = (charDataUrl: string, overlayUrl: string): Promise<string> =>
+    new Promise(resolve => {
+      const canvas = document.createElement('canvas')
+      canvas.width = CROP_SIZE; canvas.height = CROP_SIZE
+      const ctx = canvas.getContext('2d')!
+      const charImg = new Image()
+      charImg.onload = () => {
+        ctx.drawImage(charImg, 0, 0, CROP_SIZE, CROP_SIZE)
+        const overlayImg = new Image()
+        overlayImg.onload = () => {
+          const maxH = CROP_SIZE * 0.5
+          const scale = Math.min(CROP_SIZE / overlayImg.width, maxH / overlayImg.height)
+          const w = overlayImg.width * scale
+          const h = overlayImg.height * scale
+          ctx.drawImage(overlayImg, (CROP_SIZE - w) / 2, CROP_SIZE - h, w, h)
+          resolve(canvas.toDataURL('image/png'))
+        }
+        overlayImg.onerror = () => resolve(charDataUrl)
+        overlayImg.src = overlayUrl
+      }
+      charImg.src = charDataUrl
     })
+
+  const handleApply = async () => {
+    const normalDataUrl = exports.normal
+    if (!normalDataUrl) return
+    const base = import.meta.env.BASE_URL
+    const writeDataUrl = await createComposite(normalDataUrl, `${base}assets/images/overlays/write_overlay.png`)
+    const restDataUrl = await createComposite(normalDataUrl, `${base}assets/images/overlays/rest_overlay.png`).catch(() => normalDataUrl)
+    localStorage.setItem('nob_custom_img_normal', normalDataUrl)
+    localStorage.setItem('nob_custom_img_write', writeDataUrl)
+    localStorage.setItem('nob_custom_img_rest', restDataUrl)
     if (user) saveUser({ ...user, character: 'custom' })
     setToast('保存しました！')
     setTimeout(() => goTo(user?.onboarded ? 'settings' : 'onboarding'), 1200)
@@ -570,26 +574,20 @@ export function CharacterCreator() {
 
   const handleDownloadZip = async () => {
     if (!allReady) return
+    const normalDataUrl = exports.normal!
+    const base = import.meta.env.BASE_URL
+    const writeDataUrl = await createComposite(normalDataUrl, `${base}assets/images/overlays/write_overlay.png`)
+    const restDataUrl = await createComposite(normalDataUrl, `${base}assets/images/overlays/rest_overlay.png`).catch(() => normalDataUrl)
     const zip = new JSZip()
     const folder = zip.folder('mychar')!
-    STATES.forEach(s => {
-      const base64 = exports[s.key]!.split(',')[1]
-      folder.file(`${s.key}.png`, base64, { base64: true })
-    })
-    folder.file('char_def.json', JSON.stringify(
-      {
-        key: 'mychar',
-        label: 'マイキャラ',
-        comment: 'CHARSに { key: \'mychar\', label: \'マイキャラ\' } を追加し、png3枚を public/assets/images/characters/mychar/ に配置してください',
-      },
-      null, 2,
-    ))
+    for (const [key, dataUrl] of [['normal', normalDataUrl], ['write', writeDataUrl], ['rest', restDataUrl]]) {
+      folder.file(`${key}.png`, dataUrl.split(',')[1], { base64: true })
+    }
+    folder.file('char_def.json', JSON.stringify({ key: 'mychar', label: 'マイキャラ' }, null, 2))
     const blob = await zip.generateAsync({ type: 'blob' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
-    a.download = 'mychar.zip'
-    a.click()
+    a.href = url; a.download = 'mychar.zip'; a.click()
     URL.revokeObjectURL(url)
   }
 
@@ -603,20 +601,17 @@ export function CharacterCreator() {
         <p className="hint">AIで画像を生成するか、自分で用意した画像をアップロードして相棒をつくろう。</p>
       </div>
 
-      <AIGenPanel onLoadToCrop={urls => { setAiUrls(urls); setExports({ normal: null, write: null, rest: null }) }} />
+      <AIGenPanel onLoadToNormal={url => { setAiUrl(url); setExports({ normal: null, write: null, rest: null }) }} />
 
       <div className="ai-gen-divider"><span>位置を調整する</span></div>
 
-      {STATES.map(s => (
-        <CropPanel
-          key={s.key}
-          stateKey={s.key}
-          label={s.label}
-          desc={s.desc}
-          onExport={url => setExport(s.key, url)}
-          aiUrl={aiUrls[s.key]}
-        />
-      ))}
+      <CropPanel
+        stateKey="normal"
+        label={STATES[0].label}
+        desc={STATES[0].desc}
+        onExport={url => setExport('normal', url)}
+        aiUrl={aiUrl}
+      />
 
       {allReady && (
         <div className="char-creator-actions">
