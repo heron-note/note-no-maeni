@@ -31,6 +31,9 @@ export function ChatOverlay({ userName, onClose }: Props) {
   const [keyError, setKeyError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const dragStartY = useRef<number | null>(null)
 
   const personality = storage.loadCharPersonality()
   const hasKey = apiKey !== ''
@@ -56,6 +59,34 @@ export function ChatOverlay({ userName, onClose }: Props) {
     setTimeout(onClose, 260)
   }
 
+  const handleDragStart = (e: React.TouchEvent) => {
+    dragStartY.current = e.touches[0].clientY
+    if (sheetRef.current) sheetRef.current.style.transition = 'none'
+  }
+
+  const handleDragMove = (e: React.TouchEvent) => {
+    if (dragStartY.current === null) return
+    const delta = Math.max(0, e.touches[0].clientY - dragStartY.current)
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${delta}px)`
+  }
+
+  const handleDragEnd = (e: React.TouchEvent) => {
+    if (dragStartY.current === null) return
+    const delta = Math.max(0, e.changedTouches[0].clientY - dragStartY.current)
+    dragStartY.current = null
+    if (delta > 80) {
+      if (sheetRef.current) { sheetRef.current.style.transition = 'transform 0.22s ease'; sheetRef.current.style.transform = 'translateY(100%)' }
+      if (overlayRef.current) { overlayRef.current.style.transition = 'opacity 0.22s ease'; overlayRef.current.style.opacity = '0' }
+      setTimeout(onClose, 220)
+    } else {
+      if (sheetRef.current) {
+        sheetRef.current.style.transition = 'transform 0.3s cubic-bezier(0.22,1,0.36,1)'
+        sheetRef.current.style.transform = 'translateY(0)'
+        setTimeout(() => { if (sheetRef.current) { sheetRef.current.style.transition = ''; sheetRef.current.style.transform = '' } }, 300)
+      }
+    }
+  }
+
   const handleSend = async () => {
     const text = input.trim()
     if (!text || loading || !hasKey) return
@@ -78,11 +109,19 @@ export function ChatOverlay({ userName, onClose }: Props) {
   }
 
   return (
-    <div className={`chat-overlay${closing ? ' closing' : ''}`} onClick={handleClose}>
-      <div className="chat-sheet" onClick={e => e.stopPropagation()}>
-        <div className="chat-header">
-          <span className="chat-title">AIに相談する</span>
-          <button className="icon-btn" onClick={handleClose}>✕</button>
+    <div ref={overlayRef} className={`chat-overlay${closing ? ' closing' : ''}`} onClick={handleClose}>
+      <div ref={sheetRef} className="chat-sheet" onClick={e => e.stopPropagation()}>
+        <div
+          className="chat-header"
+          onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove}
+          onTouchEnd={handleDragEnd}
+        >
+          <div className="chat-drag-handle" />
+          <div className="chat-header-row">
+            <span className="chat-title">AIに相談する</span>
+            <button className="icon-btn" onClick={handleClose}>✕</button>
+          </div>
         </div>
 
         {!hasKey && (
