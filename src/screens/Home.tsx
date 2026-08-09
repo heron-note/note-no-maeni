@@ -88,12 +88,12 @@ export function Home() {
   const name = user?.name ?? ''
   const charState = useAppStore(s => s.logs[todayStr()]?.type ?? 'normal')
 
-  const handleChoice = (type: ChoiceType) => {
+  const handleChoice = async (type: ChoiceType) => {
     if (type === 'write') {
       logToday('write')
-      setWriteReaction(pickWriteReaction(name))
+      setWriteReaction(await pickWriteReaction(name))
     } else {
-      const decl = pickDeclaration()
+      const decl = await pickDeclaration()
       logToday('rest', decl.id)
       setStampDeclaration(decl)
     }

@@ -10,6 +10,7 @@ import { preloadVoicevox } from './utils/voicevox'
 import type { VoicevoxKey } from './utils/voicevox'
 import { storage } from './utils/storage'
 import { prefetchWikiHint } from './utils/wikipedia'
+import { prefetchContentConfig } from './data/declarations'
 import type { ScreenName } from './types'
 import type { JSX } from 'react'
 
@@ -29,6 +30,7 @@ export function App() {
 
   useEffect(() => {
     prefetchWikiHint()
+    prefetchContentConfig()
     init()
     const state = useAppStore.getState()
     const user = state.user

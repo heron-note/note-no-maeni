@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { storage } from '../utils/storage'
 import { buildTemplateHTML } from '../utils/template'
-import { REST_DECLARATIONS } from '../data/declarations'
 import { Toast } from '../components/Toast'
 
 // ===== HTML サニタイズ =====
@@ -142,7 +141,7 @@ export function TemplateEditor() {
   const hasContent = lines.length > 0 && lines[0] !== ''
 
   const previewHTML = showPreview
-    ? buildTemplateHTML({ lines, insertAfterIndex: insertIdx }, REST_DECLARATIONS[0])
+    ? buildTemplateHTML({ lines, insertAfterIndex: insertIdx }, { id: 'preview', text: '今日は休む。それもひとつの、正しい選択。' })
     : null
 
   return (
