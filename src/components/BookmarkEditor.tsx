@@ -1,8 +1,26 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { Bookmark } from '../types'
 
 function stripNote(name: string) {
   return name.endsWith('｜note') ? name.slice(0, -5) : name
+}
+
+function parseSpreadsheet(text: string, existing: Bookmark[]): { valid: { name: string; url: string }[]; skipped: number } {
+  const existingUrls = new Set(existing.map(b => b.url))
+  const valid: { name: string; url: string }[] = []
+  let skipped = 0
+  const addedUrls = new Set<string>()
+  for (const line of text.split(/\r?\n/)) {
+    const cols = line.split('\t')
+    if (cols.length < 2) continue
+    const name = stripNote(cols[0].trim())
+    const url = cols[1].trim()
+    if (!name || !/^https?:\/\//.test(url)) continue
+    if (existingUrls.has(url) || addedUrls.has(url)) { skipped++; continue }
+    valid.push({ name, url })
+    addedUrls.add(url)
+  }
+  return { valid, skipped }
 }
 
 function parseClipboard(text: string): { name: string; url: string } | null {
@@ -25,6 +43,9 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
   const [error, setError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(bookmarks.length === 0)
   const [search, setSearch] = useState('')
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkText, setBulkText] = useState('')
+  const bulkRef = useRef<HTMLTextAreaElement>(null)
 
   const filtered = search.trim()
     ? bookmarks.filter(b => b.name.includes(search.trim()))
@@ -48,6 +69,18 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
 
   const cyclePriority = (id: string) => {
     onChange(bookmarks.map(b => b.id === id ? { ...b, priority: ((b.priority ?? 0) + 1) % 4 } : b))
+  }
+
+  const handleBulkImport = () => {
+    const { valid, skipped } = parseSpreadsheet(bulkText, bookmarks)
+    if (valid.length === 0) return
+    const newItems: Bookmark[] = valid.map(({ name, url }) => ({
+      id: newId(), name, url, priority: 0, recommendCount: 0, lastRecommendedDate: null,
+    }))
+    onChange([...bookmarks, ...newItems])
+    setBulkText('')
+    setBulkOpen(false)
+    setError(skipped > 0 ? `${valid.length}件追加（${skipped}件はすでに登録済みのためスキップ）` : null)
   }
 
   const DOTS = ['○○○', '●○○', '●●○', '●●●']
@@ -118,6 +151,39 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
               <button className="bookmark-delete-btn" onClick={() => handleDelete(b.id)}>削除</button>
             </div>
           ))}
+        </div>
+
+        <div className={`bookmark-bulk-wrap${bulkOpen ? ' bookmark-form-open' : ''}`}>
+          <button
+            className="bookmark-form-toggle"
+            onClick={() => { setBulkOpen(v => !v); if (!bulkOpen) setTimeout(() => bulkRef.current?.focus(), 50) }}
+          >
+            {bulkOpen ? '▼ 閉じる' : '▲ スプレッドシートから一括登録'}
+          </button>
+          <div className="bookmark-form">
+            <p className="bookmark-bulk-hint">スプレッドシート（Excel / Google Sheets）の名前・URL列を選択してコピーし、貼り付けてください。</p>
+            <textarea
+              ref={bulkRef}
+              className="bookmark-bulk-textarea"
+              rows={5}
+              placeholder={'名前\thttps://note.com/...\n名前\thttps://note.com/...'}
+              value={bulkText}
+              onChange={e => setBulkText(e.target.value)}
+            />
+            {bulkText.trim() && (() => {
+              const { valid } = parseSpreadsheet(bulkText, bookmarks)
+              return valid.length > 0
+                ? <p className="bookmark-bulk-preview">{valid.length}件を追加できます</p>
+                : <p className="bookmark-error">追加できる行が見つかりません</p>
+            })()}
+            <button
+              className="btn-primary wide"
+              onClick={handleBulkImport}
+              disabled={parseSpreadsheet(bulkText, bookmarks).valid.length === 0}
+            >
+              一括追加する
+            </button>
+          </div>
         </div>
 
         <div className={`bookmark-form-wrap${formOpen ? ' bookmark-form-open' : ''}`}>

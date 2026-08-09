@@ -287,6 +287,19 @@ html, body, #root {
   transition: max-height 0.3s ease;
 }
 .bookmark-form-open .bookmark-form { max-height: 300px; }
+.bookmark-bulk-wrap {
+  border-top: 1px solid var(--border);
+  overflow: hidden;
+}
+.bookmark-bulk-wrap .bookmark-form { max-height: 0; }
+.bookmark-bulk-wrap.bookmark-form-open .bookmark-form { max-height: 400px; }
+.bookmark-bulk-hint { font-size: 12px; color: var(--text-light); margin: 0; line-height: 1.6; }
+.bookmark-bulk-textarea {
+  width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+  font-size: 12px; background: var(--bg); color: var(--text); box-sizing: border-box;
+  font-family: monospace; resize: vertical;
+}
+.bookmark-bulk-preview { font-size: 12px; color: var(--accent); margin: 0; }
 .bookmark-input {
   width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px;
   font-size: 14px; background: var(--bg); color: var(--text); box-sizing: border-box;
