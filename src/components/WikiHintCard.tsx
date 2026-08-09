@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchWikiHint, refreshWikiHint } from '../utils/wikipedia'
 import type { WikiHint } from '../utils/wikipedia'
+import { WikiArticleModal } from './WikiArticleModal'
 
 interface Props {
   onWrite: () => void
@@ -11,6 +12,7 @@ interface Props {
 export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
   const [hint, setHint] = useState<WikiHint | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
     fetchWikiHint().then(h => { setHint(h); setLoading(false) })
@@ -23,41 +25,44 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate }: Props) {
   }
 
   return (
-    <div className="wiki-hint-card">
-      <div className="wiki-hint-header">
-        <span className="wiki-hint-label">今日の豆知識</span>
-        <button className="wiki-hint-refresh" onClick={refresh} disabled={loading} aria-label="更新">
-          ↻
-        </button>
-      </div>
-      {loading ? (
-        <p className="wiki-hint-loading">取得中…</p>
-      ) : hint ? (
-        <>
-          <p className="wiki-hint-title">{hint.title}</p>
-          <p className="wiki-hint-extract">{hint.extract}</p>
-          {hint.pageUrl && (
-            <a className="wiki-hint-wiki-btn" href={hint.pageUrl} target="_blank" rel="noopener noreferrer">
+    <>
+      <div className="wiki-hint-card">
+        <div className="wiki-hint-header">
+          <span className="wiki-hint-label">今日の豆知識</span>
+          <button className="wiki-hint-refresh" onClick={refresh} disabled={loading} aria-label="更新">
+            ↻
+          </button>
+        </div>
+        {loading ? (
+          <p className="wiki-hint-loading">取得中…</p>
+        ) : hint ? (
+          <>
+            <p className="wiki-hint-title">{hint.title}</p>
+            <p className="wiki-hint-extract">{hint.extract}</p>
+            <button className="wiki-hint-wiki-btn" onClick={() => setShowModal(true)}>
               詳しく読む
-            </a>
-          )}
-        </>
-      ) : null}
-      <div className="choice-block wiki-choice-block">
-        <button className="choice-btn write" onClick={onWrite}>
-          <span className="choice-icon">🟨</span>
-          <span className="choice-main">書く</span>
-          <span className="choice-sub">1行でも書く</span>
-        </button>
-        <button className="choice-btn rest" onClick={onRest}>
-          <span className="choice-icon">🟦</span>
-          <span className="choice-main">休む</span>
-          <span className="choice-sub">書くプレッシャーをリセット</span>
+            </button>
+          </>
+        ) : null}
+        <div className="choice-block wiki-choice-block">
+          <button className="choice-btn write" onClick={onWrite}>
+            <span className="choice-icon">🟨</span>
+            <span className="choice-main">書く</span>
+            <span className="choice-sub">1行でも書く</span>
+          </button>
+          <button className="choice-btn rest" onClick={onRest}>
+            <span className="choice-icon">🟦</span>
+            <span className="choice-main">休む</span>
+            <span className="choice-sub">書くプレッシャーをリセット</span>
+          </button>
+        </div>
+        <button className="template-shortcut-btn" onClick={onEditTemplate}>
+          ✏️ 休もっ化計画テンプレートを編集
         </button>
       </div>
-      <button className="template-shortcut-btn" onClick={onEditTemplate}>
-        ✏️ 休もっ化計画テンプレートを編集
-      </button>
-    </div>
+      {showModal && hint && (
+        <WikiArticleModal hint={hint} onClose={() => setShowModal(false)} />
+      )}
+    </>
   )
 }
