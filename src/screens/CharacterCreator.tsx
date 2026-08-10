@@ -541,7 +541,7 @@ export function CharacterCreator() {
   const [aiUrl, setAiUrl] = useState<string>('')
   const [toast, setToast] = useState<string | null>(null)
   const screenRef = useRef<HTMLDivElement>(null)
-  const { closing, handleBack } = useSlideBack(() => goTo('settings'))
+  const { closing, handleBack } = useSlideBack(() => goTo(user?.onboarded ? 'settings' : 'onboarding'))
 
   const setExport = useCallback((key: string, url: string | null) => {
     setExports(prev => ({ ...prev, [key]: url }))
@@ -595,7 +595,7 @@ export function CharacterCreator() {
     localStorage.setItem('nob_custom_img_rest', restDataUrl)
     if (user) saveUser({ ...user, character: 'custom' })
     setToast('保存しました！')
-    setTimeout(() => goTo(user?.onboarded ? 'settings' : 'onboarding'), 1200)
+    setTimeout(handleBack, 800)
   }
 
   const handleDownloadZip = async () => {

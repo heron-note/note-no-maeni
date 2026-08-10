@@ -409,7 +409,7 @@ export function SimpleCharacterCreator() {
     })
     if (user) saveUser({ ...user, character: 'custom' })
     setToast('保存しました！')
-    setTimeout(() => goTo(user?.onboarded ? 'settings' : 'onboarding'), 1200)
+    setTimeout(handleBack, 800)
   }
 
   const handleDownloadZip = async () => {
