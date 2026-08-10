@@ -21,9 +21,9 @@ function sanitizeInline(node: Node): string {
   const tag = el.tagName.toLowerCase()
   const inner = Array.from(el.childNodes).map(sanitizeInline).join('')
   if (tag === 'a') {
-    // href の URL だけを出力（リンクテキストは使わない）
     const href = el.getAttribute('href') ?? ''
-    return href.startsWith('http') ? href : inner
+    if (href.startsWith('http')) return `<a href="${href.replace(/"/g, '&quot;')}">${inner}</a>`
+    return inner
   }
   return INLINE_TAGS.has(tag) ? `<${tag}>${inner}</${tag}>` : inner
 }
