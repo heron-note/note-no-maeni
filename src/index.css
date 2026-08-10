@@ -146,6 +146,13 @@ html, body, #root {
 .hint  { font-size: 12px; color: var(--text-light); margin-top: 6px; }
 .paste-mode-hint { margin: 4px 0 0; }
 .paste-mode-warn { color: #b45309; }
+.paste-debug { background: #f8f4ef; border: 1px solid #ddd; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.paste-debug-title { font-size: 11px; font-weight: 700; color: var(--text-light); margin: 0; }
+.paste-debug-item { display: flex; flex-direction: column; gap: 4px; }
+.paste-debug-header { display: flex; align-items: center; gap: 8px; }
+.paste-debug-type { font-size: 11px; font-weight: 700; font-family: monospace; color: #444; }
+.paste-debug-copy { font-size: 11px; padding: 2px 8px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; }
+.paste-debug-content { font-size: 10px; font-family: monospace; white-space: pre-wrap; word-break: break-all; background: white; border: 1px solid #e0e0e0; border-radius: 4px; padding: 6px; margin: 0; max-height: 80px; overflow-y: auto; color: #333; }
 .form-block    { display: flex; flex-direction: column; }
 .settings-row  { display: flex; flex-direction: column; gap: 8px; }
 .transfer-row  { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }

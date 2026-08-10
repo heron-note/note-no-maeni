@@ -177,7 +177,7 @@ export function TemplateEditor() {
   })
   const [toast, setToast] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
-  const [pasteTypes, setPasteTypes] = useState<string[] | null>(null)
+  const [pasteData, setPasteData] = useState<{ type: string; content: string }[] | null>(null)
 
   // 保存済みテンプレートを初期表示（再レンダで上書きしない）
   useEffect(() => {
@@ -190,8 +190,11 @@ export function TemplateEditor() {
   // ペースト時にクリップボードの HTML を直接解析（ブラウザのDOM変換を経由しない）
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault()
-    const types = Array.from(e.clipboardData.types)
-    setPasteTypes(types)
+    const entries = Array.from(e.clipboardData.types).map(type => ({
+      type,
+      content: e.clipboardData.getData(type),
+    }))
+    setPasteData(entries)
     const html = e.clipboardData.getData('text/html')
     const text = e.clipboardData.getData('text/plain')
     const src = html || `<div>${text.split(/\r?\n/).map(l => `<div>${l || '<br>'}</div>`).join('')}</div>`
@@ -241,10 +244,22 @@ export function TemplateEditor() {
         data-placeholder="ここにnoteのテンプレートをペーストしてください"
       />
 
-      {pasteTypes && (
-        <p className="hint paste-mode-hint">
-          クリップボード形式: {pasteTypes.join(', ')}
-        </p>
+      {pasteData && (
+        <div className="paste-debug">
+          <p className="paste-debug-title">クリップボード内容（デバッグ）</p>
+          {pasteData.map(({ type, content }) => (
+            <div key={type} className="paste-debug-item">
+              <div className="paste-debug-header">
+                <span className="paste-debug-type">{type}</span>
+                <button
+                  className="paste-debug-copy"
+                  onClick={() => navigator.clipboard.writeText(content).catch(() => {})}
+                >コピー</button>
+              </div>
+              <pre className="paste-debug-content">{content.slice(0, 300)}{content.length > 300 ? '…' : ''}</pre>
+            </div>
+          ))}
+        </div>
       )}
 
       <button className="btn-secondary wide" onClick={refreshLines}>
