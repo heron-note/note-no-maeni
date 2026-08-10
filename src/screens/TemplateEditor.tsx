@@ -189,18 +189,20 @@ export function TemplateEditor() {
 
   // ペースト時にクリップボードの HTML を直接解析（ブラウザのDOM変換を経由しない）
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault()
+    // デバッグ: 利用可能なMIME typeと内容を記録
     const entries = Array.from(e.clipboardData.types).map(type => ({
       type,
       content: e.clipboardData.getData(type),
     }))
     setPasteData(entries)
-    const html = e.clipboardData.getData('text/html')
-    const text = e.clipboardData.getData('text/plain')
-    const src = html || `<div>${text.split(/\r?\n/).map(l => `<div>${l || '<br>'}</div>`).join('')}</div>`
-    const parsed = htmlToLines(src)
-    setLines(parsed)
-    if (editorRef.current) editorRef.current.innerHTML = linesToHtml(parsed)
+    // ブラウザのネイティブ貼り付けに任せ（OS層でリッチテキストを取得）、
+    // 完了後に innerHTML を読み取って解析する
+    setTimeout(() => {
+      if (!editorRef.current) return
+      const parsed = htmlToLines(editorRef.current.innerHTML)
+      setLines(parsed)
+      editorRef.current.innerHTML = linesToHtml(parsed)
+    }, 0)
   }, [])
 
   // contenteditable の現在の内容を解析して lines を更新
