@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 
 interface HelpStep {
   key: string
@@ -53,11 +53,23 @@ interface Props {
 export function OnboardingHelpOverlay({ onDone }: Props) {
   const [step, setStep] = useState(0)
   const [rect, setRect] = useState<DOMRect | null>(null)
+  const [ready, setReady] = useState(false)
 
   const vw = window.innerWidth
   const vh = window.innerHeight
 
+  // 起動時: まず最下部までスクロールして全体を見せ、その後ステップ1へ
+  useEffect(() => {
+    const scroller = document.querySelector('.screen-scroll')
+    if (scroller) {
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' })
+    }
+    const t = setTimeout(() => setReady(true), 700)
+    return () => clearTimeout(t)
+  }, [])
+
   useLayoutEffect(() => {
+    if (!ready) return
     const el = document.querySelector(`[data-help="${STEPS[step].key}"]`)
     if (el) {
       el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
@@ -67,7 +79,7 @@ export function OnboardingHelpOverlay({ onDone }: Props) {
     } else {
       setRect(null)
     }
-  }, [step])
+  }, [step, ready])
 
   const handleNext = () => {
     if (step < STEPS.length - 1) setStep(s => s + 1)
