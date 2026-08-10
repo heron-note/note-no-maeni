@@ -12,6 +12,7 @@ export function preloadVoicevox(key: VoicevoxKey): HTMLAudioElement {
 
 function playFileWithContext(url: string, gain = 2.0): void {
   try {
+    ;(navigator as any).audioSession && ((navigator as any).audioSession.type = 'ambient')
     const ctx = new AudioContext()
     const audio = new Audio(url)
     const source = ctx.createMediaElementSource(audio)

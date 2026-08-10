@@ -7,6 +7,7 @@ const BASE = import.meta.env.BASE_URL
 // AudioContext 経由で再生（iOS でメディア音量チャンネルを使う + gain ブースト）
 function playFileWithContext(url: string, gain = 2.0): void {
   try {
+    ;(navigator as any).audioSession && ((navigator as any).audioSession.type = 'ambient')
     const ctx = new AudioContext()
     const audio = new Audio(url)
     const source = ctx.createMediaElementSource(audio)
@@ -31,6 +32,7 @@ export function playStampSound(): void {
 export function playPowan(): void {
   if (!storage.loadSoundEnabled()) return
   try {
+    ;(navigator as any).audioSession && ((navigator as any).audioSession.type = 'ambient')
     const ctx = new AudioContext()
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
