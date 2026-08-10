@@ -22,7 +22,10 @@ function sanitizeInline(node: Node): string {
   const inner = Array.from(el.childNodes).map(sanitizeInline).join('')
   if (tag === 'a') {
     const href = el.getAttribute('href') ?? ''
-    if (href.startsWith('http')) return `<a href="${href.replace(/"/g, '&quot;')}">${inner}</a>`
+    if (href && !href.startsWith('javascript:')) {
+      const fullHref = href.startsWith('//') ? `https:${href}` : href
+      return `<a href="${fullHref.replace(/"/g, '&quot;')}">${inner}</a>`
+    }
     return inner
   }
   return INLINE_TAGS.has(tag) ? `<${tag}>${inner}</${tag}>` : inner
