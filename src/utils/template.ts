@@ -3,6 +3,7 @@ import type { Template, Declaration } from '../types'
 function stripHtml(html: string): string {
   const d = document.createElement('div')
   d.innerHTML = html
+  d.querySelectorAll('br').forEach(br => br.replaceWith('\n'))
   d.querySelectorAll('a[href]').forEach(a => {
     const href = a.getAttribute('href') ?? ''
     const text = a.textContent ?? ''

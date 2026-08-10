@@ -41,7 +41,7 @@ function htmlToLines(html: string): string[] {
       if (child.nodeType === Node.ELEMENT_NODE) {
         const ce = child as Element
         const tag = ce.tagName.toLowerCase()
-        if (tag === 'br') { out.push(''); continue }
+        if (tag === 'br') { if (out.length === 0) out.push(''); else out[out.length - 1] += '<br>'; continue }
         if (tag === 'blockquote') {
           const text = (ce.textContent ?? '').trim()
           if (text) {
