@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Bookmark } from '../types'
 import { startDrumRoll, playDrumHit } from '../utils/drumSounds'
 import { speakVoicevox } from '../utils/voicevox'
+import { useBottomSheet } from '../hooks/useBottomSheet'
 
 const ITEM_H = 56
 
@@ -13,6 +14,7 @@ export function RecommendOverlay({ bookmark, allNames, onOpen, onClose }: {
 }) {
   const reelRef = useRef<HTMLDivElement>(null)
   const [done, setDone] = useState(false)
+  const { closing, handleClose, sheetRef, dragHandleProps } = useBottomSheet(onClose)
 
   // リール構成: [ランダム×1, ランダム×13, target, ランダム×1] = 16件
   // 3件表示ウィンドウで target(index=14) が中央に来る
@@ -46,8 +48,9 @@ export function RecommendOverlay({ bookmark, allNames, onOpen, onClose }: {
   }, [])
 
   return (
-    <div className="stamp-overlay">
-      <div className="stamp-overlay-inner recommend-inner" onClick={e => e.stopPropagation()}>
+    <div className={`stamp-overlay${closing ? ' closing' : ''}`}>
+      <div ref={sheetRef} className={`stamp-overlay-inner recommend-inner${closing ? ' sheet-leaving' : ''}`} onClick={e => e.stopPropagation()}>
+        <div className="sheet-drag-handle-area" {...dragHandleProps}><div className="sheet-drag-handle" /></div>
 
         <div className="slot-machine">
           <div className="slot-window">
@@ -73,7 +76,7 @@ export function RecommendOverlay({ bookmark, allNames, onOpen, onClose }: {
 
         <div className={`overlay-btns${done ? ' overlay-btns-visible' : ''}`}>
           <button className="btn-primary wide" onClick={onOpen}>開く ↗</button>
-          <button className="btn-secondary wide" onClick={onClose}>閉じる</button>
+          <button className="btn-secondary wide" onClick={handleClose}>閉じる</button>
         </div>
 
       </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { NoteTag } from '../types'
+import { useBottomSheet } from '../hooks/useBottomSheet'
 
 function newId() { return `tag_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` }
 
@@ -10,6 +11,7 @@ export function TagEditor({ tags, onChange, onClose }: {
 }) {
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const { closing, handleClose, sheetRef, dragHandleProps } = useBottomSheet(onClose)
 
   const handleAdd = () => {
     const raw = input.trim().replace(/^#+/, '') // 先頭の # を除去
@@ -21,11 +23,12 @@ export function TagEditor({ tags, onChange, onClose }: {
   }
 
   return (
-    <div className="stamp-overlay" onClick={onClose}>
-      <div className="bookmark-editor" onClick={e => e.stopPropagation()}>
+    <div className={`stamp-overlay${closing ? ' closing' : ''}`} onClick={handleClose}>
+      <div ref={sheetRef} className={`bookmark-editor${closing ? ' sheet-leaving' : ''}`} onClick={e => e.stopPropagation()}>
+        <div className="sheet-drag-handle-area" {...dragHandleProps}><div className="sheet-drag-handle" /></div>
         <div className="bookmark-editor-header">
           <span className="subscreen-title">お気に入りタグ</span>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={handleClose}>✕</button>
         </div>
 
         <div className="bookmark-list">

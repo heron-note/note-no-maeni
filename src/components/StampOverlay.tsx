@@ -6,6 +6,7 @@ import { storage } from '../utils/storage'
 import { buildPlainText, copyToClipboard } from '../utils/template'
 import { Toast } from './Toast'
 import type { Declaration } from '../types'
+import { useBottomSheet } from '../hooks/useBottomSheet'
 
 export function StampOverlay({ declaration, onClose }: {
   declaration: Declaration
@@ -14,6 +15,7 @@ export function StampOverlay({ declaration, onClose }: {
   const stampRef = useRef<HTMLDivElement>(null)
   const [showButtons, setShowButtons] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const { closing, handleClose, sheetRef, dragHandleProps } = useBottomSheet(onClose)
 
   useEffect(() => {
     const el = stampRef.current
@@ -40,8 +42,9 @@ export function StampOverlay({ declaration, onClose }: {
   }
 
   return (
-    <div className="stamp-overlay" onClick={onClose}>
-      <div className="stamp-overlay-inner" onClick={e => e.stopPropagation()}>
+    <div className={`stamp-overlay${closing ? ' closing' : ''}`} onClick={handleClose}>
+      <div ref={sheetRef} className={`stamp-overlay-inner${closing ? ' sheet-leaving' : ''}`} onClick={e => e.stopPropagation()}>
+        <div className="sheet-drag-handle-area" {...dragHandleProps}><div className="sheet-drag-handle" /></div>
         <div className="stamp-block">
           <div ref={stampRef} className="stamp-colored" />
         </div>
@@ -52,12 +55,12 @@ export function StampOverlay({ declaration, onClose }: {
           <button className="btn-primary wide" onClick={handleCopy}>
             コピーしてnoteへ ↗
           </button>
-          <button className="btn-secondary wide" onClick={onClose}>
+          <button className="btn-secondary wide" onClick={handleClose}>
             閉じる
           </button>
         </div>
       </div>
-      <Toast message={toast} onDone={() => { setToast(null); onClose() }} />
+      <Toast message={toast} onDone={() => { setToast(null); handleClose() }} />
     </div>
   )
 }

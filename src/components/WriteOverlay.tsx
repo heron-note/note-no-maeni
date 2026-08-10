@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore'
 import { pickStampColor } from '../data/declarations'
 import { playStampSound } from '../utils/audio'
 import { speakVoicevox } from '../utils/voicevox'
+import { useBottomSheet } from '../hooks/useBottomSheet'
 
 export function WriteOverlay({ reactionText, onClose }: {
   reactionText: string
@@ -11,6 +12,7 @@ export function WriteOverlay({ reactionText, onClose }: {
   const logToday = useAppStore(s => s.logToday)
   const stampRef = useRef<HTMLDivElement>(null)
   const [showButtons, setShowButtons] = useState(false)
+  const { closing, handleClose, sheetRef, dragHandleProps } = useBottomSheet(onClose)
 
   useEffect(() => {
     const el = stampRef.current
@@ -27,12 +29,13 @@ export function WriteOverlay({ reactionText, onClose }: {
 
   const handleDone = () => {
     logToday('write')
-    onClose()
+    handleClose()
   }
 
   return (
-    <div className="stamp-overlay" onClick={onClose}>
-      <div className="stamp-overlay-inner" onClick={e => e.stopPropagation()}>
+    <div className={`stamp-overlay${closing ? ' closing' : ''}`} onClick={handleClose}>
+      <div ref={sheetRef} className={`stamp-overlay-inner${closing ? ' sheet-leaving' : ''}`} onClick={e => e.stopPropagation()}>
+        <div className="sheet-drag-handle-area" {...dragHandleProps}><div className="sheet-drag-handle" /></div>
         <div className="stamp-block">
           <div ref={stampRef} className="stamp-colored write-stamp-colored" />
         </div>

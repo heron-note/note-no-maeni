@@ -374,11 +374,14 @@ html, body, #root {
   display: flex; align-items: center; justify-content: center;
   animation: fade-in 0.15s ease;
 }
+.month-overlay.closing { animation: overlay-fade-out 0.26s ease forwards; }
 .month-popup {
   background: var(--surface); border-radius: var(--radius);
-  padding: 20px; width: calc(100% - 48px); max-width: 340px;
+  padding: 12px 20px 20px; width: calc(100% - 48px); max-width: 340px;
   box-shadow: var(--shadow);
+  animation: sheet-slide-in 0.32s cubic-bezier(0.22,1,0.36,1) both;
 }
+.month-popup.sheet-leaving { animation: sheet-slide-out 0.26s cubic-bezier(0.55,0,1,0.45) forwards; }
 .month-popup-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .cal-day-label { font-size: 10px; color: var(--text-light); text-align: center; padding: 2px 0; }
 .cal-day {
@@ -905,6 +908,29 @@ html, body, #root {
   opacity: 1; pointer-events: auto;
 }
 
+/* ===== BOTTOM SHEET COMMON ===== */
+@keyframes sheet-slide-in {
+  from { transform: translateY(100vh); }
+  to   { transform: translateY(0); }
+}
+@keyframes sheet-slide-out {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100vh); }
+}
+@keyframes overlay-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.sheet-drag-handle-area {
+  width: 100%; padding: 6px 0 2px;
+  display: flex; justify-content: center; align-items: center;
+  cursor: grab; touch-action: none; flex-shrink: 0;
+}
+.sheet-drag-handle {
+  width: 36px; height: 4px;
+  background: rgba(0,0,0,0.18); border-radius: 2px;
+}
+
 /* ===== STAMP OVERLAY ===== */
 .stamp-overlay {
   position: fixed; inset: 0; z-index: 200;
@@ -912,15 +938,20 @@ html, body, #root {
   display: flex; align-items: center; justify-content: center;
   animation: fade-in 0.15s ease;
 }
+.stamp-overlay.closing { animation: overlay-fade-out 0.26s ease forwards; }
 .stamp-overlay-inner {
   display: flex; flex-direction: column; align-items: center;
-  gap: 16px; padding: 32px 24px; width: 100%; max-width: 360px;
+  gap: 16px; padding: 16px 24px 32px; width: 100%; max-width: 360px;
   pointer-events: auto;
   background: rgba(255,255,255,0.72);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   border-radius: var(--radius);
+  animation: sheet-slide-in 0.32s cubic-bezier(0.22,1,0.36,1) both;
 }
+.stamp-overlay-inner.sheet-leaving { animation: sheet-slide-out 0.26s cubic-bezier(0.55,0,1,0.45) forwards; }
+.bookmark-editor { animation: sheet-slide-in 0.32s cubic-bezier(0.22,1,0.36,1) both; }
+.bookmark-editor.sheet-leaving { animation: sheet-slide-out 0.26s cubic-bezier(0.55,0,1,0.45) forwards; }
 
 /* ===== CHARACTER CREATOR ===== */
 .crop-panel {

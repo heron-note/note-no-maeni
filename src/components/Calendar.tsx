@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { LogEntry } from '../types'
+import { useBottomSheet } from '../hooks/useBottomSheet'
 
 interface Props {
   logs: Record<string, LogEntry>
@@ -65,6 +66,7 @@ function MonthView({ logs, onClose }: Props & { onClose: () => void }) {
   const now = new Date()
   const [viewYear, setViewYear] = useState(now.getFullYear())
   const [viewMonth, setViewMonth] = useState(now.getMonth())
+  const { closing, handleClose, sheetRef, dragHandleProps } = useBottomSheet(onClose)
 
   const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth()
   const today = now.getDate()
@@ -89,13 +91,14 @@ function MonthView({ logs, onClose }: Props & { onClose: () => void }) {
   }
 
   return (
-    <div className="month-overlay" onClick={onClose}>
-      <div className="month-popup" onClick={e => e.stopPropagation()}>
+    <div className={`month-overlay${closing ? ' closing' : ''}`} onClick={handleClose}>
+      <div ref={sheetRef} className={`month-popup${closing ? ' sheet-leaving' : ''}`} onClick={e => e.stopPropagation()}>
+        <div className="sheet-drag-handle-area" {...dragHandleProps}><div className="sheet-drag-handle" /></div>
         <div className="month-popup-header">
           <button className="icon-btn" onClick={goPrev}>‹</button>
           <span className="calendar-header">{viewYear}年{viewMonth + 1}月</span>
           <button className="icon-btn" onClick={goNext} disabled={isCurrentMonth}>›</button>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={handleClose}>✕</button>
         </div>
         <div className="calendar-grid">
           {DAY_LABELS.map(l => <div key={l} className="cal-day-label">{l}</div>)}

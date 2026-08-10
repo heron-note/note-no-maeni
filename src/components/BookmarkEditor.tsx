@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import type { Bookmark } from '../types'
+import { useBottomSheet } from '../hooks/useBottomSheet'
 
 function stripNote(name: string) {
   return name.endsWith('｜note') ? name.slice(0, -5) : name
@@ -40,6 +41,7 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkText, setBulkText] = useState('')
   const bulkRef = useRef<HTMLTextAreaElement>(null)
+  const { closing, handleClose, sheetRef, dragHandleProps } = useBottomSheet(onClose)
 
   const filtered = search.trim()
     ? bookmarks.filter(b => b.name.includes(search.trim()))
@@ -80,12 +82,12 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
   const DOTS = ['○○○', '●○○', '●●○', '●●●']
 
   return (
-    <div className="stamp-overlay" onClick={onClose}>
-      <div className="bookmark-editor" onClick={e => e.stopPropagation()}>
-
+    <div className={`stamp-overlay${closing ? ' closing' : ''}`} onClick={handleClose}>
+      <div ref={sheetRef} className={`bookmark-editor${closing ? ' sheet-leaving' : ''}`} onClick={e => e.stopPropagation()}>
+        <div className="sheet-drag-handle-area" {...dragHandleProps}><div className="sheet-drag-handle" /></div>
         <div className="bookmark-editor-header">
           <span className="subscreen-title">おすすめ編集</span>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={handleClose}>✕</button>
         </div>
 
         <input
