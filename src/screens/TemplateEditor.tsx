@@ -39,6 +39,13 @@ function htmlToLines(html: string): string[] {
         const ce = child as Element
         const tag = ce.tagName.toLowerCase()
         if (tag === 'br') { out.push(''); return }
+        if (tag === 'blockquote') {
+          const text = (ce.textContent ?? '').trim()
+          if (text) {
+            text.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => out.push(`> ${l}`))
+          }
+          return
+        }
         if (BLOCK_TAGS.has(tag)) {
           const sub: string[] = []
           walkInner(ce, sub)
@@ -98,6 +105,29 @@ function htmlToLines(html: string): string[] {
   return cleaned.length > 0 ? cleaned : ['']
 }
 
+// 保存済み lines → contenteditable 用 HTML（blockquote・pre を復元）
+function linesToHtml(lines: string[]): string {
+  const parts: string[] = []
+  let i = 0
+  while (i < lines.length) {
+    const l = lines[i]
+    if (l === '```') {
+      const codeLines: string[] = []
+      i++
+      while (i < lines.length && lines[i] !== '```') { codeLines.push(lines[i]); i++ }
+      parts.push(`<pre>${codeLines.join('\n')}</pre>`)
+      i++ // closing ```
+    } else if (l.startsWith('> ')) {
+      parts.push(`<blockquote><p>${l.slice(2)}</p></blockquote>`)
+      i++
+    } else {
+      parts.push(`<div>${l || '<br>'}</div>`)
+      i++
+    }
+  }
+  return parts.join('')
+}
+
 export function TemplateEditor() {
   const goTo = useAppStore(s => s.goTo)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -117,9 +147,7 @@ export function TemplateEditor() {
   // 保存済みテンプレートを初期表示（再レンダで上書きしない）
   useEffect(() => {
     if (editorRef.current && lines.join('').trim()) {
-      editorRef.current.innerHTML = lines
-        .map(l => `<div>${l || '<br>'}</div>`)
-        .join('')
+      editorRef.current.innerHTML = linesToHtml(lines)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
