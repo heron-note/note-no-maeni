@@ -246,19 +246,13 @@ export function TemplateEditor() {
 
       {pasteData && (
         <div className="paste-debug">
-          <p className="paste-debug-title">クリップボード内容（デバッグ）</p>
-          {pasteData.map(({ type, content }) => (
-            <div key={type} className="paste-debug-item">
-              <div className="paste-debug-header">
-                <span className="paste-debug-type">{type}</span>
-                <button
-                  className="paste-debug-copy"
-                  onClick={() => navigator.clipboard.writeText(content).catch(() => {})}
-                >コピー</button>
-              </div>
-              <pre className="paste-debug-content">{content.slice(0, 300)}{content.length > 300 ? '…' : ''}</pre>
-            </div>
-          ))}
+          <div className="paste-debug-header">
+            <p className="paste-debug-title">クリップボード内容（デバッグ）: {pasteData.map(d => d.type).join(', ')}</p>
+            <button
+              className="paste-debug-copy"
+              onClick={() => navigator.clipboard.writeText(JSON.stringify(pasteData, null, 2)).catch(() => {})}
+            >全データをコピー</button>
+          </div>
         </div>
       )}
 
