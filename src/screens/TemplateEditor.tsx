@@ -38,20 +38,20 @@ function htmlToLines(html: string): string[] {
       if (child.nodeType === Node.ELEMENT_NODE) {
         const ce = child as Element
         const tag = ce.tagName.toLowerCase()
-        if (tag === 'br') { out.push(''); return }
+        if (tag === 'br') { out.push(''); continue }
         if (tag === 'blockquote') {
           const text = (ce.textContent ?? '').trim()
           if (text) {
             text.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => out.push(`> ${l}`))
           }
-          return
+          continue
         }
         if (BLOCK_TAGS.has(tag)) {
           const sub: string[] = []
           walkInner(ce, sub)
           if (sub.length > 0) out.push(...sub)
           else out.push('')
-          return
+          continue
         }
       }
       const content = sanitizeInline(child)
