@@ -108,6 +108,7 @@ function htmlToLines(html: string): string[] {
           walkInner(ce, sub)
           const hasContent = sub.some(s => s.trim() !== '')
           if (sub.length > 0) result.push(...sub)
+          else result.push('')
           if (hasContent) result.push('')
           continue
         }
