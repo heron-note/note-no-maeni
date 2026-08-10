@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore'
 import { storage } from '../utils/storage'
 import { buildTemplateHTML } from '../utils/template'
 import { Toast } from '../components/Toast'
+import { useSlideBack } from '../hooks/useSlideBack'
 
 // ===== HTML サニタイズ =====
 const INLINE_TAGS = new Set(['strong','em','b','i','u','s','strike','code'])
@@ -100,6 +101,7 @@ function htmlToLines(html: string): string[] {
 export function TemplateEditor() {
   const goTo = useAppStore(s => s.goTo)
   const editorRef = useRef<HTMLDivElement>(null)
+  const { closing, handleBack } = useSlideBack(() => goTo('home'))
 
   const [lines, setLines] = useState<string[]>(() => {
     const t = storage.loadTemplate()
@@ -145,10 +147,10 @@ export function TemplateEditor() {
     : null
 
   return (
-    <div className="screen-scroll">
+    <div className={`screen-scroll${closing ? ' screen-slide-out' : ''}`}>
       <div className="subscreen-header">
         <div className="subscreen-title-row">
-          <button className="back-btn" onClick={() => goTo('home')}>‹</button>
+          <button className="back-btn" onClick={handleBack}>‹</button>
           <h2 className="subscreen-title">テンプレート編集</h2>
         </div>
         <p className="hint">noteの記事をそのまま貼り付け → 「行を解析」を押してください。リンクはURLに変換されます。</p>

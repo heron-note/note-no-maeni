@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import JSZip from 'jszip'
 import { useAppStore } from '../store/useAppStore'
 import { Toast } from '../components/Toast'
+import { useSlideBack } from '../hooks/useSlideBack'
 
 const CANVAS_SIZE = 320
 const CROP_SIZE = 256
@@ -540,6 +541,7 @@ export function CharacterCreator() {
   const [aiUrl, setAiUrl] = useState<string>('')
   const [toast, setToast] = useState<string | null>(null)
   const screenRef = useRef<HTMLDivElement>(null)
+  const { closing, handleBack } = useSlideBack(() => goTo('settings'))
 
   const setExport = useCallback((key: string, url: string | null) => {
     setExports(prev => ({ ...prev, [key]: url }))
@@ -624,10 +626,10 @@ export function CharacterCreator() {
   }
 
   return (
-    <div className="screen-scroll" ref={screenRef}>
+    <div className={`screen-scroll${closing ? ' screen-slide-out' : ''}`} ref={screenRef}>
       <div className="subscreen-header">
         <div className="subscreen-title-row">
-          <button className="back-btn" onClick={() => goTo('settings')}>‹</button>
+          <button className="back-btn" onClick={handleBack}>‹</button>
           <h2 className="subscreen-title">AI相棒クリエイト</h2>
         </div>
         <p className="hint">AIで画像を生成するか、自分で用意した画像をアップロードして相棒をつくろう。書く・休むの画像は自動合成されます。</p>

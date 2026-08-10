@@ -24,6 +24,8 @@ const SCREENS: Record<ScreenName, JSX.Element> = {
   'character-creator-simple': <SimpleCharacterCreator />,
 }
 
+const SLIDE_SCREENS: ScreenName[] = ['settings', 'template-editor', 'character-creator', 'character-creator-simple']
+
 export function App() {
   const screen = useAppStore(s => s.screen)
   const init = useAppStore(s => s.init)
@@ -67,7 +69,7 @@ export function App() {
   if (splash) return <SplashScreen onDone={onSplashDone} />
 
   return (
-    <div id="app" key={screen}>
+    <div id="app" key={screen} className={SLIDE_SCREENS.includes(screen) ? 'app-slide-in' : ''}>
       {SCREENS[screen]}
     </div>
   )

@@ -4,6 +4,7 @@ import { CharGrid } from '../components/CharGrid'
 import { Toast } from '../components/Toast'
 import { exportData, importData, downloadImage } from '../utils/transfer'
 import { storage } from '../utils/storage'
+import { useSlideBack } from '../hooks/useSlideBack'
 
 type HeartBurst = { id: number; x: number; y: number; particles: { dx: number; dy: number }[] }
 
@@ -12,6 +13,7 @@ export function Settings() {
   const saveUser = useAppStore(s => s.saveUser)
   const goHome = useAppStore(s => s.goHome)
   const goTo = useAppStore(s => s.goTo)
+  const { closing, handleBack } = useSlideBack(goHome)
 
   const init = useAppStore(s => s.init)
   const [name, setName] = useState(user?.name ?? '')
@@ -57,10 +59,10 @@ export function Settings() {
   }
 
   return (
-    <div className="screen-scroll">
+    <div className={`screen-scroll${closing ? ' screen-slide-out' : ''}`}>
       <div className="subscreen-header">
         <div className="subscreen-title-row">
-          <button className="back-btn" onClick={goHome}>‹</button>
+          <button className="back-btn" onClick={handleBack}>‹</button>
           <h2 className="subscreen-title">設定</h2>
         </div>
       </div>

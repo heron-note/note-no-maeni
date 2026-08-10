@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import JSZip from 'jszip'
 import { useAppStore } from '../store/useAppStore'
 import { Toast } from '../components/Toast'
+import { useSlideBack } from '../hooks/useSlideBack'
 
 const CANVAS_SIZE = 320
 const CROP_SIZE = 256
@@ -389,6 +390,7 @@ export function SimpleCharacterCreator() {
   const goTo = useAppStore(s => s.goTo)
   const user = useAppStore(s => s.user)
   const saveUser = useAppStore(s => s.saveUser)
+  const { closing, handleBack } = useSlideBack(() => goTo(user?.onboarded ? 'settings' : 'onboarding'))
   const [exports, setExports] = useState<Record<string, string | null>>({
     normal: null, write: null, rest: null,
   })
@@ -436,10 +438,10 @@ export function SimpleCharacterCreator() {
   }
 
   return (
-    <div className="screen-scroll">
+    <div className={`screen-scroll${closing ? ' screen-slide-out' : ''}`}>
       <div className="subscreen-header">
         <div className="subscreen-title-row">
-          <button className="back-btn" onClick={() => goTo(user?.onboarded ? 'settings' : 'onboarding')}>‹</button>
+          <button className="back-btn" onClick={handleBack}>‹</button>
           <h2 className="subscreen-title">相棒クリエイト</h2>
         </div>
         <p className="hint">通常・書く・休む の3枚の画像をそれぞれアップロードして相棒をつくろう。</p>

@@ -461,6 +461,19 @@ html, body, #root {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
 }
+
+/* ===== SCREEN SLIDE TRANSITIONS ===== */
+@keyframes screen-slide-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes screen-slide-out-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+.app-slide-in { animation: screen-slide-in-right 0.3s cubic-bezier(0.22,1,0.36,1) both; }
+.screen-slide-out { animation: screen-slide-out-right 0.28s cubic-bezier(0.55,0,1,0.45) forwards; pointer-events: none; }
+
 .wiki-modal-closing {
   animation: wiki-slide-out 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
