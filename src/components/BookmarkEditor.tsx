@@ -6,6 +6,12 @@ function stripNote(name: string) {
   return name.endsWith('｜note') ? name.slice(0, -5) : name
 }
 
+// テキスト内から最初の http(s):// URL を抽出する
+function extractUrl(text: string): string {
+  const m = text.match(/https?:\/\/[^\s\]）)]+/)
+  return m ? m[0] : text.trim()
+}
+
 function parseSpreadsheet(text: string, existing: Bookmark[]): { valid: { name: string; url: string }[]; skipped: number } {
   const existingUrls = new Set(existing.map(b => b.url))
   const valid: { name: string; url: string }[] = []
@@ -15,7 +21,7 @@ function parseSpreadsheet(text: string, existing: Bookmark[]): { valid: { name: 
     const cols = line.split('\t')
     if (cols.length < 2) continue
     const name = stripNote(cols[0].trim())
-    const url = cols[1].trim()
+    const url = extractUrl(cols[1])
     if (!name || !/^https?:\/\//.test(url)) continue
     if (existingUrls.has(url) || addedUrls.has(url)) { skipped++; continue }
     valid.push({ name, url })
@@ -49,11 +55,11 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
 
   const handleAdd = () => {
     const trimName = name.trim()
-    const trimUrl = url.trim()
-    if (!trimName || !trimUrl) { setError('名前とURLを入力してください'); return }
-    if (!/^https?:\/\//.test(trimUrl)) { setError('URLはhttp(s)://から始めてください'); return }
-    if (bookmarks.some(b => b.url === trimUrl)) { setError('このURLはすでに登録されています'); return }
-    onChange([...bookmarks, { id: newId(), name: trimName, url: trimUrl, priority: 0, recommendCount: 0, lastRecommendedDate: null }])
+    const extractedUrl = extractUrl(url)
+    if (!trimName || !extractedUrl) { setError('名前とURLを入力してください'); return }
+    if (!/^https?:\/\//.test(extractedUrl)) { setError('URLはhttp(s)://から始めてください'); return }
+    if (bookmarks.some(b => b.url === extractedUrl)) { setError('このURLはすでに登録されています'); return }
+    onChange([...bookmarks, { id: newId(), name: trimName, url: extractedUrl, priority: 0, recommendCount: 0, lastRecommendedDate: null }])
     setName('')
     setUrl('')
     setError(null)
