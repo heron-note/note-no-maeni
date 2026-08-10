@@ -21,6 +21,28 @@ function saveFile(content: string, filename: string) {
   URL.revokeObjectURL(url)
 }
 
+export async function downloadImage(dataUrl: string, filename: string): Promise<void> {
+  const res = await fetch(dataUrl)
+  const blob = await res.blob()
+  const file = new File([blob], filename, { type: blob.type })
+
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: filename })
+      return
+    } catch {
+      // user cancelled or share failed — fall through
+    }
+  }
+
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export async function exportData(): Promise<void> {
   const data = collectData()
   const filename = `note-no-maeni-backup-${new Date().toISOString().slice(0, 10)}.json`

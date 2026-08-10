@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { Toast } from '../components/Toast'
-import { exportData, importData } from '../utils/transfer'
+import { exportData, importData, downloadImage } from '../utils/transfer'
 import { storage } from '../utils/storage'
 
 type HeartBurst = { id: number; x: number; y: number; particles: { dx: number; dy: number }[] }
@@ -94,10 +94,7 @@ export function Settings() {
             onClick={() => {
               const url = localStorage.getItem('nob_custom_img_normal')
               if (!url) return
-              const a = document.createElement('a')
-              a.href = url
-              a.download = 'mychar.png'
-              a.click()
+              downloadImage(url, 'mychar.png').catch(() => {})
             }}
           >
             マイキャラをダウンロード

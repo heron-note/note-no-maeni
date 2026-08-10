@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
-import { importData } from '../utils/transfer'
+import { importData, downloadImage } from '../utils/transfer'
 import { speakVoicevox } from '../utils/voicevox'
 import { PwaInstallHint } from '../components/PwaInstallHint'
 
@@ -86,10 +86,7 @@ export function Onboarding() {
             onClick={() => {
               const url = localStorage.getItem('nob_custom_img_normal')
               if (!url) return
-              const a = document.createElement('a')
-              a.href = url
-              a.download = 'mychar.png'
-              a.click()
+              downloadImage(url, 'mychar.png').catch(() => {})
             }}
           >
             マイキャラをダウンロード
