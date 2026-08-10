@@ -4,6 +4,7 @@ import { CharGrid } from '../components/CharGrid'
 import { importData, downloadImage } from '../utils/transfer'
 import { speakVoicevox } from '../utils/voicevox'
 import { PwaInstallHint } from '../components/PwaInstallHint'
+import { OnboardingHelpOverlay } from '../components/OnboardingHelpOverlay'
 
 export function Onboarding() {
   const [name, setName] = useState('')
@@ -14,6 +15,7 @@ export function Onboarding() {
   const goTo = useAppStore(s => s.goTo)
   const init = useAppStore(s => s.init)
   const importRef = useRef<HTMLInputElement>(null)
+  const [showHelp, setShowHelp] = useState(true)
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -45,6 +47,13 @@ export function Onboarding() {
     <div className="screen-scroll">
       <div className="onboarding-pwa-row">
         <PwaInstallHint />
+        <button className="icon-btn" onClick={() => setShowHelp(true)} aria-label="ヘルプ">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </button>
       </div>
       <div className="logo-block">
         <div className="logo-icon">
@@ -54,7 +63,7 @@ export function Onboarding() {
         <p className="app-sub">書く日も、読む日も、休む日も。</p>
       </div>
 
-      <div className="form-block">
+      <div className="form-block" data-help="ob-name">
         <p className="label">お名前を教えてください</p>
         <input
           type="text"
@@ -68,14 +77,14 @@ export function Onboarding() {
         <p className="hint">あとから変更できます</p>
       </div>
 
-      <div className="form-block">
+      <div className="form-block" data-help="ob-char">
         <p className="label">相棒を選んでください</p>
         <CharGrid selected={char} onSelect={setChar} />
         <div className="creator-btn-row" style={{ marginTop: '8px' }}>
-          <button className="btn-secondary" onClick={() => handleGoCreator('character-creator-simple')}>
+          <button data-help="ob-simple-creator" className="btn-secondary" onClick={() => handleGoCreator('character-creator-simple')}>
             相棒クリエイト
           </button>
-          <button className="btn-secondary" onClick={() => handleGoCreator('character-creator')}>
+          <button data-help="ob-ai-creator" className="btn-secondary" onClick={() => handleGoCreator('character-creator')}>
             AI相棒クリエイト
           </button>
         </div>
@@ -94,16 +103,18 @@ export function Onboarding() {
         )}
       </div>
 
-      <button className="btn-primary wide" onClick={handleStart}>
+      <button data-help="ob-start" className="btn-primary wide" onClick={handleStart}>
         はじめる
       </button>
 
       <div className="transfer-row">
         <input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
-        <button className="btn-secondary wide" onClick={() => importRef.current?.click()}>
+        <button data-help="ob-import" className="btn-secondary wide" onClick={() => importRef.current?.click()}>
           引越しデータをインポート
         </button>
       </div>
+
+      {showHelp && <OnboardingHelpOverlay onDone={() => setShowHelp(false)} />}
     </div>
   )
 }
