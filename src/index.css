@@ -503,10 +503,12 @@ html, body, #root {
 .wiki-modal-footer {
   margin-top: 16px; padding-top: 12px;
   border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
 }
 .wiki-modal-source {
   font-size: 11px; color: var(--text-light); text-decoration: underline;
 }
+.wiki-copy-btn { color: var(--text-light); }
 .wiki-choice-block { margin-top: 4px; max-width: 100%; justify-content: center; }
 .choice-btn-ai {
   flex: 0 0 auto; width: 44px; padding: 12px 4px;

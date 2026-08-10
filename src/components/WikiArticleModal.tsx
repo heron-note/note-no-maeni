@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { WikiHint } from '../utils/wikipedia'
 import { fetchFullArticle } from '../utils/wikipedia'
+import { Toast } from './Toast'
 
 interface Props {
   hint: WikiHint
@@ -11,6 +12,7 @@ export function WikiArticleModal({ hint, onClose }: Props) {
   const [body, setBody] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [closing, setClosing] = useState(false)
+  const [copyToast, setCopyToast] = useState<string | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
   const dragStartY = useRef<number | null>(null)
@@ -84,8 +86,21 @@ export function WikiArticleModal({ hint, onClose }: Props) {
           ) : (
             <span className="wiki-modal-source">出典：Wikipedia</span>
           )}
+          {!loading && body && (
+            <button
+              className="icon-btn wiki-copy-btn"
+              onClick={() => navigator.clipboard.writeText(body).then(() => setCopyToast('コピーしました'))}
+              aria-label="本文をコピー"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </button>
+          )}
         </div>
       </div>
+      <Toast message={copyToast} onDone={() => setCopyToast(null)} />
     </div>
   )
 }
