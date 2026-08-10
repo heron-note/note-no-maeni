@@ -375,7 +375,7 @@ function CropPanel({ label, desc, onExport, aiUrl, aiMode }: {
         <span className="crop-state-badge">{label}</span>
         <p className="hint">{desc}</p>
       </div>
-      {(!aiMode || !hasImage) && (
+      {!aiMode && (
         <label className="crop-upload-label">
           <input
             type="file"
