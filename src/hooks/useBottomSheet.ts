@@ -15,7 +15,10 @@ export function useBottomSheet(onClose: () => void) {
 
   const onDragStart = (e: React.TouchEvent) => {
     dragStartY.current = e.touches[0].clientY
-    if (sheetRef.current) sheetRef.current.style.transition = 'none'
+    if (sheetRef.current) {
+      sheetRef.current.style.animation = 'none'  // fill-mode による transform 上書きを解除
+      sheetRef.current.style.transition = 'none'
+    }
   }
 
   const onDragMove = (e: React.TouchEvent) => {
