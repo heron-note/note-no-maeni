@@ -64,7 +64,7 @@ export function buildPlainText(template: Template, declaration: Declaration): st
 export function buildHtmlText(template: Template, declaration: Declaration): string {
   const { lines, insertAfterIndex } = template
   const decl =
-    `<p><strong>${escHtml(DECL_TITLE)}</strong></p>` +
+    `<h2>${escHtml(DECL_TITLE)}</h2>` +
     `<p>&nbsp;</p><p>&nbsp;</p>` +
     `<p>${escHtml(declaration.text)}</p>`
   const parts: string[] = []
