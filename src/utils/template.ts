@@ -3,6 +3,11 @@ import type { Template, Declaration } from '../types'
 function stripHtml(html: string): string {
   const d = document.createElement('div')
   d.innerHTML = html
+  d.querySelectorAll('a[href]').forEach(a => {
+    const href = a.getAttribute('href') ?? ''
+    const text = a.textContent ?? ''
+    a.replaceWith(text && text !== href ? `${text}（${href}）` : href)
+  })
   return d.textContent ?? ''
 }
 
@@ -55,7 +60,43 @@ export function buildPlainText(template: Template, declaration: Declaration): st
   return parts.join('\n')
 }
 
-export async function copyToClipboard(text: string): Promise<void> {
+/** テンプレート+宣言文 → HTML clipboard 用（リンク保持） */
+export function buildHtmlText(template: Template, declaration: Declaration): string {
+  const { lines, insertAfterIndex } = template
+  const decl =
+    `<p><strong>${escHtml(DECL_TITLE)}</strong></p>` +
+    `<p>&nbsp;</p><p>&nbsp;</p>` +
+    `<p>${escHtml(declaration.text)}</p>`
+  const parts: string[] = []
+
+  const lineToTag = (lineHtml: string) => {
+    const hm = lineHtml.match(/^(#{1,6}) (.*)/)
+    if (hm) return `<h${hm[1].length}>${hm[2] || '&nbsp;'}</h${hm[1].length}>`
+    return `<p>${lineHtml || '&nbsp;'}</p>`
+  }
+
+  if (insertAfterIndex === -1) parts.push(decl)
+  lines.forEach((lineHtml, i) => {
+    parts.push(lineToTag(lineHtml))
+    if (i === insertAfterIndex) parts.push(decl)
+  })
+  if (insertAfterIndex >= lines.length) parts.push(decl)
+
+  return parts.join('')
+}
+
+export async function copyToClipboard(text: string, html?: string): Promise<void> {
+  if (html && (navigator.clipboard as any)?.write) {
+    try {
+      await (navigator.clipboard as any).write([
+        new ClipboardItem({
+          'text/plain': new Blob([text], { type: 'text/plain' }),
+          'text/html': new Blob([html], { type: 'text/html' }),
+        })
+      ])
+      return
+    } catch {}
+  }
   if (navigator.clipboard?.writeText) {
     return navigator.clipboard.writeText(text)
   }
