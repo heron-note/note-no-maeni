@@ -29,7 +29,10 @@ export function WikiArticleModal({ hint, onClose }: Props) {
 
   const handleDragStart = (e: React.TouchEvent) => {
     dragStartY.current = e.touches[0].clientY
-    if (modalRef.current) modalRef.current.style.transition = 'none'
+    if (modalRef.current) {
+      modalRef.current.style.animation = 'none'  // fill-mode による transform の上書きを解除
+      modalRef.current.style.transition = 'none'
+    }
   }
 
   const handleDragMove = (e: React.TouchEvent) => {
