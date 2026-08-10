@@ -106,8 +106,9 @@ function htmlToLines(html: string): string[] {
         if (BLOCK_TAGS.has(tag)) {
           const sub: string[] = []
           walkInner(ce, sub)
+          const hasContent = sub.some(s => s.trim() !== '')
           if (sub.length > 0) result.push(...sub)
-          result.push('')
+          if (hasContent) result.push('')
           continue
         }
       }
@@ -120,10 +121,7 @@ function htmlToLines(html: string): string[] {
 
   walkBlock(root)
 
-  const cleaned = result.reduce<string[]>((acc, l) => {
-    if (l === '' && acc[acc.length - 1] === '') return acc
-    return [...acc, l]
-  }, [])
+  const cleaned = [...result]
   while (cleaned[cleaned.length - 1] === '') cleaned.pop()
   return cleaned.length > 0 ? cleaned : ['']
 }
