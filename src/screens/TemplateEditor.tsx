@@ -21,9 +21,9 @@ function sanitizeInline(node: Node): string {
   const tag = el.tagName.toLowerCase()
   const inner = Array.from(el.childNodes).map(sanitizeInline).join('')
   if (tag === 'a') {
+    // href の URL だけを出力（リンクテキストは使わない）
     const href = el.getAttribute('href') ?? ''
-    if (href.startsWith('http')) return `<a href="${href.replace(/"/g, '&quot;')}">${inner}</a>`
-    return inner
+    return href.startsWith('http') ? href : inner
   }
   return INLINE_TAGS.has(tag) ? `<${tag}>${inner}</${tag}>` : inner
 }
@@ -33,78 +33,70 @@ function htmlToLines(html: string): string[] {
   root.innerHTML = html
   const result: string[] = []
 
-  // 最後の行が空でなければ空行を挿入
-  function ensureBlank() {
-    if (result.length > 0 && result[result.length - 1] !== '') result.push('')
-  }
-
-  // インライン内容を最後の行に追記（または新規行として追加）
-  function appendInline(content: string) {
-    if (!content.trim()) return
-    if (result.length === 0 || result[result.length - 1] === '') result.push(content)
-    else result[result.length - 1] += content
-  }
-
-  // ネスト深さに関係なく全要素を統一的に処理する再帰関数
-  function walk(el: Element) {
+  function walkInner(el: Element, out: string[]) {
     for (const child of Array.from(el.childNodes)) {
-      // テキストノード
-      if (child.nodeType === Node.TEXT_NODE) {
-        appendInline(child.textContent ?? '')
-        continue
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const ce = child as Element
+        const tag = ce.tagName.toLowerCase()
+        if (tag === 'br') { out.push(''); return }
+        if (tag === 'blockquote') {
+          const text = (ce.textContent ?? '').trim()
+          if (text) {
+            text.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => out.push(`> ${l}`))
+          }
+          return
+        }
+        if (BLOCK_TAGS.has(tag)) {
+          const sub: string[] = []
+          walkInner(ce, sub)
+          if (sub.length > 0) out.push(...sub)
+          else out.push('')
+          return
+        }
       }
-      if (child.nodeType !== Node.ELEMENT_NODE) continue
-
-      const ce = child as Element
-      const tag = ce.tagName.toLowerCase()
-
-      // 改行系
-      if (tag === 'br') { result.push(''); continue }
-      if (tag === 'hr') { ensureBlank(); continue }
-
-      // 引用ブロック
-      if (tag === 'blockquote') {
-        ensureBlank()
-        const text = (ce.textContent ?? '').trim()
-        if (text) text.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => result.push(`> ${l}`))
-        result.push('')
-        continue
-      }
-
-      // 見出し
-      if (/^h[1-6]$/.test(tag)) {
-        ensureBlank()
-        const inline = Array.from(ce.childNodes).map(c => sanitizeInline(c)).join('')
-        if (inline.trim()) result.push(`${'#'.repeat(Number(tag[1]))} ${inline}`)
-        result.push('')
-        continue
-      }
-
-      // コードブロック
-      if (tag === 'pre') {
-        ensureBlank()
-        const code = (ce.textContent ?? '').replace(/\n$/, '')
-        result.push('```')
-        code.split('\n').forEach(line => result.push(line))
-        result.push('```')
-        result.push('')
-        continue
-      }
-
-      // ブロック要素：中へ再帰
-      if (BLOCK_TAGS.has(tag)) {
-        ensureBlank()
-        walk(ce)
-        ensureBlank()
-        continue
-      }
-
-      // インライン要素（a, strong, em 等）
-      appendInline(sanitizeInline(ce))
+      const content = sanitizeInline(child)
+      if (!content.trim()) continue
+      if (out.length === 0) out.push(content)
+      else out[out.length - 1] += content
     }
   }
 
-  walk(root)
+  function walkBlock(el: Element) {
+    for (const child of Array.from(el.childNodes)) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const ce = child as Element
+        const tag = ce.tagName.toLowerCase()
+        if (tag === 'br') { result.push(''); continue }
+        if (tag === 'blockquote') {
+          const text = (ce.textContent ?? '').trim()
+          if (text) {
+            text.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => result.push(`> ${l}`))
+          }
+          continue
+        }
+        if (tag === 'pre') {
+          const code = (ce.textContent ?? '').replace(/\n$/, '')
+          result.push('```')
+          code.split('\n').forEach(line => result.push(line))
+          result.push('```')
+          continue
+        }
+        if (BLOCK_TAGS.has(tag)) {
+          const sub: string[] = []
+          walkInner(ce, sub)
+          if (sub.length > 0) result.push(...sub)
+          result.push('')
+          continue
+        }
+      }
+      const content = sanitizeInline(child)
+      if (!content.trim()) continue
+      if (result.length === 0) result.push(content)
+      else result[result.length - 1] += content
+    }
+  }
+
+  walkBlock(root)
 
   const cleaned = result.reduce<string[]>((acc, l) => {
     if (l === '' && acc[acc.length - 1] === '') return acc
@@ -126,10 +118,6 @@ function linesToHtml(lines: string[]): string {
       while (i < lines.length && lines[i] !== '```') { codeLines.push(lines[i]); i++ }
       parts.push(`<pre>${codeLines.join('\n')}</pre>`)
       i++ // closing ```
-    } else if (/^#{1,6} /.test(l)) {
-      const m = l.match(/^(#{1,6}) (.*)/)!
-      parts.push(`<h${m[1].length}>${m[2] || '<br>'}</h${m[1].length}>`)
-      i++
     } else if (l.startsWith('> ')) {
       parts.push(`<blockquote><p>${l.slice(2)}</p></blockquote>`)
       i++

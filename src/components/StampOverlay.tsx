@@ -3,7 +3,7 @@ import { pickStampColor } from '../data/declarations'
 import { playStampSound } from '../utils/audio'
 import { speakVoicevox } from '../utils/voicevox'
 import { storage } from '../utils/storage'
-import { buildPlainText, buildHtmlText, copyToClipboard } from '../utils/template'
+import { buildPlainText, copyToClipboard } from '../utils/template'
 import { Toast } from './Toast'
 import type { Declaration } from '../types'
 import { useBottomSheet } from '../hooks/useBottomSheet'
@@ -36,10 +36,7 @@ export function StampOverlay({ declaration, onClose }: {
     const text = (template && template.lines.length > 0)
       ? buildPlainText(template, declaration)
       : declaration.text
-    const html = (template && template.lines.length > 0)
-      ? buildHtmlText(template, declaration)
-      : undefined
-    await copyToClipboard(text, html).catch(() => {})
+    await copyToClipboard(text).catch(() => {})
     setToast('コピーしました！')
     window.open('https://note.com/notes/new', '_blank', 'noopener,noreferrer')
   }
