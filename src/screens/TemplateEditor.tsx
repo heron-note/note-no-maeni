@@ -67,6 +67,22 @@ function htmlToLines(html: string): string[] {
         const ce = child as Element
         const tag = ce.tagName.toLowerCase()
         if (tag === 'br') { result.push(''); continue }
+        if (tag === 'hr') { result.push('---'); result.push(''); continue }
+        if (tag === 'ul' || tag === 'ol') {
+          let idx = 1
+          for (const child2 of Array.from(ce.childNodes)) {
+            if (child2.nodeType !== Node.ELEMENT_NODE) continue
+            const li = child2 as Element
+            if (li.tagName.toLowerCase() !== 'li') continue
+            const sub: string[] = []
+            walkInner(li, sub)
+            const text = sub.join('')
+            if (text.trim()) result.push(tag === 'ul' ? `- ${text}` : `${idx}. ${text}`)
+            idx++
+          }
+          result.push('')
+          continue
+        }
         if (tag === 'blockquote') {
           const text = (ce.textContent ?? '').trim()
           if (text) {
@@ -124,6 +140,17 @@ function linesToHtml(lines: string[]): string {
       while (i < lines.length && lines[i] !== '```') { codeLines.push(lines[i]); i++ }
       parts.push(`<pre>${codeLines.join('\n')}</pre>`)
       i++ // closing ```
+    } else if (l === '---') {
+      parts.push('<hr>')
+      i++
+    } else if (l.startsWith('- ')) {
+      const items: string[] = []
+      while (i < lines.length && lines[i].startsWith('- ')) { items.push(`<li>${lines[i].slice(2)}</li>`); i++ }
+      parts.push(`<ul>${items.join('')}</ul>`)
+    } else if (/^\d+\. /.test(l)) {
+      const items: string[] = []
+      while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(`<li>${lines[i].replace(/^\d+\. /, '')}</li>`); i++ }
+      parts.push(`<ol>${items.join('')}</ol>`)
     } else if (/^#{1,6} /.test(l)) {
       const m = l.match(/^(#{1,6}) (.*)/)!
       parts.push(`<h${m[1].length}>${m[2] || '<br>'}</h${m[1].length}>`)

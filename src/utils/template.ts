@@ -81,13 +81,29 @@ export function buildHtmlText(template: Template, declaration: Declaration): str
   while (i < lines.length) {
     const lineHtml = lines[i]
     if (lineHtml === '```') {
-      const codeLines: string[] = []
       const openIdx = i
+      const codeLines: string[] = []
       i++
       while (i < lines.length && lines[i] !== '```') { codeLines.push(lines[i]); i++ }
       parts.push(`<pre><code>${codeLines.join('\n')}</code></pre>`)
       if (openIdx === insertAfterIndex) parts.push(decl)
       i++
+    } else if (lineHtml === '---') {
+      parts.push('<hr>')
+      if (i === insertAfterIndex) parts.push(decl)
+      i++
+    } else if (lineHtml.startsWith('- ')) {
+      const startIdx = i
+      const items: string[] = []
+      while (i < lines.length && lines[i].startsWith('- ')) { items.push(`<li>${lines[i].slice(2)}</li>`); i++ }
+      parts.push(`<ul>${items.join('')}</ul>`)
+      if (insertAfterIndex >= startIdx && insertAfterIndex < i) parts.push(decl)
+    } else if (/^\d+\. /.test(lineHtml)) {
+      const startIdx = i
+      const items: string[] = []
+      while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(`<li>${lines[i].replace(/^\d+\. /, '')}</li>`); i++ }
+      parts.push(`<ol>${items.join('')}</ol>`)
+      if (insertAfterIndex >= startIdx && insertAfterIndex < i) parts.push(decl)
     } else {
       parts.push(lineToTag(lineHtml))
       if (i === insertAfterIndex) parts.push(decl)
