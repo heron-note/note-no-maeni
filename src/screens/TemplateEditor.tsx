@@ -177,6 +177,7 @@ export function TemplateEditor() {
   })
   const [toast, setToast] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
+  const [pasteMode, setPasteMode] = useState<'html' | 'text' | null>(null)
 
   // 保存済みテンプレートを初期表示（再レンダで上書きしない）
   useEffect(() => {
@@ -191,6 +192,7 @@ export function TemplateEditor() {
     e.preventDefault()
     const html = e.clipboardData.getData('text/html')
     const text = e.clipboardData.getData('text/plain')
+    setPasteMode(html ? 'html' : 'text')
     const src = html || `<div>${text.split(/\r?\n/).map(l => `<div>${l || '<br>'}</div>`).join('')}</div>`
     const parsed = htmlToLines(src)
     setLines(parsed)
@@ -237,6 +239,14 @@ export function TemplateEditor() {
         onPaste={handlePaste}
         data-placeholder="ここにnoteのテンプレートをペーストしてください"
       />
+
+      {pasteMode && (
+        <p className={`hint paste-mode-hint${pasteMode === 'text' ? ' paste-mode-warn' : ''}`}>
+          {pasteMode === 'html'
+            ? '✓ HTML形式で取得（リンク保持）'
+            : '⚠ テキスト形式のみ（リンク情報なし）— ブラウザ版noteからコピーするとリンクが保持されます'}
+        </p>
+      )}
 
       <button className="btn-secondary wide" onClick={refreshLines}>
         行を解析（貼り付け後に押してください）
