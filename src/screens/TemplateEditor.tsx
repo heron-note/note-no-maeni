@@ -153,6 +153,17 @@ export function TemplateEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ペースト時にクリップボードの HTML を直接解析（ブラウザのDOM変換を経由しない）
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    const html = e.clipboardData.getData('text/html')
+    const text = e.clipboardData.getData('text/plain')
+    const src = html || `<div>${text.split(/\r?\n/).map(l => `<div>${l || '<br>'}</div>`).join('')}</div>`
+    const parsed = htmlToLines(src)
+    setLines(parsed)
+    if (editorRef.current) editorRef.current.innerHTML = linesToHtml(parsed)
+  }, [])
+
   // contenteditable の現在の内容を解析して lines を更新
   const refreshLines = useCallback(() => {
     if (!editorRef.current) return
@@ -185,12 +196,12 @@ export function TemplateEditor() {
         <p className="hint">noteの記事をそのまま貼り付け → 「行を解析」を押してください。リンクはURLに変換されます。</p>
       </div>
 
-      {/* ブラウザ標準のペーストに任せる（preventDefault なし） */}
       <div
         ref={editorRef}
         className="template-richtext"
         contentEditable
         suppressContentEditableWarning
+        onPaste={handlePaste}
         data-placeholder="ここにnoteのテンプレートをペーストしてください"
       />
 
