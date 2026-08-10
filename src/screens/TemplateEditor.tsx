@@ -67,7 +67,7 @@ function htmlToLines(html: string): string[] {
         const ce = child as Element
         const tag = ce.tagName.toLowerCase()
         if (tag === 'br') { result.push(''); continue }
-        if (tag === 'hr') { result.push('---'); result.push(''); continue }
+        if (tag === 'hr') { result.push('---'); continue }
         if (tag === 'ul' || tag === 'ol') {
           let idx = 1
           for (const child2 of Array.from(ce.childNodes)) {
@@ -80,7 +80,6 @@ function htmlToLines(html: string): string[] {
             if (text.trim()) result.push(tag === 'ul' ? `- ${text}` : `${idx}. ${text}`)
             idx++
           }
-          result.push('')
           continue
         }
         if (tag === 'blockquote') {
@@ -93,7 +92,6 @@ function htmlToLines(html: string): string[] {
         if (/^h[1-6]$/.test(tag)) {
           const inline = Array.from(ce.childNodes).map(c => sanitizeInline(c)).join('')
           if (inline.trim()) result.push(`${'#'.repeat(Number(tag[1]))} ${inline}`)
-          result.push('')
           continue
         }
         if (tag === 'pre') {
@@ -106,10 +104,8 @@ function htmlToLines(html: string): string[] {
         if (BLOCK_TAGS.has(tag)) {
           const sub: string[] = []
           walkInner(ce, sub)
-          const hasContent = sub.some(s => s.trim() !== '')
           if (sub.length > 0) result.push(...sub)
           else result.push('')
-          if (hasContent) result.push('')
           continue
         }
       }
