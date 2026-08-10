@@ -135,12 +135,13 @@ function removeBg(img: HTMLImageElement, tolerance: number): Promise<HTMLImageEl
   })
 }
 
-function CropPanel({ label, desc, onExport, aiUrl }: {
+function CropPanel({ label, desc, onExport, aiUrl, aiMode }: {
   stateKey: string
   label: string
   desc: string
   onExport: (dataUrl: string | null) => void
   aiUrl?: string
+  aiMode?: boolean
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const origImgRef = useRef<HTMLImageElement | null>(null)   // オリジナル
@@ -373,15 +374,17 @@ function CropPanel({ label, desc, onExport, aiUrl }: {
         <span className="crop-state-badge">{label}</span>
         <p className="hint">{desc}</p>
       </div>
-      <label className="crop-upload-label">
-        <input
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
-        />
-        {hasImage ? '画像を変更' : '画像をアップロード'}
-      </label>
+      {(!aiMode || !hasImage) && (
+        <label className="crop-upload-label">
+          <input
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
+          />
+          {hasImage ? '画像を変更' : '画像をアップロード'}
+        </label>
+      )}
       {hasImage && (
         <>
           <div className="bg-remove-row">
@@ -536,6 +539,7 @@ export function CharacterCreator() {
   })
   const [aiUrl, setAiUrl] = useState<string>('')
   const [toast, setToast] = useState<string | null>(null)
+  const screenRef = useRef<HTMLDivElement>(null)
 
   const setExport = useCallback((key: string, url: string | null) => {
     setExports(prev => ({ ...prev, [key]: url }))
@@ -620,7 +624,7 @@ export function CharacterCreator() {
   }
 
   return (
-    <div className="screen-scroll">
+    <div className="screen-scroll" ref={screenRef}>
       <div className="subscreen-header">
         <div className="subscreen-title-row">
           <button className="back-btn" onClick={() => goTo('settings')}>‹</button>
@@ -630,7 +634,13 @@ export function CharacterCreator() {
       </div>
 
       <AIGenPanel
-        onLoadToNormal={url => { setAiUrl(url); setExports({ normal: null, write: null, rest: null }) }}
+        onLoadToNormal={url => {
+          setAiUrl(url)
+          setExports({ normal: null, write: null, rest: null })
+          setTimeout(() => {
+            screenRef.current?.scrollTo({ top: screenRef.current.scrollHeight, behavior: 'smooth' })
+          }, 100)
+        }}
         onCopied={() => setToast('コピーしました')}
       />
 
@@ -642,6 +652,7 @@ export function CharacterCreator() {
         desc={STATES[0].desc}
         onExport={url => setExport('normal', url)}
         aiUrl={aiUrl}
+        aiMode={!!aiUrl}
       />
 
       {allReady && (
