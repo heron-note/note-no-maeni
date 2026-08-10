@@ -40,6 +40,9 @@ export const storage = {
   loadHelpDone: () => localStorage.getItem('nob_help_done') === 'true',
   saveHelpDone: () => localStorage.setItem('nob_help_done', 'true'),
 
+  loadObHelpDone: () => localStorage.getItem('nob_ob_help_done') === 'true',
+  saveObHelpDone: () => localStorage.setItem('nob_ob_help_done', 'true'),
+
   loadGeminiKey: () => localStorage.getItem('nob_gemini_key'),
   saveGeminiKey: (v: string) => localStorage.setItem('nob_gemini_key', v),
 

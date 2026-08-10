@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
+import { storage } from '../utils/storage'
 
 interface HelpStep {
   key: string
@@ -83,7 +84,7 @@ export function OnboardingHelpOverlay({ onDone }: Props) {
 
   const handleNext = () => {
     if (step < STEPS.length - 1) setStep(s => s + 1)
-    else onDone()
+    else { storage.saveObHelpDone(); onDone() }
   }
 
   const current = STEPS[step]
@@ -132,7 +133,7 @@ export function OnboardingHelpOverlay({ onDone }: Props) {
         </button>
       </div>
 
-      <button className="help-skip-btn" onClick={e => { e.stopPropagation(); onDone() }}>
+      <button className="help-skip-btn" onClick={e => { e.stopPropagation(); storage.saveObHelpDone(); onDone() }}>
         スキップ
       </button>
     </div>

@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { importData, downloadImage } from '../utils/transfer'
 import { speakVoicevox } from '../utils/voicevox'
 import { PwaInstallHint } from '../components/PwaInstallHint'
 import { OnboardingHelpOverlay } from '../components/OnboardingHelpOverlay'
+import { storage } from '../utils/storage'
 
 export function Onboarding() {
   const [name, setName] = useState('')
@@ -15,7 +16,21 @@ export function Onboarding() {
   const goTo = useAppStore(s => s.goTo)
   const init = useAppStore(s => s.init)
   const importRef = useRef<HTMLInputElement>(null)
-  const [showHelp, setShowHelp] = useState(true)
+  const [showHelp, setShowHelp] = useState(() => !storage.loadObHelpDone())
+
+  type HeartBurst = { id: number; x: number; y: number; particles: { dx: number; dy: number }[] }
+  const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
+
+  const triggerBurst = (pos: { x: number; y: number }) => {
+    const particles = Array.from({ length: 7 }, (_, i) => {
+      const angle = (i / 7) * Math.PI * 2
+      const dist = 48 + Math.random() * 32
+      return { dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist }
+    })
+    const id = Date.now()
+    setHeartBursts([{ id, ...pos, particles }])
+    setTimeout(() => setHeartBursts([]), 750)
+  }
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -79,7 +94,7 @@ export function Onboarding() {
 
       <div className="form-block" data-help="ob-char">
         <p className="label">相棒を選んでください</p>
-        <CharGrid selected={char} onSelect={setChar} />
+        <CharGrid selected={char} onSelect={setChar} onSelectWithPos={(_, pos) => triggerBurst(pos)} />
         <div className="creator-btn-row" style={{ marginTop: '8px' }}>
           <button data-help="ob-simple-creator" className="btn-secondary" onClick={() => handleGoCreator('character-creator-simple')}>
             相棒クリエイト
@@ -115,6 +130,20 @@ export function Onboarding() {
       </div>
 
       {showHelp && <OnboardingHelpOverlay onDone={() => setShowHelp(false)} />}
+
+      <div className="heart-burst-wrap">
+        {heartBursts.flatMap(({ id, x, y, particles }) =>
+          particles.map(({ dx, dy }, i) => (
+            <span
+              key={`${id}-${i}`}
+              className="heart-particle"
+              style={{ left: x, top: y, '--dx': `${dx}px`, '--dy': `${dy}px` } as React.CSSProperties}
+            >
+              ❤️
+            </span>
+          ))
+        )}
+      </div>
     </div>
   )
 }
