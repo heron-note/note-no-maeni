@@ -69,9 +69,15 @@ export function buildHtmlText(template: Template, declaration: Declaration): str
     `<p>${escHtml(declaration.text)}</p>`
   const parts: string[] = []
 
+  const lineToTag = (lineHtml: string) => {
+    const hm = lineHtml.match(/^(#{1,6}) (.*)/)
+    if (hm) return `<h${hm[1].length}>${hm[2] || '&nbsp;'}</h${hm[1].length}>`
+    return `<p>${lineHtml || '&nbsp;'}</p>`
+  }
+
   if (insertAfterIndex === -1) parts.push(decl)
   lines.forEach((lineHtml, i) => {
-    parts.push(`<p>${lineHtml || '&nbsp;'}</p>`)
+    parts.push(lineToTag(lineHtml))
     if (i === insertAfterIndex) parts.push(decl)
   })
   if (insertAfterIndex >= lines.length) parts.push(decl)

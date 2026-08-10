@@ -74,6 +74,12 @@ function htmlToLines(html: string): string[] {
           }
           continue
         }
+        if (/^h[1-6]$/.test(tag)) {
+          const inline = Array.from(ce.childNodes).map(c => sanitizeInline(c)).join('')
+          if (inline.trim()) result.push(`${'#'.repeat(Number(tag[1]))} ${inline}`)
+          result.push('')
+          continue
+        }
         if (tag === 'pre') {
           const code = (ce.textContent ?? '').replace(/\n$/, '')
           result.push('```')
@@ -118,6 +124,10 @@ function linesToHtml(lines: string[]): string {
       while (i < lines.length && lines[i] !== '```') { codeLines.push(lines[i]); i++ }
       parts.push(`<pre>${codeLines.join('\n')}</pre>`)
       i++ // closing ```
+    } else if (/^#{1,6} /.test(l)) {
+      const m = l.match(/^(#{1,6}) (.*)/)!
+      parts.push(`<h${m[1].length}>${m[2] || '<br>'}</h${m[1].length}>`)
+      i++
     } else if (l.startsWith('> ')) {
       parts.push(`<blockquote><p>${l.slice(2)}</p></blockquote>`)
       i++
