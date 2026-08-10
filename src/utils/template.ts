@@ -72,14 +72,28 @@ export function buildHtmlText(template: Template, declaration: Declaration): str
   const lineToTag = (lineHtml: string) => {
     const hm = lineHtml.match(/^(#{1,6}) (.*)/)
     if (hm) return `<h${hm[1].length}>${hm[2] || '&nbsp;'}</h${hm[1].length}>`
+    if (lineHtml.startsWith('> ')) return `<blockquote><p>${lineHtml.slice(2)}</p></blockquote>`
     return `<p>${lineHtml || '&nbsp;'}</p>`
   }
 
   if (insertAfterIndex === -1) parts.push(decl)
-  lines.forEach((lineHtml, i) => {
-    parts.push(lineToTag(lineHtml))
-    if (i === insertAfterIndex) parts.push(decl)
-  })
+  let i = 0
+  while (i < lines.length) {
+    const lineHtml = lines[i]
+    if (lineHtml === '```') {
+      const codeLines: string[] = []
+      const openIdx = i
+      i++
+      while (i < lines.length && lines[i] !== '```') { codeLines.push(lines[i]); i++ }
+      parts.push(`<pre><code>${codeLines.join('\n')}</code></pre>`)
+      if (openIdx === insertAfterIndex) parts.push(decl)
+      i++
+    } else {
+      parts.push(lineToTag(lineHtml))
+      if (i === insertAfterIndex) parts.push(decl)
+      i++
+    }
+  }
   if (insertAfterIndex >= lines.length) parts.push(decl)
 
   return parts.join('')
