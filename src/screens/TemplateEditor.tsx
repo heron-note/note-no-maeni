@@ -121,9 +121,7 @@ function htmlToLines(html: string): string[] {
 
   walkBlock(root)
 
-  const cleaned = [...result]
-  while (cleaned[cleaned.length - 1] === '') cleaned.pop()
-  return cleaned.length > 0 ? cleaned : ['']
+  return result.length > 0 ? result : ['']
 }
 
 // 保存済み lines → contenteditable 用 HTML（blockquote・pre を復元）
