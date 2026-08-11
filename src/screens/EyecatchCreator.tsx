@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { useSlideBack } from '../hooks/useSlideBack'
 import { useBottomSheet } from '../hooks/useBottomSheet'
@@ -138,7 +138,7 @@ function persistHistory(entries: HistoryEntry[]) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(entries))
 }
 
-// Canvas-based stamp layer — avoids CSS mask-image which is unreliable on Android
+// Stamp layer — renders to offscreen canvas → dataURL → <img> for max cross-browser compat
 function KyumoukaLayer({ item, scale, stampImg, baseStyle, onPointerDown, onPointerMove, onPointerUp, onPointerCancel }: {
   item: EcItem; scale: number; stampImg: HTMLImageElement | null
   baseStyle: React.CSSProperties
@@ -146,30 +146,39 @@ function KyumoukaLayer({ item, scale, stampImg, baseStyle, onPointerDown, onPoin
   onPointerMove: (e: React.PointerEvent) => void
   onPointerUp: () => void; onPointerCancel: () => void
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [dataUrl, setDataUrl] = useState('')
 
-  useLayoutEffect(() => {
-    const canvas = canvasRef.current; if (!canvas) return
+  useEffect(() => {
+    if (!stampImg) return
     const draw = () => {
-      if (!stampImg || stampImg.naturalWidth === 0) return
+      if (stampImg.naturalWidth === 0) return
       const sz = item.size * scale
-      const w = Math.round(sz * STAMP_ASPECT), h = Math.round(sz)
-      canvas.width = w; canvas.height = h
-      const ctx = canvas.getContext('2d')!
-      ctx.translate(w / 2, h / 2)
-      drawStampWithMask(ctx, stampImg, item.color, sz)
+      const sc = sz / Math.max(stampImg.naturalWidth, stampImg.naturalHeight)
+      const w = Math.round(stampImg.naturalWidth * sc)
+      const h = Math.round(stampImg.naturalHeight * sc)
+      const off = document.createElement('canvas')
+      off.width = w; off.height = h
+      const ctx = off.getContext('2d'); if (!ctx) return
+      ctx.fillStyle = item.color
+      ctx.fillRect(0, 0, w, h)
+      ctx.globalCompositeOperation = 'destination-in'
+      ctx.drawImage(stampImg, 0, 0, w, h)
+      setDataUrl(off.toDataURL())
     }
-    if (stampImg && !stampImg.complete) {
+    if (!stampImg.complete) {
       stampImg.addEventListener('load', draw, { once: true })
-    } else {
-      draw()
+      return () => stampImg.removeEventListener('load', draw)
     }
+    draw()
   }, [item.size, item.color, scale, stampImg])
 
+  if (!dataUrl) return null
+  const sz = item.size * scale
+  const w = Math.round(sz * STAMP_ASPECT), h = Math.round(sz)
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ ...baseStyle, cursor: 'move' }}
+    <img
+      src={dataUrl}
+      style={{ ...baseStyle, width: w, height: h, cursor: 'move' }}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove}
       onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}
     />
