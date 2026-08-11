@@ -1,5 +1,15 @@
 import type { Template, Declaration } from '../types'
 
+function splitAlign(l: string): [string, string] {
+  if (l.startsWith('\x02c\x02')) return ['center', l.slice(3)]
+  if (l.startsWith('\x02r\x02')) return ['right', l.slice(3)]
+  return ['', l]
+}
+
+function stripAlignPrefix(l: string): string {
+  return l.startsWith('\x02c\x02') || l.startsWith('\x02r\x02') ? l.slice(3) : l
+}
+
 function stripHtml(html: string): string {
   const d = document.createElement('div')
   d.innerHTML = html
@@ -33,7 +43,8 @@ export function buildTemplateHTML(template: Template, declaration: Declaration):
   if (insertAfterIndex === -1) html += decl
 
   lines.forEach((lineHtml, i) => {
-    html += `<span class="tl-line">${lineHtml || '&nbsp;'}</span>`
+    const content = stripAlignPrefix(lineHtml)
+    html += `<span class="tl-line">${content || '&nbsp;'}</span>`
     if (i === insertAfterIndex) html += decl
   })
 
@@ -53,12 +64,21 @@ export function buildPlainText(template: Template, declaration: Declaration): st
 
   if (insertAfterIndex === -1) parts.push(declBlock(declaration))
   lines.forEach((lineHtml, i) => {
-    parts.push(stripHtml(lineHtml))
+    parts.push(stripHtml(stripAlignPrefix(lineHtml)))
     if (i === insertAfterIndex) parts.push(declBlock(declaration))
   })
   if (insertAfterIndex >= lines.length) parts.push(declBlock(declaration))
 
   return parts.join('\n')
+}
+
+function lineToTag(lineHtml: string): string {
+  const [align, content] = splitAlign(lineHtml)
+  const style = align ? ` style="text-align:${align}"` : ''
+  const hm = content.match(/^(#{1,6}) (.*)/)
+  if (hm) return `<h${hm[1].length}${style}>${hm[2] || '&nbsp;'}</h${hm[1].length}>`
+  if (content.startsWith('> ')) return `<blockquote${style}><p>${content.slice(2)}</p></blockquote>`
+  return `<p${style}>${content || '&nbsp;'}</p>`
 }
 
 /** テンプレート+宣言文 → HTML clipboard 用（リンク保持） */
@@ -69,13 +89,6 @@ export function buildHtmlText(template: Template, declaration: Declaration): str
     `<blockquote><p>${escHtml(declaration.text)}</p></blockquote>` +
     `<p>&nbsp;</p>`
   const parts: string[] = []
-
-  const lineToTag = (lineHtml: string) => {
-    const hm = lineHtml.match(/^(#{1,6}) (.*)/)
-    if (hm) return `<h${hm[1].length}>${hm[2] || '&nbsp;'}</h${hm[1].length}>`
-    if (lineHtml.startsWith('> ')) return `<blockquote><p>${lineHtml.slice(2)}</p></blockquote>`
-    return `<p>${lineHtml || '&nbsp;'}</p>`
-  }
 
   if (insertAfterIndex === -1) parts.push(decl)
   let i = 0
@@ -113,6 +126,42 @@ export function buildHtmlText(template: Template, declaration: Declaration): str
   }
   if (insertAfterIndex >= lines.length) parts.push(decl)
 
+  return parts.join('')
+}
+
+/** ユーザーテンプレート → プレーンテキスト */
+export function buildUserTemplatePlain(lines: string[]): string {
+  return lines.map(l => stripHtml(stripAlignPrefix(l))).join('\n')
+}
+
+/** ユーザーテンプレート → HTML clipboard 用 */
+export function buildUserTemplateHtml(lines: string[]): string {
+  const parts: string[] = []
+  let i = 0
+  while (i < lines.length) {
+    const lineHtml = lines[i]
+    if (lineHtml === '```') {
+      const codeLines: string[] = []
+      i++
+      while (i < lines.length && lines[i] !== '```') { codeLines.push(lines[i]); i++ }
+      parts.push(`<pre><code>${codeLines.join('\n')}</code></pre>`)
+      i++
+    } else if (lineHtml === '---') {
+      parts.push('<hr>')
+      i++
+    } else if (lineHtml.startsWith('- ')) {
+      const items: string[] = []
+      while (i < lines.length && lines[i].startsWith('- ')) { items.push(`<li>${lines[i].slice(2)}</li>`); i++ }
+      parts.push(`<ul>${items.join('')}</ul>`)
+    } else if (/^\d+\. /.test(lineHtml)) {
+      const items: string[] = []
+      while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(`<li>${lines[i].replace(/^\d+\. /, '')}</li>`); i++ }
+      parts.push(`<ol>${items.join('')}</ol>`)
+    } else {
+      parts.push(lineToTag(lineHtml))
+      i++
+    }
+  }
   return parts.join('')
 }
 

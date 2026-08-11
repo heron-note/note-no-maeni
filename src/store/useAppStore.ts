@@ -9,6 +9,7 @@ interface AppStore {
   logs: Record<string, LogEntry>
   choice: ChoiceType | null
   declaration: Declaration | null
+  editingUserTemplateId: string | null  // null = 新規作成
 
   // Actions
   init: () => void
@@ -18,6 +19,7 @@ interface AppStore {
   logToday: (type: ChoiceType, declarationId?: string | null) => void
   setChoice: (type: ChoiceType) => void
   setDeclaration: (d: Declaration) => void
+  setEditingUserTemplateId: (id: string | null) => void
 
   // Selectors
   todayLog: () => LogEntry | undefined
@@ -29,6 +31,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   logs: storage.loadLogs(),
   choice: null,
   declaration: null,
+  editingUserTemplateId: null,
 
   init() {
     const user = storage.loadUser()
@@ -63,6 +66,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setChoice(choice) { set({ choice }) },
   setDeclaration(declaration) { set({ declaration }) },
+  setEditingUserTemplateId(id) { set({ editingUserTemplateId: id }) },
 
   todayLog() { return get().logs[todayStr()] },
 }))

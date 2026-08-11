@@ -4,6 +4,12 @@ import { pickStampColor } from '../data/declarations'
 import { playStampSound } from '../utils/audio'
 import { speakVoicevox } from '../utils/voicevox'
 import { useBottomSheet } from '../hooks/useBottomSheet'
+import { storage } from '../utils/storage'
+import { buildUserTemplatePlain, buildUserTemplateHtml, copyToClipboard } from '../utils/template'
+import { Toast } from './Toast'
+import type { UserTemplate } from '../types'
+
+type StarBurst = { id: number; x: number; y: number; particles: { dx: number; dy: number }[] }
 
 export function WriteOverlay({ reactionText, onClose }: {
   reactionText: string
@@ -12,6 +18,10 @@ export function WriteOverlay({ reactionText, onClose }: {
   const logToday = useAppStore(s => s.logToday)
   const stampRef = useRef<HTMLDivElement>(null)
   const [showButtons, setShowButtons] = useState(false)
+  const [showPicker, setShowPicker] = useState(false)
+  const [userTemplates] = useState<UserTemplate[]>(() => storage.loadUserTemplates())
+  const [starBursts, setStarBursts] = useState<StarBurst[]>([])
+  const [toast, setToast] = useState<string | null>(null)
   const { closing, handleClose, sheetRef, dragHandleProps } = useBottomSheet(onClose)
 
   useEffect(() => {
@@ -32,8 +42,42 @@ export function WriteOverlay({ reactionText, onClose }: {
     handleClose()
   }
 
+  const triggerStarBurst = (x: number, y: number) => {
+    const particles = Array.from({ length: 8 }, (_, i) => {
+      const angle = (i / 8) * Math.PI * 2
+      const dist = 44 + Math.random() * 36
+      return { dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist }
+    })
+    const id = Date.now()
+    setStarBursts([{ id, x, y, particles }])
+    setTimeout(() => setStarBursts([]), 800)
+  }
+
+  const handlePickTemplate = async (t: UserTemplate, e: React.MouseEvent) => {
+    const text = buildUserTemplatePlain(t.lines)
+    const html = buildUserTemplateHtml(t.lines)
+    await copyToClipboard(text, html).catch(() => {})
+    triggerStarBurst(e.clientX, e.clientY)
+    setShowPicker(false)
+    window.open('https://note.com/notes/new', '_blank', 'noopener,noreferrer')
+    setTimeout(() => handleDone(), 600)
+  }
+
   return (
     <div className={`stamp-overlay${closing ? ' closing' : ''}`} onClick={handleClose}>
+      {/* ⭐ 飛び散りエフェクト */}
+      <div className="star-burst-wrap">
+        {starBursts.flatMap(({ id, x, y, particles }) =>
+          particles.map(({ dx, dy }, i) => (
+            <span
+              key={`${id}-${i}`}
+              className="star-particle"
+              style={{ left: x, top: y, '--dx': `${dx}px`, '--dy': `${dy}px` } as React.CSSProperties}
+            >⭐</span>
+          ))
+        )}
+      </div>
+
       <div ref={sheetRef} className={`stamp-overlay-inner${closing ? ' sheet-leaving' : ''}`} onClick={e => e.stopPropagation()}>
         <div className="sheet-drag-handle-area" {...dragHandleProps}><div className="sheet-drag-handle" /></div>
         <div className="stamp-block">
@@ -42,7 +86,42 @@ export function WriteOverlay({ reactionText, onClose }: {
         <div className="bubble">
           <p className="reaction-text">{reactionText}</p>
         </div>
+
         <div className={`rest-btns overlay-btns${showButtons ? ' overlay-btns-visible' : ''}`}>
+          {/* テンプレートコピー */}
+          {userTemplates.length > 0 && (
+            <div className="write-tpl-wrap">
+              <button
+                className="btn-tpl wide write-tpl-btn"
+                onClick={() => setShowPicker(v => !v)}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                  <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+                テンプレートで書く
+              </button>
+
+              {showPicker && (
+                <>
+                  <div className="write-tpl-backdrop" onClick={() => setShowPicker(false)} />
+                  <div className="write-tpl-picker">
+                    <p className="write-tpl-picker-title">テンプレートを選ぶ</p>
+                    {userTemplates.map(t => (
+                      <button
+                        key={t.id}
+                        className="write-tpl-picker-item"
+                        onClick={e => handlePickTemplate(t, e)}
+                      >
+                        {t.title}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           <a
             href="https://note.com/notes/new"
             target="_blank"
@@ -57,6 +136,8 @@ export function WriteOverlay({ reactionText, onClose }: {
           </button>
         </div>
       </div>
+
+      <Toast message={toast} onDone={() => setToast(null)} />
     </div>
   )
 }

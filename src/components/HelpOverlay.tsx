@@ -14,6 +14,8 @@ const STEPS: HelpStep[] = [
   { key: 'wiki-choice', title: '今日の選択', description: '「書く」か「休む」かを選ぼう。選ぶとスタンプが押されて今日の記録になるよ。', above: true },
   { key: 'chat-btn', title: 'AIに相談', description: 'AIと会話してネタ出しや構成の壁打ちができるよ。設定からGroq APIキーを登録してね。', above: true },
   { key: 'template-btn', title: 'テンプレートを編集', description: 'noteの記事テンプレートを保存できるよ。「休む」を選んで「コピーしてnoteへ」を押すと、テンプレートの好きな位置に休もっ化計画の宣言とランダムな一言が自動で挿入された文章がコピーされるよ。あとはnoteに貼り付けるだけで記事が完成！無理なくフォロワーさんにお休みを伝えながら、連続投稿を続けられるよ。', above: true },
+  { key: 'user-template-btn', title: 'テンプレート管理', description: 'このボタンから「書く」ときに使えるテンプレートを5つ登録できるよ！登録したテンプレートは「書く」時に選択して使えるよ！', above: true },
+  { key: 'eyecatch-btn', title: 'アイキャッチクリエイト', description: 'このボタンを押すとアイキャッチ画像作成画面が開くよ！スタンプを押したり色を変えたり回転させたり、簡単なアイキャッチ画像を作成してダウンロードできる！画像作成も楽しんでね！' },
   { key: 'recommend-btn', title: 'おすすめ記事', description: '登録したnoteクリエイターの記事をランダムで提案してくれるよ。鉛筆アイコンでリストを編集できるよ。' },
   { key: 'tag-btn', title: 'お気に入りタグ', description: '登録したハッシュタグ一覧を開くよ。noteの記事一覧へすぐ飛べるよ。' },
   { key: 'settings-btn', title: '設定', description: '名前・キャラクター・AIキーなどをここで設定できるよ。' },

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { storage } from '../utils/storage'
-import { buildTemplateHTML } from '../utils/template'
 import { Toast } from '../components/Toast'
 import { FormattingToolbar } from '../components/FormattingToolbar'
 import { useSlideBack } from '../hooks/useSlideBack'
 import { speakVoicevox } from '../utils/voicevox'
+import type { UserTemplate } from '../types'
 
-// ===== HTML サニタイズ =====
+// ===== HTML サニタイズ（TemplateEditor と同一ロジック）=====
 const INLINE_TAGS = new Set(['strong','em','b','i','u','s','strike','code'])
 const BLOCK_TAGS = new Set([
   'p','div','h1','h2','h3','h4','h5','h6',
@@ -130,7 +130,6 @@ function htmlToLines(html: string): string[] {
   }
 
   walkBlock(root)
-
   return result.length > 0 ? result : ['']
 }
 
@@ -140,7 +139,6 @@ function splitAlign(l: string): [string, string] {
   return ['', l]
 }
 
-// 保存済み lines → contenteditable 用 HTML（blockquote・pre を復元）
 function linesToHtml(lines: string[]): string {
   const parts: string[] = []
   let i = 0
@@ -151,7 +149,7 @@ function linesToHtml(lines: string[]): string {
       i++
       while (i < lines.length && lines[i] !== '```') { codeLines.push(lines[i]); i++ }
       parts.push(`<pre>${codeLines.join('\n')}</pre>`)
-      i++ // closing ```
+      i++
     } else if (l === '---') {
       parts.push('<hr>')
       i++
@@ -182,24 +180,23 @@ function linesToHtml(lines: string[]): string {
   return parts.join('')
 }
 
-export function TemplateEditor() {
+export function UserTemplateEditor() {
   const goTo = useAppStore(s => s.goTo)
+  const editingId = useAppStore(s => s.editingUserTemplateId)
   const editorRef = useRef<HTMLDivElement>(null)
-  const { closing, handleBack } = useSlideBack(() => goTo('home'))
+  const { closing, handleBack } = useSlideBack(() => goTo('user-template-list'))
 
-  const [lines, setLines] = useState<string[]>(() => {
-    const t = storage.loadTemplate()
-    return t?.lines.length ? t.lines : ['']
-  })
-  const [insertIdx, setInsertIdx] = useState<number>(() => {
-    const t = storage.loadTemplate()
-    return t?.insertAfterIndex ?? -1
-  })
+  const existingTemplate = editingId
+    ? storage.loadUserTemplates().find(t => t.id === editingId) ?? null
+    : null
+
+  const [title, setTitle] = useState(existingTemplate?.title ?? '')
+  const [lines, setLines] = useState<string[]>(() =>
+    existingTemplate?.lines.length ? existingTemplate.lines : ['']
+  )
   const [toast, setToast] = useState<string | null>(null)
-  const [showPreview, setShowPreview] = useState(false)
-  const [showHtmlHint, setShowHtmlHint] = useState(false)
+  const [titleError, setTitleError] = useState(false)
 
-  // 保存済みテンプレートを初期表示（再レンダで上書きしない）
   useEffect(() => {
     if (editorRef.current && lines.join('').trim()) {
       editorRef.current.innerHTML = linesToHtml(lines)
@@ -207,19 +204,16 @@ export function TemplateEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ペースト時にクリップボードの HTML を直接解析（ブラウザのDOM変換を経由しない）
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault()
     const html = e.clipboardData.getData('text/html')
     const text = e.clipboardData.getData('text/plain')
-    setShowHtmlHint(!html)
     const src = html || `<div>${text.split(/\r?\n/).map(l => `<div>${l || '<br>'}</div>`).join('')}</div>`
     const parsed = htmlToLines(src)
     setLines(parsed)
     if (editorRef.current) editorRef.current.innerHTML = linesToHtml(parsed)
   }, [])
 
-  // contenteditable の現在の内容を解析して lines を更新
   const refreshLines = useCallback(() => {
     if (!editorRef.current) return
     const parsed = htmlToLines(editorRef.current.innerHTML)
@@ -234,28 +228,49 @@ export function TemplateEditor() {
   }, [refreshLines])
 
   const handleSave = () => {
+    if (!title.trim()) { setTitleError(true); return }
+    setTitleError(false)
     const current = refreshLines() ?? lines
-    const clampedIdx = Math.min(Math.max(insertIdx, -1), current.length - 1)
-    storage.saveTemplate({ lines: current, insertAfterIndex: clampedIdx })
+    const all = storage.loadUserTemplates()
+
+    if (editingId) {
+      const next = all.map(t => t.id === editingId ? { ...t, title: title.trim(), lines: current } : t)
+      storage.saveUserTemplates(next)
+    } else {
+      const newTemplate: UserTemplate = {
+        id: crypto.randomUUID(),
+        title: title.trim(),
+        lines: current,
+      }
+      storage.saveUserTemplates([...all, newTemplate])
+    }
+
     speakVoicevox('vv_hozonsita')
     setToast('保存しました')
-    setTimeout(() => goTo('home'), 900)
+    setTimeout(() => goTo('user-template-list'), 900)
   }
-
-  const hasContent = lines.length > 0 && lines[0] !== ''
-
-  const previewHTML = showPreview
-    ? buildTemplateHTML({ lines, insertAfterIndex: insertIdx }, { id: 'preview', text: '今日は休む。それもひとつの、正しい選択。' })
-    : null
 
   return (
     <div className={`screen-scroll${closing ? ' screen-slide-out' : ''}`}>
-      <div className="subscreen-header">
+      <div className="subscreen-header" style={{flexDirection:'column', alignItems:'flex-start', gap:4}}>
         <div className="subscreen-title-row">
           <button className="back-btn" onClick={handleBack}>‹</button>
-          <h2 className="subscreen-title">テンプレート編集</h2>
+          <h2 className="subscreen-title">{editingId ? 'テンプレートを編集' : '新しいテンプレート'}</h2>
         </div>
-        <p className="hint">ブラウザ版noteからペーストまたは直接編集できます。</p>
+        <p className="hint" style={{margin:0}}>noteの記事をそのまま貼り付け → 「行を解析」を押してください。</p>
+      </div>
+
+      <div className="form-block">
+        <p className="label">タイトル</p>
+        <input
+          className={`text-input${titleError ? ' input-error' : ''}`}
+          type="text"
+          placeholder="例：週次ふりかえり、日記など"
+          value={title}
+          onChange={e => { setTitle(e.target.value); setTitleError(false) }}
+          maxLength={40}
+        />
+        {titleError && <p className="input-error-msg">タイトルを入力してください</p>}
       </div>
 
       <div className="template-editor-wrap">
@@ -270,51 +285,6 @@ export function TemplateEditor() {
         />
         <FormattingToolbar editorRef={editorRef} />
       </div>
-
-      {showHtmlHint && (
-        <div className="paste-html-hint">
-          <p>書式情報を取得できませんでした。</p>
-          <p><strong>ブラウザ版note</strong> の記事ページからコピーして貼り付けてください（noteアプリ不可）。</p>
-        </div>
-      )}
-
-      {hasContent && (
-        <div className="insert-position-block">
-          <p className="label">宣言文の挿入位置</p>
-          <div className="insert-position-list">
-            <button
-              className={`insert-pos-item${insertIdx === -1 ? ' active' : ''}`}
-              onClick={() => setInsertIdx(-1)}
-            >
-              <span className="insert-pos-dot" />
-              <span className="insert-pos-label">テンプレートの先頭</span>
-            </button>
-            {lines.map((line, i) => (
-              <button
-                key={i}
-                className={`insert-pos-item${insertIdx === i ? ' active' : ''}`}
-                onClick={() => setInsertIdx(i)}
-              >
-                <span className="insert-pos-dot" />
-                <span className="insert-pos-label">
-                  {i + 1}行目の後：{line.replace(/<[^>]+>/g, '').slice(0, 24) || '（空行）'}
-                  {line.replace(/<[^>]+>/g, '').length > 24 ? '…' : ''}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <button className="btn-secondary wide" onClick={() => { refreshLines(); setShowPreview(v => !v) }}>
-        {showPreview ? 'プレビューを閉じる' : 'プレビューを確認'}
-      </button>
-
-      {showPreview && previewHTML && (
-        <div className="preview-section">
-          <div className="template-preview" dangerouslySetInnerHTML={{ __html: previewHTML }} />
-        </div>
-      )}
 
       <button className="btn-primary wide" onClick={handleSave}>
         保存する

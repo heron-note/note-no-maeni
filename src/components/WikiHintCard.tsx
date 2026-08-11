@@ -8,9 +8,10 @@ interface Props {
   onRest: () => void
   onEditTemplate: () => void
   onChat: () => void
+  onManageTemplates: () => void
 }
 
-export function WikiHintCard({ onWrite, onRest, onEditTemplate, onChat }: Props) {
+export function WikiHintCard({ onWrite, onRest, onEditTemplate, onChat, onManageTemplates }: Props) {
   const [hint, setHint] = useState<WikiHint | null>(null)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -65,6 +66,9 @@ export function WikiHintCard({ onWrite, onRest, onEditTemplate, onChat }: Props)
         </div>
         <button data-help="template-btn" className="template-shortcut-btn" onClick={onEditTemplate}>
           ✏️ 休もっ化計画テンプレートを編集
+        </button>
+        <button data-help="user-template-btn" className="template-shortcut-btn" onClick={onManageTemplates}>
+          📋 記事テンプレートを管理
         </button>
       </div>
       {showModal && hint && (

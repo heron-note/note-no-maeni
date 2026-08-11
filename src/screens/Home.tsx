@@ -176,6 +176,22 @@ export function Home() {
           </div>
         </div>
 
+        {/* 右: 吹き出しパネル */}
+        <div className="bubble-panel-right">
+          <div className="speech-bubble-right">
+            <div className="bubble-action-row">
+              <button data-help="eyecatch-btn" className="bubble-icon-btn" onClick={() => goTo('eyecatch-creator')} aria-label="アイキャッチ作成">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="5" width="20" height="14" rx="2"/>
+                  <circle cx="8.5" cy="11" r="2"/>
+                  <polyline points="14,9 22,19"/>
+                  <polyline points="2,19 8,13 11,16"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* 中央: キャラクター */}
         <div className="chara-block">
           <img
@@ -214,6 +230,7 @@ export function Home() {
         onRest={() => handleChoice('rest')}
         onEditTemplate={() => goTo('template-editor')}
         onChat={() => setShowChat(true)}
+        onManageTemplates={() => goTo('user-template-list')}
       />
 
       <Calendar logs={logs} />

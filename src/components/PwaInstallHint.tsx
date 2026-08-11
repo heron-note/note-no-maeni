@@ -16,6 +16,15 @@ function isAndroid(): boolean {
   return /android/i.test(navigator.userAgent)
 }
 
+type PCBrowser = 'edge' | 'chrome' | 'safari' | 'other'
+function getPCBrowser(): PCBrowser {
+  const ua = navigator.userAgent
+  if (/Edg\//i.test(ua)) return 'edge'
+  if (/Chrome\//i.test(ua)) return 'chrome'
+  if (/Safari\//i.test(ua)) return 'safari'
+  return 'other'
+}
+
 export function PwaInstallHint() {
   const [open, setOpen] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -110,15 +119,53 @@ export function PwaInstallHint() {
               </div>
             )}
 
-            {!isIOS() && !isAndroid() && (
-              <div className="pwa-hint-steps">
-                <p className="pwa-hint-os">PC（Chrome / Edge）</p>
-                <ol>
-                  <li>アドレスバー右端の <strong>インストールアイコン</strong> をクリック</li>
-                  <li>「<strong>インストール</strong>」をクリックして完了</li>
-                </ol>
-              </div>
-            )}
+            {!isIOS() && !isAndroid() && (() => {
+              const browser = getPCBrowser()
+              return (
+                <div className="pwa-hint-steps">
+                  {browser === 'edge' && (
+                    <>
+                      <p className="pwa-hint-os">PC（Microsoft Edge）</p>
+                      <ol>
+                        <li>アドレスバー右端の <strong>「…」メニュー</strong> をクリック</li>
+                        <li>「<strong>アプリ</strong>」→「<strong>このサイトをアプリとしてインストール</strong>」を選択</li>
+                        <li>「<strong>インストール</strong>」をクリックして完了</li>
+                      </ol>
+                    </>
+                  )}
+                  {browser === 'chrome' && (
+                    <>
+                      <p className="pwa-hint-os">PC（Google Chrome）</p>
+                      <ol>
+                        <li>アドレスバー右端の <strong>インストールアイコン（⊕）</strong> をクリック</li>
+                        <li>「<strong>インストール</strong>」をクリックして完了</li>
+                      </ol>
+                      <p className="pwa-hint-note">※ アイコンが表示されない場合はアドレスバー右の「⋮」→「キャスト、保存、共有」→「ページをアプリとしてインストール」</p>
+                    </>
+                  )}
+                  {browser === 'safari' && (
+                    <>
+                      <p className="pwa-hint-os">Mac（Safari）</p>
+                      <ol>
+                        <li>メニューバーの <strong>「ファイル」→「Dockに追加」</strong> を選択</li>
+                        <li>「<strong>追加</strong>」をクリックして完了</li>
+                      </ol>
+                      <p className="pwa-hint-note">※ macOS Sonoma（14）以降のSafariのみ対応</p>
+                    </>
+                  )}
+                  {browser === 'other' && (
+                    <>
+                      <p className="pwa-hint-os">PC（Chrome / Edge 推奨）</p>
+                      <ol>
+                        <li>アドレスバー右端の <strong>インストールアイコン</strong> をクリック</li>
+                        <li>「<strong>インストール</strong>」をクリックして完了</li>
+                      </ol>
+                      <p className="pwa-hint-note">※ ChromeまたはEdgeをお使いください</p>
+                    </>
+                  )}
+                </div>
+              )
+            })()}
 
             <div className="pwa-hint-export">
               <p className="pwa-hint-export-title">データを引き継ぐ方法</p>

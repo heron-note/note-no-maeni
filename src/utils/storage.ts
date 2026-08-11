@@ -1,9 +1,10 @@
-import type { User, LogEntry, Template, Bookmark } from '../types'
+import type { User, LogEntry, Template, Bookmark, UserTemplate } from '../types'
 
 const SK = {
   user: 'nob_user',
   logs: 'nob_logs',
   template: 'nob_template',
+  userTemplates: 'nob_user_templates',
 } as const
 
 function safeLoad<T>(key: string): T | null {
@@ -24,6 +25,9 @@ export const storage = {
 
   loadTemplate: ()           => safeLoad<Template>(SK.template),
   saveTemplate: (v: Template) => localStorage.setItem(SK.template, JSON.stringify(v)),
+
+  loadUserTemplates: () => safeLoad<UserTemplate[]>(SK.userTemplates) ?? [],
+  saveUserTemplates: (v: UserTemplate[]) => localStorage.setItem(SK.userTemplates, JSON.stringify(v)),
 
   loadSoundEnabled: () => localStorage.getItem('nob_sound') !== 'off',
   saveSoundEnabled: (v: boolean) => localStorage.setItem('nob_sound', v ? 'on' : 'off'),

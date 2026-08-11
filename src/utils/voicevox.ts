@@ -42,3 +42,4 @@ export type VoicevoxKey =
   | 'vv_yasumokka'
   | 'vv_tanoshiku'
   | 'vv_asobini'
+  | 'vv_hozonsita'

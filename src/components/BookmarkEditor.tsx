@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import type { Bookmark } from '../types'
 import { useBottomSheet } from '../hooks/useBottomSheet'
+import { recordRecommend } from '../utils/recommend'
 
 function stripNote(name: string) {
   return name.endsWith('｜note') ? name.slice(0, -5) : name
@@ -65,6 +66,11 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
     setError(null)
   }
 
+  const handleVisit = (b: Bookmark) => {
+    onChange(recordRecommend(bookmarks, b.id))
+    window.open(b.url, '_blank', 'noopener,noreferrer')
+  }
+
   const handleDelete = (id: string) => {
     onChange(bookmarks.filter(b => b.id !== id))
   }
@@ -115,7 +121,7 @@ export function BookmarkEditor({ bookmarks, onChange, onClose }: {
               <button className="bookmark-priority-btn" onClick={() => cyclePriority(b.id)}>
                 {DOTS[b.priority ?? 0]}
               </button>
-              <span className="bookmark-item-name">{b.name}</span>
+              <button className="bookmark-item-name bookmark-item-link" onClick={() => handleVisit(b)}>{b.name}</button>
               <button className="bookmark-delete-btn" onClick={() => handleDelete(b.id)}>削除</button>
             </div>
           ))}

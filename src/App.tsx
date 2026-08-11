@@ -4,6 +4,9 @@ import { Onboarding } from './screens/Onboarding'
 import { Home } from './screens/Home'
 import { Settings } from './screens/Settings'
 import { TemplateEditor } from './screens/TemplateEditor'
+import { UserTemplateList } from './screens/UserTemplateList'
+import { UserTemplateEditor } from './screens/UserTemplateEditor'
+import { EyecatchCreator } from './screens/EyecatchCreator'
 import { CharacterCreator } from './screens/CharacterCreator'
 import { SimpleCharacterCreator } from './screens/SimpleCharacterCreator'
 import { SplashScreen } from './components/SplashScreen'
@@ -20,11 +23,14 @@ const SCREENS: Record<ScreenName, JSX.Element> = {
   'home':              <Home />,
   'settings':          <Settings />,
   'template-editor':   <TemplateEditor />,
+  'user-template-list':   <UserTemplateList />,
+  'user-template-editor': <UserTemplateEditor />,
+  'eyecatch-creator':     <EyecatchCreator />,
   'character-creator':        <CharacterCreator />,
   'character-creator-simple': <SimpleCharacterCreator />,
 }
 
-const SLIDE_SCREENS: ScreenName[] = ['settings', 'template-editor', 'character-creator', 'character-creator-simple']
+const SLIDE_SCREENS: ScreenName[] = ['settings', 'template-editor', 'user-template-list', 'user-template-editor', 'eyecatch-creator', 'character-creator', 'character-creator-simple']
 
 export function App() {
   const screen = useAppStore(s => s.screen)
