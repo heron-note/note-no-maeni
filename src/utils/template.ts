@@ -126,7 +126,10 @@ export function buildHtmlText(template: Template, declaration: Declaration): str
   }
   if (insertAfterIndex >= lines.length) parts.push(decl)
 
-  return parts.join('')
+  const result = parts.join('')
+  // note editor extracts text from <figure> when it's the first pasted element;
+  // prepend an empty <p> to avoid that
+  return result.startsWith('<figure>') ? `<p></p>${result}` : result
 }
 
 /** ユーザーテンプレート → プレーンテキスト */
