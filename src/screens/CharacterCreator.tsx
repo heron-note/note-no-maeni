@@ -627,12 +627,12 @@ export function CharacterCreator() {
 
   return (
     <div className={`screen-scroll${closing ? ' screen-slide-out' : ''}`} ref={screenRef}>
-      <div className="subscreen-header">
+      <div className="subscreen-header" style={{flexDirection:'column', alignItems:'flex-start', gap:4}}>
         <div className="subscreen-title-row">
           <button className="back-btn" onClick={handleBack}>‹</button>
           <h2 className="subscreen-title">AI相棒クリエイト</h2>
         </div>
-        <p className="hint">AIで画像を生成するか、自分で用意した画像をアップロードして相棒をつくろう。書く・休むの画像は自動合成されます。</p>
+        <p className="hint" style={{margin:0}}>AIで画像を生成するか、自分で用意した画像をアップロードして相棒をつくろう。書く・休むの画像は自動合成されます。</p>
       </div>
 
       <AIGenPanel

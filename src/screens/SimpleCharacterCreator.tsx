@@ -439,12 +439,12 @@ export function SimpleCharacterCreator() {
 
   return (
     <div className={`screen-scroll${closing ? ' screen-slide-out' : ''}`}>
-      <div className="subscreen-header">
+      <div className="subscreen-header" style={{flexDirection:'column', alignItems:'flex-start', gap:4}}>
         <div className="subscreen-title-row">
           <button className="back-btn" onClick={handleBack}>‹</button>
           <h2 className="subscreen-title">相棒クリエイト</h2>
         </div>
-        <p className="hint">通常・書く・休む の3枚の画像をそれぞれアップロードして相棒をつくろう。</p>
+        <p className="hint" style={{margin:0}}>通常・書く・休む の3枚の画像をそれぞれアップロードして相棒をつくろう。</p>
       </div>
 
       {STATES.map(s => (
