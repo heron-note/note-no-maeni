@@ -138,7 +138,7 @@ function persistHistory(entries: HistoryEntry[]) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(entries))
 }
 
-// Stamp layer — renders to offscreen canvas → dataURL → <img> for max cross-browser compat
+// Stamp layer — draws to a <canvas> element directly (most reliable cross-browser)
 function KyumoukaLayer({ item, scale, stampImg, baseStyle, onPointerDown, onPointerMove, onPointerUp, onPointerCancel }: {
   item: EcItem; scale: number; stampImg: HTMLImageElement | null
   baseStyle: React.CSSProperties
@@ -146,23 +146,25 @@ function KyumoukaLayer({ item, scale, stampImg, baseStyle, onPointerDown, onPoin
   onPointerMove: (e: React.PointerEvent) => void
   onPointerUp: () => void; onPointerCancel: () => void
 }) {
-  const [dataUrl, setDataUrl] = useState('')
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     if (!stampImg) return
     const draw = () => {
+      const canvas = canvasRef.current; if (!canvas) return
       if (stampImg.naturalWidth === 0) return
       const sz = item.size * scale
-      const w = Math.round(sz)
-      const h = Math.round(sz * STAMP_ASPECT)
-      const off = document.createElement('canvas')
-      off.width = w; off.height = h
-      const ctx = off.getContext('2d'); if (!ctx) return
+      const W = Math.round(sz)
+      const H = Math.round(sz * STAMP_ASPECT)
+      canvas.width = W
+      canvas.height = H
+      canvas.style.width = W + 'px'
+      canvas.style.height = H + 'px'
+      const ctx = canvas.getContext('2d'); if (!ctx) return
       ctx.fillStyle = item.color
-      ctx.fillRect(0, 0, w, h)
+      ctx.fillRect(0, 0, W, H)
       ctx.globalCompositeOperation = 'destination-in'
-      ctx.drawImage(stampImg, 0, 0, w, h)
-      setDataUrl(off.toDataURL())
+      ctx.drawImage(stampImg, 0, 0, W, H)
     }
     if (!stampImg.complete) {
       stampImg.addEventListener('load', draw, { once: true })
@@ -171,19 +173,10 @@ function KyumoukaLayer({ item, scale, stampImg, baseStyle, onPointerDown, onPoin
     draw()
   }, [item.size, item.color, scale, stampImg])
 
-  if (!dataUrl) return null
-  const sz = item.size * scale
-  const w = Math.round(sz), h = Math.round(sz * STAMP_ASPECT)
   return (
-    <div
-      style={{
-        ...baseStyle,
-        width: w, height: h,
-        backgroundImage: `url(${dataUrl})`,
-        backgroundSize: '100% 100%',
-        backgroundRepeat: 'no-repeat',
-        cursor: 'move',
-      }}
+    <canvas
+      ref={canvasRef}
+      style={{ ...baseStyle, display: 'block', cursor: 'move' }}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove}
       onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}
     />
