@@ -38,13 +38,13 @@ export function StampOverlay({ declaration, onClose }: {
   }, [])
 
   const handleCopy = async () => {
+    window.open('https://note.com/notes/new', '_blank', 'noopener,noreferrer')
     const tpl = restTemplates.find(t => t.id === selectedTplId)
     const template = tpl ? { lines: tpl.lines, insertAfterIndex: tpl.insertAfterIndex } : { lines: [], insertAfterIndex: -1 }
     const text = buildPlainText(template, declaration)
     const html = buildHtmlText(template, declaration)
     await copyToClipboard(text, html).catch(() => {})
     setToast('コピーしました！')
-    window.open('https://note.com/notes/new', '_blank', 'noopener,noreferrer')
   }
 
   return (

@@ -60,11 +60,11 @@ export function WriteOverlay({ reactionText, onClose }: {
   const handlePickTemplate = async (e: React.MouseEvent) => {
     const t = userTemplates.find(t => t.id === selectedTplId)
     if (!t) return
+    window.open('https://note.com/notes/new', '_blank', 'noopener,noreferrer')
     const text = buildUserTemplatePlain(t.lines)
     const html = buildUserTemplateHtml(t.lines)
     await copyToClipboard(text, html).catch(() => {})
     triggerStarBurst(e.clientX, e.clientY)
-    window.open('https://note.com/notes/new', '_blank', 'noopener,noreferrer')
     setTimeout(() => handleDone(), 600)
   }
 
