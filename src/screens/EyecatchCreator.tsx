@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { useSlideBack } from '../hooks/useSlideBack'
 import { useBottomSheet } from '../hooks/useBottomSheet'
@@ -136,6 +136,44 @@ function loadHistory(): HistoryEntry[] {
 }
 function persistHistory(entries: HistoryEntry[]) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(entries))
+}
+
+// Canvas-based stamp layer — avoids CSS mask-image which is unreliable on Android
+function KyumoukaLayer({ item, scale, stampImg, baseStyle, onPointerDown, onPointerMove, onPointerUp, onPointerCancel }: {
+  item: EcItem; scale: number; stampImg: HTMLImageElement | null
+  baseStyle: React.CSSProperties
+  onPointerDown: (e: React.PointerEvent) => void
+  onPointerMove: (e: React.PointerEvent) => void
+  onPointerUp: () => void; onPointerCancel: () => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current; if (!canvas) return
+    const draw = () => {
+      if (!stampImg || stampImg.naturalWidth === 0) return
+      const sz = item.size * scale
+      const w = Math.round(sz * STAMP_ASPECT), h = Math.round(sz)
+      canvas.width = w; canvas.height = h
+      const ctx = canvas.getContext('2d')!
+      ctx.translate(w / 2, h / 2)
+      drawStampWithMask(ctx, stampImg, item.color, sz)
+    }
+    if (stampImg && !stampImg.complete) {
+      stampImg.addEventListener('load', draw, { once: true })
+    } else {
+      draw()
+    }
+  }, [item.size, item.color, scale, stampImg])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ ...baseStyle, cursor: 'move' }}
+      onPointerDown={onPointerDown} onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}
+    />
+  )
 }
 
 // Separate component so useBottomSheet resets each time the panel is opened
@@ -522,21 +560,13 @@ export function EyecatchCreator() {
 
           if (item.type === 'kyumouka') {
             return (
-              <div key={item.id} style={{
-                ...baseStyle,
-                width: item.size*scale,
-                height: item.size*scale*STAMP_ASPECT,
-                backgroundColor: item.color,
-                WebkitMaskImage: `url(${STAMP_MASK_URL})`,
-                maskImage: `url(${STAMP_MASK_URL})`,
-                WebkitMaskSize: '100% 100%',
-                maskSize: '100% 100%',
-                WebkitMaskRepeat: 'no-repeat',
-                maskRepeat: 'no-repeat',
-                cursor: 'move',
-              }}
+              <KyumoukaLayer
+                key={item.id}
+                item={item} scale={scale} stampImg={stampImgRef.current}
+                baseStyle={baseStyle}
                 onPointerDown={e=>onItemDown(e,item)} onPointerMove={onDragMove}
-                onPointerUp={onDragUp} onPointerCancel={onDragUp}/>
+                onPointerUp={onDragUp} onPointerCancel={onDragUp}
+              />
             )
           }
 
