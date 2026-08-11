@@ -258,6 +258,7 @@ export function EyecatchCreator() {
   const [mode, setMode] = useState<'stamp' | 'edit'>('stamp')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [saveImageUrl, setSaveImageUrl] = useState<string | null>(null)
 
   scaleRef.current = scale
   itemsRef.current = items
@@ -426,7 +427,13 @@ export function EyecatchCreator() {
     setTimeout(() => {
       // Composite all layers to canvas for download
       renderCanvas(canvas, bgColor, borderPad, borderWidth, borderColor, snapshot, stampImgRef.current)
-      const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'eyecatch.png'; a.click()
+      const dataUrl = canvas.toDataURL('image/png')
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+      if (isIOS) {
+        setSaveImageUrl(dataUrl)
+      } else {
+        const a = document.createElement('a'); a.href = dataUrl; a.download = 'eyecatch.png'; a.click()
+      }
       // Thumbnail at 1/4 scale for history preview
       const tw = Math.round(CW / 4), th = Math.round(CH / 4)
       const tc = document.createElement('canvas'); tc.width = tw; tc.height = th
@@ -733,6 +740,16 @@ export function EyecatchCreator() {
           ))}
         </div>
       </div>
+
+      {saveImageUrl && (
+        <div className="eyecatch-save-overlay" onClick={() => setSaveImageUrl(null)}>
+          <div className="eyecatch-save-panel" onClick={e => e.stopPropagation()}>
+            <p className="eyecatch-save-hint">画像を長押しして「写真に保存」してください</p>
+            <img src={saveImageUrl} className="eyecatch-save-img" alt="アイキャッチ"/>
+            <button className="btn-secondary wide" onClick={() => setSaveImageUrl(null)}>閉じる</button>
+          </div>
+        </div>
+      )}
 
       {showHistory && (
         <HistoryPanel

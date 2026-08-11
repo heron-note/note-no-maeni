@@ -1263,6 +1263,22 @@ html, body, #root {
   touch-action: manipulation;
 }
 .eyecatch-emoji-btn.active { border-color: var(--primary); background: var(--secondary); }
+.eyecatch-save-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 300;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.eyecatch-save-panel {
+  background: var(--surface); border-radius: var(--radius); padding: 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  width: 100%; max-width: 400px;
+}
+.eyecatch-save-hint {
+  font-size: 14px; font-weight: 600; color: var(--text); text-align: center;
+}
+.eyecatch-save-img {
+  width: 100%; height: auto; border-radius: 6px; display: block;
+}
+
 .eyecatch-history-overlay {
   position: fixed;
   inset: 0;
