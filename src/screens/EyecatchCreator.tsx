@@ -175,9 +175,15 @@ function KyumoukaLayer({ item, scale, stampImg, baseStyle, onPointerDown, onPoin
   const sz = item.size * scale
   const w = Math.round(sz), h = Math.round(sz * STAMP_ASPECT)
   return (
-    <img
-      src={dataUrl}
-      style={{ ...baseStyle, width: w, height: h, cursor: 'move' }}
+    <div
+      style={{
+        ...baseStyle,
+        width: w, height: h,
+        backgroundImage: `url(${dataUrl})`,
+        backgroundSize: '100% 100%',
+        backgroundRepeat: 'no-repeat',
+        cursor: 'move',
+      }}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove}
       onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}
     />
