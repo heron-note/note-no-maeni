@@ -7,6 +7,7 @@ const CW = 1280
 const CH = 670
 const HANDLE_R = 9
 const ROT_OFFSET = 40
+const STAMP_MASK_URL = `${import.meta.env.BASE_URL}assets/images/stamps/stamp-mask.png`
 const HISTORY_KEY = 'ec_history'
 const HISTORY_MAX = 10
 const DEFAULT_TEXT_COLOR = '#222222'
@@ -225,7 +226,7 @@ export function EyecatchCreator() {
 
   useEffect(() => {
     const img = new Image()
-    img.src = '/assets/images/stamps/stamp-mask.png'
+    img.src = STAMP_MASK_URL
     stampImgRef.current = img
   }, [])
 
@@ -526,8 +527,8 @@ export function EyecatchCreator() {
                 width: item.size*scale,
                 height: item.size*scale*STAMP_ASPECT,
                 backgroundColor: item.color,
-                WebkitMaskImage: 'url(/assets/images/stamps/stamp-mask.png)',
-                maskImage: 'url(/assets/images/stamps/stamp-mask.png)',
+                WebkitMaskImage: `url(${STAMP_MASK_URL})`,
+                maskImage: `url(${STAMP_MASK_URL})`,
                 WebkitMaskSize: '100% 100%',
                 maskSize: '100% 100%',
                 WebkitMaskRepeat: 'no-repeat',
