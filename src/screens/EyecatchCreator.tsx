@@ -153,9 +153,8 @@ function KyumoukaLayer({ item, scale, stampImg, baseStyle, onPointerDown, onPoin
     const draw = () => {
       if (stampImg.naturalWidth === 0) return
       const sz = item.size * scale
-      const sc = sz / Math.max(stampImg.naturalWidth, stampImg.naturalHeight)
-      const w = Math.round(stampImg.naturalWidth * sc)
-      const h = Math.round(stampImg.naturalHeight * sc)
+      const w = Math.round(sz)
+      const h = Math.round(sz * STAMP_ASPECT)
       const off = document.createElement('canvas')
       off.width = w; off.height = h
       const ctx = off.getContext('2d'); if (!ctx) return
@@ -174,7 +173,7 @@ function KyumoukaLayer({ item, scale, stampImg, baseStyle, onPointerDown, onPoin
 
   if (!dataUrl) return null
   const sz = item.size * scale
-  const w = Math.round(sz * STAMP_ASPECT), h = Math.round(sz)
+  const w = Math.round(sz), h = Math.round(sz * STAMP_ASPECT)
   return (
     <img
       src={dataUrl}
