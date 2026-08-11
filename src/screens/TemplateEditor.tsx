@@ -250,12 +250,12 @@ export function TemplateEditor() {
 
   return (
     <div className={`screen-scroll${closing ? ' screen-slide-out' : ''}`}>
-      <div className="subscreen-header">
+      <div className="subscreen-header" style={{flexDirection:'column', alignItems:'flex-start', gap:4}}>
         <div className="subscreen-title-row">
           <button className="back-btn" onClick={handleBack}>‹</button>
           <h2 className="subscreen-title">テンプレート編集</h2>
         </div>
-        <p className="hint">ブラウザ版noteからペーストまたは直接編集できます。</p>
+        <p className="hint" style={{margin:0}}>ブラウザ版noteからペーストまたは直接編集できます。</p>
       </div>
 
       <div className="template-editor-wrap">
