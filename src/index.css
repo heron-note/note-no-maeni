@@ -977,6 +977,15 @@ html, body, #root {
   content: attr(data-placeholder); color: var(--text-light); pointer-events: none;
 }
 .template-richtext a { color: var(--primary); text-decoration: underline; }
+.template-richtext blockquote {
+  background: rgba(0,0,0,0.05); border-left: 3px solid var(--border);
+  margin: 2px 0; padding: 4px 10px; border-radius: 3px;
+}
+.template-richtext pre {
+  background: #1a1a1a; color: #f0f0f0; font-family: monospace;
+  margin: 2px 0; padding: 6px 10px; border-radius: 4px;
+  white-space: pre-wrap; font-size: 13px;
+}
 
 .insert-position-block { display: flex; flex-direction: column; gap: 8px; }
 .insert-position-list { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow-y: auto; }
