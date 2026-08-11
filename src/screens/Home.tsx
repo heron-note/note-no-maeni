@@ -228,7 +228,7 @@ export function Home() {
       <WikiHintCard
         onWrite={() => handleChoice('write')}
         onRest={() => handleChoice('rest')}
-        onEditTemplate={() => goTo('template-editor')}
+        onEditTemplate={() => goTo('rest-template-list')}
         onChat={() => setShowChat(true)}
         onManageTemplates={() => goTo('user-template-list')}
       />

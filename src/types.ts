@@ -7,6 +7,8 @@ export type ScreenName =
   | 'character-creator-simple'
   | 'user-template-list'
   | 'user-template-editor'
+  | 'rest-template-list'
+  | 'rest-template-editor'
   | 'eyecatch-creator'
 
 export type ChoiceType = 'write' | 'rest'
@@ -45,6 +47,15 @@ export interface UserTemplate {
 }
 
 export const USER_TEMPLATE_MAX = 5
+
+export interface RestTemplate {
+  id: string
+  title: string
+  lines: string[]
+  insertAfterIndex: number
+}
+
+export const REST_TEMPLATE_MAX = 5
 
 export interface NoteTag {
   id: string

@@ -18,8 +18,12 @@ export function WriteOverlay({ reactionText, onClose }: {
   const logToday = useAppStore(s => s.logToday)
   const stampRef = useRef<HTMLDivElement>(null)
   const [showButtons, setShowButtons] = useState(false)
-  const [showPicker, setShowPicker] = useState(false)
   const [userTemplates] = useState<UserTemplate[]>(() => storage.loadUserTemplates())
+  const [selectedTplId, setSelectedTplId] = useState<string>(() => {
+    const last = storage.loadLastUserTplId()
+    const all = storage.loadUserTemplates()
+    return (last && all.find(t => t.id === last)) ? last : (all[0]?.id ?? '')
+  })
   const [starBursts, setStarBursts] = useState<StarBurst[]>([])
   const [toast, setToast] = useState<string | null>(null)
   const { closing, handleClose, sheetRef, dragHandleProps } = useBottomSheet(onClose)
@@ -53,12 +57,13 @@ export function WriteOverlay({ reactionText, onClose }: {
     setTimeout(() => setStarBursts([]), 800)
   }
 
-  const handlePickTemplate = async (t: UserTemplate, e: React.MouseEvent) => {
+  const handlePickTemplate = async (e: React.MouseEvent) => {
+    const t = userTemplates.find(t => t.id === selectedTplId)
+    if (!t) return
     const text = buildUserTemplatePlain(t.lines)
     const html = buildUserTemplateHtml(t.lines)
     await copyToClipboard(text, html).catch(() => {})
     triggerStarBurst(e.clientX, e.clientY)
-    setShowPicker(false)
     window.open('https://note.com/notes/new', '_blank', 'noopener,noreferrer')
     setTimeout(() => handleDone(), 600)
   }
@@ -90,36 +95,24 @@ export function WriteOverlay({ reactionText, onClose }: {
         <div className={`rest-btns overlay-btns${showButtons ? ' overlay-btns-visible' : ''}`}>
           {/* テンプレートコピー */}
           {userTemplates.length > 0 && (
-            <div className="write-tpl-wrap">
-              <button
-                className="btn-tpl wide write-tpl-btn"
-                onClick={() => setShowPicker(v => !v)}
+            <>
+              <select
+                className="tpl-select"
+                value={selectedTplId}
+                onChange={e => { setSelectedTplId(e.target.value); storage.saveLastUserTplId(e.target.value) }}
               >
+                {userTemplates.map(t => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+              <button className="btn-tpl wide" onClick={handlePickTemplate}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                   <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
                 </svg>
                 テンプレートで書く
               </button>
-
-              {showPicker && (
-                <>
-                  <div className="write-tpl-backdrop" onClick={() => setShowPicker(false)} />
-                  <div className="write-tpl-picker">
-                    <p className="write-tpl-picker-title">テンプレートを選ぶ</p>
-                    {userTemplates.map(t => (
-                      <button
-                        key={t.id}
-                        className="write-tpl-picker-item"
-                        onClick={e => handlePickTemplate(t, e)}
-                      >
-                        {t.title}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            </>
           )}
 
           <a

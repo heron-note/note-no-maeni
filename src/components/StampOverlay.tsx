@@ -5,7 +5,7 @@ import { speakVoicevox } from '../utils/voicevox'
 import { storage } from '../utils/storage'
 import { buildPlainText, buildHtmlText, copyToClipboard } from '../utils/template'
 import { Toast } from './Toast'
-import type { Declaration } from '../types'
+import type { Declaration, RestTemplate } from '../types'
 import { useBottomSheet } from '../hooks/useBottomSheet'
 
 export function StampOverlay({ declaration, onClose }: {
@@ -17,6 +17,13 @@ export function StampOverlay({ declaration, onClose }: {
   const [toast, setToast] = useState<string | null>(null)
   const { closing, handleClose, sheetRef, dragHandleProps } = useBottomSheet(onClose)
 
+  const [restTemplates] = useState<RestTemplate[]>(() => storage.loadRestTemplates())
+  const [selectedTplId, setSelectedTplId] = useState<string>(() => {
+    const last = storage.loadLastRestTplId()
+    const all = storage.loadRestTemplates()
+    return (last && all.find(t => t.id === last)) ? last : (all[0]?.id ?? '')
+  })
+
   useEffect(() => {
     const el = stampRef.current
     if (!el) return
@@ -26,14 +33,13 @@ export function StampOverlay({ declaration, onClose }: {
       playStampSound()
       speakVoicevox('vv_yasumokka')
     }, 80)
-    // アニメーション完了後にボタンを表示
     const t2 = setTimeout(() => setShowButtons(true), 800)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
   const handleCopy = async () => {
-    const saved = storage.loadTemplate()
-    const template = (saved && saved.lines.length > 0) ? saved : { lines: [], insertAfterIndex: -1 }
+    const tpl = restTemplates.find(t => t.id === selectedTplId)
+    const template = tpl ? { lines: tpl.lines, insertAfterIndex: tpl.insertAfterIndex } : { lines: [], insertAfterIndex: -1 }
     const text = buildPlainText(template, declaration)
     const html = buildHtmlText(template, declaration)
     await copyToClipboard(text, html).catch(() => {})
@@ -52,6 +58,17 @@ export function StampOverlay({ declaration, onClose }: {
           <p className="declaration-text">{declaration.text}</p>
         </div>
         <div className={`rest-btns overlay-btns${showButtons ? ' overlay-btns-visible' : ''}`}>
+          {restTemplates.length > 0 && (
+            <select
+              className="tpl-select"
+              value={selectedTplId}
+              onChange={e => { setSelectedTplId(e.target.value); storage.saveLastRestTplId(e.target.value) }}
+            >
+              {restTemplates.map(t => (
+                <option key={t.id} value={t.id}>{t.title}</option>
+              ))}
+            </select>
+          )}
           <button className="btn-primary wide" onClick={handleCopy}>
             コピーしてnoteへ ↗
           </button>

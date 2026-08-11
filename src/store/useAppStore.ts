@@ -10,6 +10,7 @@ interface AppStore {
   choice: ChoiceType | null
   declaration: Declaration | null
   editingUserTemplateId: string | null  // null = 新規作成
+  editingRestTemplateId: string | null  // null = 新規作成
 
   // Actions
   init: () => void
@@ -20,6 +21,7 @@ interface AppStore {
   setChoice: (type: ChoiceType) => void
   setDeclaration: (d: Declaration) => void
   setEditingUserTemplateId: (id: string | null) => void
+  setEditingRestTemplateId: (id: string | null) => void
 
   // Selectors
   todayLog: () => LogEntry | undefined
@@ -32,6 +34,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   choice: null,
   declaration: null,
   editingUserTemplateId: null,
+  editingRestTemplateId: null,
 
   init() {
     const user = storage.loadUser()
@@ -67,6 +70,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setChoice(choice) { set({ choice }) },
   setDeclaration(declaration) { set({ declaration }) },
   setEditingUserTemplateId(id) { set({ editingUserTemplateId: id }) },
+  setEditingRestTemplateId(id) { set({ editingRestTemplateId: id }) },
 
   todayLog() { return get().logs[todayStr()] },
 }))

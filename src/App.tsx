@@ -6,6 +6,8 @@ import { Settings } from './screens/Settings'
 import { TemplateEditor } from './screens/TemplateEditor'
 import { UserTemplateList } from './screens/UserTemplateList'
 import { UserTemplateEditor } from './screens/UserTemplateEditor'
+import { RestTemplateList } from './screens/RestTemplateList'
+import { RestTemplateEditor } from './screens/RestTemplateEditor'
 import { EyecatchCreator } from './screens/EyecatchCreator'
 import { CharacterCreator } from './screens/CharacterCreator'
 import { SimpleCharacterCreator } from './screens/SimpleCharacterCreator'
@@ -25,12 +27,14 @@ const SCREENS: Record<ScreenName, JSX.Element> = {
   'template-editor':   <TemplateEditor />,
   'user-template-list':   <UserTemplateList />,
   'user-template-editor': <UserTemplateEditor />,
+  'rest-template-list':   <RestTemplateList />,
+  'rest-template-editor': <RestTemplateEditor />,
   'eyecatch-creator':     <EyecatchCreator />,
   'character-creator':        <CharacterCreator />,
   'character-creator-simple': <SimpleCharacterCreator />,
 }
 
-const SLIDE_SCREENS: ScreenName[] = ['settings', 'template-editor', 'user-template-list', 'user-template-editor', 'eyecatch-creator', 'character-creator', 'character-creator-simple']
+const SLIDE_SCREENS: ScreenName[] = ['settings', 'template-editor', 'user-template-list', 'user-template-editor', 'rest-template-list', 'rest-template-editor', 'eyecatch-creator', 'character-creator', 'character-creator-simple']
 
 export function App() {
   const screen = useAppStore(s => s.screen)

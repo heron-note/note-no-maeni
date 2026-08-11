@@ -1481,6 +1481,14 @@ html, body, #root {
 .input-error { border-color: var(--primary) !important; }
 .input-error-msg { font-size: 11px; color: var(--primary); margin-top: 2px; }
 
+/* ===== TEMPLATE SELECT DROPDOWN ===== */
+.tpl-select {
+  width: 100%; padding: 10px 12px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--text); font-size: 14px; font-family: inherit;
+  appearance: auto; cursor: pointer;
+}
+
 /* ===== WRITE OVERLAY TEMPLATE PICKER ===== */
 .write-tpl-wrap { position: relative; width: 100%; }
 .write-tpl-btn { position: relative; }

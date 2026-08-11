@@ -1,10 +1,13 @@
-import type { User, LogEntry, Template, Bookmark, UserTemplate } from '../types'
+import type { User, LogEntry, Template, Bookmark, UserTemplate, RestTemplate } from '../types'
 
 const SK = {
   user: 'nob_user',
   logs: 'nob_logs',
   template: 'nob_template',
   userTemplates: 'nob_user_templates',
+  restTemplates: 'nob_rest_templates',
+  lastRestTplId: 'nob_last_rest_tpl',
+  lastUserTplId: 'nob_last_user_tpl',
 } as const
 
 function safeLoad<T>(key: string): T | null {
@@ -28,6 +31,31 @@ export const storage = {
 
   loadUserTemplates: () => safeLoad<UserTemplate[]>(SK.userTemplates) ?? [],
   saveUserTemplates: (v: UserTemplate[]) => localStorage.setItem(SK.userTemplates, JSON.stringify(v)),
+
+  loadRestTemplates: (): RestTemplate[] => {
+    const existing = safeLoad<RestTemplate[]>(SK.restTemplates)
+    if (existing && existing.length > 0) return existing
+    // 旧フォーマット (nob_template) が存在すれば自動マイグレーション
+    const old = safeLoad<{ lines: string[]; insertAfterIndex: number }>(SK.template)
+    if (old && old.lines && old.lines.length > 0) {
+      const migrated: RestTemplate[] = [{
+        id: crypto.randomUUID(),
+        title: 'デフォルト',
+        lines: old.lines,
+        insertAfterIndex: old.insertAfterIndex ?? -1,
+      }]
+      localStorage.setItem(SK.restTemplates, JSON.stringify(migrated))
+      return migrated
+    }
+    return []
+  },
+  saveRestTemplates: (v: RestTemplate[]) => localStorage.setItem(SK.restTemplates, JSON.stringify(v)),
+
+  loadLastRestTplId: () => localStorage.getItem(SK.lastRestTplId),
+  saveLastRestTplId: (id: string) => localStorage.setItem(SK.lastRestTplId, id),
+
+  loadLastUserTplId: () => localStorage.getItem(SK.lastUserTplId),
+  saveLastUserTplId: (id: string) => localStorage.setItem(SK.lastUserTplId, id),
 
   loadSoundEnabled: () => localStorage.getItem('nob_sound') !== 'off',
   saveSoundEnabled: (v: boolean) => localStorage.setItem('nob_sound', v ? 'on' : 'off'),
