@@ -54,7 +54,7 @@ export function buildTemplateHTML(template: Template, declaration: Declaration):
 }
 
 function declBlock(declaration: Declaration): string {
-  return `\n## ${DECL_TITLE}\n\n${declaration.text}\n\n`
+  return `\n## ${DECL_TITLE}\n\n> ${declaration.text}\n\n`
 }
 
 /** テンプレート+宣言文 → クリップボード用プレーンテキスト */
