@@ -32,13 +32,10 @@ export function StampOverlay({ declaration, onClose }: {
   }, [])
 
   const handleCopy = async () => {
-    const template = storage.loadTemplate()
-    const text = (template && template.lines.length > 0)
-      ? buildPlainText(template, declaration)
-      : declaration.text
-    const html = (template && template.lines.length > 0)
-      ? buildHtmlText(template, declaration)
-      : undefined
+    const saved = storage.loadTemplate()
+    const template = (saved && saved.lines.length > 0) ? saved : { lines: [], insertAfterIndex: -1 }
+    const text = buildPlainText(template, declaration)
+    const html = buildHtmlText(template, declaration)
     await copyToClipboard(text, html).catch(() => {})
     setToast('コピーしました！')
     window.open('https://note.com/notes/new', '_blank', 'noopener,noreferrer')
