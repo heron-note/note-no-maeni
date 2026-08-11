@@ -77,7 +77,7 @@ function lineToTag(lineHtml: string): string {
   const style = align ? ` style="text-align:${align}"` : ''
   const hm = content.match(/^(#{1,6}) (.*)/)
   if (hm) return `<h${hm[1].length}${style}>${hm[2] || '&nbsp;'}</h${hm[1].length}>`
-  if (content.startsWith('> ')) return `<blockquote${style}><p>${content.slice(2)}</p></blockquote>`
+  if (content.startsWith('> ')) return `<blockquote${style}>${content.slice(2)}</blockquote>`
   return `<p${style}>${content || '&nbsp;'}</p>`
 }
 
@@ -86,7 +86,7 @@ export function buildHtmlText(template: Template, declaration: Declaration): str
   const { lines, insertAfterIndex } = template
   const decl =
     `<h2>${escHtml(DECL_TITLE)}</h2>` +
-    `<blockquote><p>${escHtml(declaration.text)}</p></blockquote>` +
+    `<blockquote>${escHtml(declaration.text)}</blockquote>` +
     `<p>&nbsp;</p>`
   const parts: string[] = []
 
