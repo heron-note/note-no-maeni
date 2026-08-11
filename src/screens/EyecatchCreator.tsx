@@ -528,7 +528,9 @@ export function EyecatchCreator() {
                 backgroundColor: item.color,
                 WebkitMaskImage: 'url(/assets/images/stamps/stamp-mask.png)',
                 maskImage: 'url(/assets/images/stamps/stamp-mask.png)',
+                WebkitMaskSize: '100% 100%',
                 maskSize: '100% 100%',
+                WebkitMaskRepeat: 'no-repeat',
                 maskRepeat: 'no-repeat',
                 cursor: 'move',
               }}
