@@ -44,7 +44,7 @@ export function StampOverlay({ declaration, onClose }: {
     const text = buildPlainText(template, declaration)
     const html = buildHtmlText(template, declaration)
     await copyToClipboard(text, html).catch(() => {})
-    setToast('コピーしました！')
+    setToast('コピーしました！貼り付け後は保存を忘れずに')
   }
 
   return (

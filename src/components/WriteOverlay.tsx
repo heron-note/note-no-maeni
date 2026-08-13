@@ -65,7 +65,8 @@ export function WriteOverlay({ reactionText, onClose }: {
     const html = buildUserTemplateHtml(t.lines)
     await copyToClipboard(text, html).catch(() => {})
     triggerStarBurst(e.clientX, e.clientY)
-    setTimeout(() => handleDone(), 600)
+    setToast('コピーしました！貼り付け後は保存を忘れずに')
+    setTimeout(() => handleDone(), 1800)
   }
 
   return (
