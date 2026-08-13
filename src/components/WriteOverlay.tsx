@@ -65,8 +65,7 @@ export function WriteOverlay({ reactionText, onClose }: {
     const html = buildUserTemplateHtml(t.lines)
     await copyToClipboard(text, html).catch(() => {})
     triggerStarBurst(e.clientX, e.clientY)
-    setToast('コピーしました！貼り付け後は保存を忘れずに')
-    setTimeout(() => handleDone(), 1800)
+    setTimeout(() => handleDone(), 600)
   }
 
   return (
@@ -113,6 +112,7 @@ export function WriteOverlay({ reactionText, onClose }: {
                 </svg>
                 テンプレートで書く
               </button>
+              <p className="save-hint">貼り付け後は保存を忘れずに</p>
             </>
           )}
 

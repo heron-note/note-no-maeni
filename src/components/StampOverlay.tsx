@@ -44,7 +44,7 @@ export function StampOverlay({ declaration, onClose }: {
     const text = buildPlainText(template, declaration)
     const html = buildHtmlText(template, declaration)
     await copyToClipboard(text, html).catch(() => {})
-    setToast('コピーしました！貼り付け後は保存を忘れずに')
+    setToast('コピーしました！')
   }
 
   return (
@@ -72,6 +72,7 @@ export function StampOverlay({ declaration, onClose }: {
           <button className="btn-primary wide" onClick={handleCopy}>
             コピーしてnoteへ ↗
           </button>
+          <p className="save-hint">貼り付け後は保存を忘れずに</p>
           <button className="btn-secondary wide" onClick={handleClose}>
             閉じる
           </button>
