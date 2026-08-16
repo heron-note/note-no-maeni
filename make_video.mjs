@@ -378,11 +378,11 @@ function ffmpeg(...args) {
 
 // Make a clip: image + audio segment (audioStart/audioDur for slicing)
 function makeClip(outPath, imgPath, audioPath, audioDur, audioStart = 0) {
-  const pad = 0.2
+  const pad = 0.25
   ffmpeg(
     '-y',
     '-loop', '1', '-t', String(audioDur + pad), '-i', imgPath,
-    '-ss', String(audioStart), '-t', String(audioDur + pad), '-i', audioPath,
+    '-ss', String(audioStart), '-t', String(audioDur), '-i', audioPath,
     '-c:v', 'libx264', '-tune', 'stillimage', '-preset', 'fast', '-crf', '23',
     '-c:a', 'aac', '-b:a', '128k',
     '-pix_fmt', 'yuv420p',
