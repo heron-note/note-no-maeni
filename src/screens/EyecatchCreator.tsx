@@ -796,6 +796,8 @@ export function EyecatchCreator() {
               </label>
             </>
           )}
+        </div>
+        <div className="eyecatch-row" style={{gap:8,marginTop:6}}>
           <button className="eyecatch-stamp-icon-btn" onClick={placeKyumouka} title="休もっかスタンプを配置" aria-label="休もっかスタンプを配置">
             <span className="eyecatch-stamp-mini" style={{backgroundColor:DEFAULT_STAMP_COLOR}}/>
           </button>
