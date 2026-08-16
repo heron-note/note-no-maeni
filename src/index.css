@@ -1192,6 +1192,30 @@ html, body, #root {
   padding: 4px;
 }
 .eyecatch-stamp-icon-btn:active { background: var(--secondary); }
+.eyecatch-stamp-icon-btn.active { background: var(--secondary); border-color: var(--primary); }
+.eyecatch-pose-picker {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0 2px;
+  width: 100%;
+}
+.eyecatch-pose-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  padding: 8px 6px 6px;
+  font-size: 11px;
+  color: var(--text-light);
+  flex: 1;
+  transition: border-color 0.12s, background 0.12s;
+}
+.eyecatch-pose-btn.active { border-color: var(--primary); background: var(--secondary); color: var(--primary); font-weight: 600; }
+.eyecatch-pose-img { width: 52px; height: 52px; object-fit: contain; }
 .eyecatch-text-inline-input {
   background: rgba(255,255,255,0.15);
   border: 2px dashed #3b82f6;

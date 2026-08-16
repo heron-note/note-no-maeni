@@ -39,7 +39,7 @@ const EMOJIS = [
 
 interface EcItem {
   id: string
-  type: 'emoji' | 'kyumouka' | 'text'
+  type: 'emoji' | 'kyumouka' | 'text' | 'chara'
   emoji: string
   text: string
   x: number
@@ -48,6 +48,8 @@ interface EcItem {
   rotation: number
   color: string
   bold: boolean
+  charaKey?: string
+  pose?: 'normal' | 'write' | 'rest'
 }
 
 interface DragState {
@@ -97,10 +99,18 @@ function drawStampWithMask(ctx: CanvasRenderingContext2D, maskImg: HTMLImageElem
   ctx.drawImage(off, -w/2, -h/2)
 }
 
+function charImgSrc(charKey: string, pose: string): string {
+  if (charKey === 'custom') {
+    return localStorage.getItem(`nob_custom_img_${pose}`) ?? ''
+  }
+  return `${import.meta.env.BASE_URL}assets/images/characters/${charKey}/${pose}.png`
+}
+
 function renderCanvas(
   canvas: HTMLCanvasElement,
   bgColor: string, borderPad: number | null, borderWidth: number, borderColor: string,
   items: EcItem[], stampImg: HTMLImageElement | null,
+  charaImgCache: Map<string, HTMLImageElement>,
 ) {
   const ctx = canvas.getContext('2d'); if (!ctx) return
   ctx.clearRect(0, 0, CW, CH)
@@ -115,6 +125,15 @@ function renderCanvas(
     if (item.type === 'kyumouka') {
       if (stampImg && stampImg.complete && stampImg.naturalWidth > 0)
         drawStampWithMask(ctx, stampImg, item.color, item.size)
+    } else if (item.type === 'chara') {
+      const k = `${item.charaKey}_${item.pose}`
+      const img = charaImgCache.get(k)
+      if (img && img.complete && img.naturalWidth > 0) {
+        const aspect = img.naturalHeight / img.naturalWidth
+        const w = item.size
+        const h = w * aspect
+        ctx.drawImage(img, -w/2, -h/2, w, h)
+      }
     } else if (item.type === 'text') {
       if (item.text) {
         ctx.fillStyle = item.color
@@ -227,7 +246,10 @@ function HistoryPanel({ history, onLoad, onClose }: {
 
 export function EyecatchCreator() {
   const goTo = useAppStore(s => s.goTo)
+  const user = useAppStore(s => s.user)
   const { closing, handleBack } = useSlideBack(() => goTo('home'))
+
+  const charKey = user?.character ?? 'kuma'
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -236,13 +258,17 @@ export function EyecatchCreator() {
   const itemsRef = useRef<EcItem[]>([])
   const selectedIdRef = useRef<string | null>(null)
   const pendingEmojiRef = useRef<string | null>(null)
+  const pendingCharaRef = useRef<'normal' | 'write' | 'rest' | null>(null)
+  const charKeyRef = useRef(charKey)
   const textModeRef = useRef(false)
   const modeRef = useRef<'stamp' | 'edit'>('stamp')
   const editingIdRef = useRef<string | null>(null)
   const editingIdRef2 = useRef<string | null>(null)
   const stampImgRef = useRef<HTMLImageElement | null>(null)
+  const charaImgCacheRef = useRef<Map<string, HTMLImageElement>>(new Map())
   const editInputRef = useRef<HTMLInputElement>(null)
   const editTextRef = useRef('')
+  const lastTapRef = useRef<{ id: string; time: number } | null>(null)
 
   const [scale, setScale] = useState(1)
   const [bgColor, setBgColor] = useState('#ffffff')
@@ -252,6 +278,8 @@ export function EyecatchCreator() {
   const [items, setItems] = useState<EcItem[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pendingEmoji, setPendingEmoji] = useState<string | null>(null)
+  const [pendingChara, setPendingChara] = useState<'normal' | 'write' | 'rest' | null>(null)
+  const [showPosePicker, setShowPosePicker] = useState(false)
   const [textMode, setTextMode] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [history, setHistory] = useState<HistoryEntry[]>(loadHistory)
@@ -264,11 +292,24 @@ export function EyecatchCreator() {
   itemsRef.current = items
   selectedIdRef.current = selectedId
   pendingEmojiRef.current = pendingEmoji
+  pendingCharaRef.current = pendingChara
+  charKeyRef.current = charKey
   textModeRef.current = textMode
   modeRef.current = mode
   editingIdRef.current = editingId
   editingIdRef2.current = editingId
   editTextRef.current = editText
+
+  const ensureCharaImg = (key: string, pose: string): HTMLImageElement => {
+    const k = `${key}_${pose}`
+    const cache = charaImgCacheRef.current
+    if (!cache.has(k)) {
+      const img = new Image()
+      img.src = charImgSrc(key, pose)
+      cache.set(k, img)
+    }
+    return cache.get(k)!
+  }
 
   useEffect(() => {
     const img = new Image()
@@ -323,7 +364,11 @@ export function EyecatchCreator() {
   const switchMode = (m: 'stamp' | 'edit') => {
     confirmEditStable()
     if (m === 'stamp') { setSelectedId(null); selectedIdRef.current = null }
-    else { setPendingEmoji(null); setTextMode(false) }
+    else {
+      setPendingEmoji(null); setTextMode(false)
+      setPendingChara(null); pendingCharaRef.current = null
+      setShowPosePicker(false)
+    }
     setMode(m); modeRef.current = m
   }
 
@@ -362,9 +407,30 @@ export function EyecatchCreator() {
   }
   const onDragUp = () => { dragRef.current = null }
 
+  const bringToFront = (id: string) => {
+    setItems(prev => {
+      const idx = prev.findIndex(it => it.id === id)
+      if (idx < 0 || idx === prev.length - 1) return prev
+      const next = [...prev]
+      const [item] = next.splice(idx, 1)
+      return [...next, item]
+    })
+  }
+
   const onItemDown = (e: React.PointerEvent, item: EcItem) => {
     e.stopPropagation()
     if (modeRef.current !== 'edit') return
+
+    // Double-tap to bring to front
+    const now = Date.now()
+    const last = lastTapRef.current
+    if (last && last.id === item.id && now - last.time < 300) {
+      lastTapRef.current = null
+      bringToFront(item.id)
+      return
+    }
+    lastTapRef.current = { id: item.id, time: now }
+
     if (editingIdRef.current && editingIdRef.current !== item.id) confirmEditStable()
     setSelectedId(item.id); selectedIdRef.current = item.id
     if (item.type === 'text') {
@@ -390,6 +456,11 @@ export function EyecatchCreator() {
     const cy = (e.clientY - rect.top) / sc
     if (pendingEmojiRef.current !== null) {
       setItems(prev => [...prev, { id:nid(), type:'emoji', emoji:pendingEmojiRef.current!, text:'', x:cx, y:cy, size:120, rotation:0, color:'#000', bold:false }])
+    } else if (pendingCharaRef.current !== null) {
+      const pose = pendingCharaRef.current
+      const key = charKeyRef.current
+      ensureCharaImg(key, pose)
+      setItems(prev => [...prev, { id:nid(), type:'chara', emoji:'', text:'', x:cx, y:cy, size:300, rotation:0, color:'#000', bold:false, charaKey:key, pose }])
     } else if (textModeRef.current) {
       const id = nid()
       setItems(prev => [...prev, { id, type:'text', emoji:'', text:'', x:cx, y:cy, size:DEFAULT_TEXT_SIZE, rotation:0, color:DEFAULT_TEXT_COLOR, bold:false }])
@@ -414,6 +485,8 @@ export function EyecatchCreator() {
   const clear = () => {
     setItems([]); setSelectedId(null); selectedIdRef.current = null
     setPendingEmoji(null); setTextMode(false)
+    setPendingChara(null); pendingCharaRef.current = null
+    setShowPosePicker(false)
     setEditingId(null); editingIdRef.current = null; editingIdRef2.current = null
     setEditText(''); editTextRef.current = ''
   }
@@ -426,7 +499,7 @@ export function EyecatchCreator() {
     setSelectedId(null)
     setTimeout(() => {
       // Composite all layers to canvas for download
-      renderCanvas(canvas, bgColor, borderPad, borderWidth, borderColor, snapshot, stampImgRef.current)
+      renderCanvas(canvas, bgColor, borderPad, borderWidth, borderColor, snapshot, stampImgRef.current, charaImgCacheRef.current)
       const dataUrl = canvas.toDataURL('image/png')
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
       if (isIOS) {
@@ -471,7 +544,7 @@ export function EyecatchCreator() {
     setItems(prev => prev.map(it => it.id === selectedId ? {...it, ...patch} : it))
 
   const selItem = items.find(it => it.id === selectedId)
-  const isPlacing = mode === 'stamp' && (pendingEmoji !== null || textMode)
+  const isPlacing = mode === 'stamp' && (pendingEmoji !== null || textMode || pendingChara !== null)
 
   // SVG handles for the selected item — shown whenever selected in edit mode
   let svgHandles: React.ReactNode = null
@@ -584,6 +657,19 @@ export function EyecatchCreator() {
             )
           }
 
+          if (item.type === 'chara') {
+            const src = charImgSrc(item.charaKey ?? 'kuma', item.pose ?? 'normal')
+            return (
+              <img key={item.id}
+                src={src}
+                style={{ ...baseStyle, width: item.size * scale, height: 'auto', cursor: 'move', display: 'block' }}
+                draggable={false}
+                onPointerDown={e=>onItemDown(e,item)} onPointerMove={onDragMove}
+                onPointerUp={onDragUp} onPointerCancel={onDragUp}
+              />
+            )
+          }
+
           if (item.type === 'text') {
             if (isEditing) {
               return (
@@ -676,7 +762,10 @@ export function EyecatchCreator() {
 
       {/* Canvas settings */}
       <div className="eyecatch-section">
-        <p className="eyecatch-section-title">キャンバス設定</p>
+        <p className="eyecatch-section-title">
+          キャンバス設定
+          {pendingChara && <span className="eyecatch-placing-hint"> — 相棒スタンプ選択中・キャンバスをタップして配置</span>}
+        </p>
         <div className="eyecatch-row" style={{flexWrap:'wrap',gap:10}}>
           <label className="eyecatch-color-lbl">
             <span className="eyecatch-color-dot" style={{background:bgColor}}/>
@@ -714,11 +803,50 @@ export function EyecatchCreator() {
             className={`eyecatch-mode-btn${textMode?' active':''}`}
             onClick={()=>{
               const next=!textMode; setTextMode(next); setPendingEmoji(null)
+              setPendingChara(null); pendingCharaRef.current=null; setShowPosePicker(false)
               if(next&&mode==='edit')switchMode('stamp')
             }}
             title="テキストを配置"
           >T</button>
+          <button
+            className={`eyecatch-stamp-icon-btn${pendingChara!==null||showPosePicker?' active':''}`}
+            onClick={()=>{
+              setShowPosePicker(prev=>!prev)
+              setPendingEmoji(null); setTextMode(false)
+              if(mode==='edit')switchMode('stamp')
+            }}
+            title="相棒スタンプを配置"
+            aria-label="相棒スタンプを配置"
+          >
+            <img src={charImgSrc(charKey,'normal')} style={{width:26,height:26,objectFit:'contain'}} alt=""/>
+          </button>
         </div>
+        {showPosePicker && (
+          <div className="eyecatch-pose-picker">
+            {(['normal','write','rest'] as const).map(pose=>{
+              const labels={normal:'ふつう',write:'かく',rest:'やすむ'}
+              return (
+                <button
+                  key={pose}
+                  className={`eyecatch-pose-btn${pendingChara===pose?' active':''}`}
+                  onClick={()=>{
+                    const wasActive=pendingChara===pose
+                    setPendingChara(wasActive?null:pose)
+                    pendingCharaRef.current=wasActive?null:pose
+                    setShowPosePicker(false)
+                    if(!wasActive){
+                      setPendingEmoji(null); setTextMode(false)
+                      if(mode==='edit')switchMode('stamp')
+                    }
+                  }}
+                >
+                  <img src={charImgSrc(charKey,pose)} className="eyecatch-pose-img" alt={pose}/>
+                  <span>{labels[pose]}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Emoji picker */}
@@ -733,6 +861,7 @@ export function EyecatchCreator() {
               onClick={()=>{
                 setPendingEmoji(prev=>prev===em?null:em)
                 setTextMode(false)
+                setPendingChara(null); pendingCharaRef.current=null; setShowPosePicker(false)
                 if(mode==='edit')switchMode('stamp')
               }}>
               {em}
