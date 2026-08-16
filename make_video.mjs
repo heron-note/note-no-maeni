@@ -88,8 +88,8 @@ const SCENES = [
   },
   {
     key: 'scene09',
-    text: 'せっていでは、なまえやあいぼうキャラクターをへんこうできます。すきながぞうをあいぼうにする、クリエイトきのうもあります。データのエクスポート・インポートにもたいおうしているので、きしゅへんこうのときもあんしんです。',
-    imgs: ['scene09_settings.png'],
+    text: 'せっていでは、なまえやあいぼうキャラクターをへんこうできます。あいぼうクリエイトでは、すきながぞうをつかって、つうじょう・かく・やすむの3ポーズのマイキャラをつくれます。AIあいぼうクリエイトでは、AIでがぞうをせいせいして、マイキャラにすることもできます。データのエクスポート・インポートにもたいおうしているので、きしゅへんこうのときもあんしんです。',
+    imgs: ['scene09a_settings.png', 'scene09b_chara_create.png', 'scene09c_ai_chara.png'],
   },
   {
     key: 'scene10',
@@ -337,13 +337,27 @@ async function captureScreenshots() {
     await page.close()
   }
 
-  // scene09: 設定
+  // scene09: 設定 → 相棒クリエイト → AI相棒クリエイト
   {
     const page = await setupPage(browser)
     await page.click('button[aria-label="設定"]')
     await page.waitForSelector('.subscreen-title', { timeout: 5000 })
     await page.waitForTimeout(600)
-    await shot(page, 'scene09_settings.png')
+    await shot(page, 'scene09a_settings.png')
+
+    // 相棒クリエイト
+    await page.click('button.btn-secondary:has-text("相棒クリエイト")')
+    await page.waitForSelector('.subscreen-title', { timeout: 5000 })
+    await page.waitForTimeout(600)
+    await shot(page, 'scene09b_chara_create.png')
+
+    // 戻って AI相棒クリエイト
+    await page.click('button.back-btn')
+    await page.waitForTimeout(500)
+    await page.click('button.btn-secondary:has-text("AI相棒クリエイト")')
+    await page.waitForSelector('.subscreen-title', { timeout: 5000 })
+    await page.waitForTimeout(600)
+    await shot(page, 'scene09c_ai_chara.png')
     await page.close()
   }
 
