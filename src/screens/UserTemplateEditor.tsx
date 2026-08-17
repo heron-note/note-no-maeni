@@ -210,8 +210,11 @@ export function UserTemplateEditor() {
     const text = e.clipboardData.getData('text/plain')
     const src = html || `<div>${text.split(/\r?\n/).map(l => `<div>${l || '<br>'}</div>`).join('')}</div>`
     const parsed = htmlToLines(src)
-    setLines(parsed)
-    if (editorRef.current) editorRef.current.innerHTML = linesToHtml(parsed)
+    document.execCommand('insertHTML', false, linesToHtml(parsed))
+    setTimeout(() => {
+      if (!editorRef.current) return
+      setLines(htmlToLines(editorRef.current.innerHTML))
+    }, 0)
   }, [])
 
   const refreshLines = useCallback(() => {

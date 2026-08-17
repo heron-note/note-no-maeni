@@ -215,8 +215,11 @@ export function TemplateEditor() {
     setShowHtmlHint(!html)
     const src = html || `<div>${text.split(/\r?\n/).map(l => `<div>${l || '<br>'}</div>`).join('')}</div>`
     const parsed = htmlToLines(src)
-    setLines(parsed)
-    if (editorRef.current) editorRef.current.innerHTML = linesToHtml(parsed)
+    document.execCommand('insertHTML', false, linesToHtml(parsed))
+    setTimeout(() => {
+      if (!editorRef.current) return
+      setLines(htmlToLines(editorRef.current.innerHTML))
+    }, 0)
   }, [])
 
   // contenteditable の現在の内容を解析して lines を更新
