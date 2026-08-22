@@ -68,7 +68,6 @@ export function ArticleStorcker() {
     const nounQueueSet = new Set<string>()
     let queueProcessing = false
     let queueRetryTimer: ReturnType<typeof setTimeout> | null = null
-    const SUGGEST_PAGE_SIZE = 50
     const NOUN_BROWSE_PAGE_SIZE = 60
     let nounBrowseFiltered: any[] = []
     let nounBrowseRendered = 0
