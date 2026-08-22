@@ -1713,6 +1713,7 @@ html, body, #root {
 .as-article-item { padding: 8px 10px; background: var(--surface); border-radius: 6px; cursor: pointer; border: 1px solid transparent; font-size: 0.85rem; }
 .as-article-item:hover { border-color: var(--primary); }
 .as-article-item.active { background: var(--primary); color: white; }
+.as-article-item strong { display: block; word-break: break-all; }
 .as-date { font-size: 0.72rem; opacity: 0.7; display: block; margin-bottom: 2px; }
 
 .as-noun-browse-list { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
