@@ -76,6 +76,24 @@ export async function importArticles(file: File): Promise<void> {
 
 // ─── BgImages backup ────────────────────────────────────────────────────────
 
+// ─── StampImages backup ──────────────────────────────────────────────────────
+
+export async function exportStampImages(): Promise<void> {
+  const db = await idbOpen('EcStampDB', 1, d => { if (!d.objectStoreNames.contains('ec_stamp_images')) d.createObjectStore('ec_stamp_images', { keyPath: 'id' }) })
+  const images = await idbGetAll(db, 'ec_stamp_images')
+  saveFile(JSON.stringify({ __type__: 'nob_stampimages_v1', images }, null, 2),
+    `note-app-stampimages-${new Date().toISOString().slice(0, 10)}.json`)
+}
+
+export async function importStampImages(file: File): Promise<void> {
+  const parsed = JSON.parse(await file.text())
+  if (parsed.__type__ !== 'nob_stampimages_v1' || !Array.isArray(parsed.images)) throw new Error('invalid')
+  if (!window.confirm('画像スタンプの既存データをすべて置き換えます。よろしいですか？')) throw new Error('cancelled')
+  const db = await idbOpen('EcStampDB', 1, d => { if (!d.objectStoreNames.contains('ec_stamp_images')) d.createObjectStore('ec_stamp_images', { keyPath: 'id' }) })
+  await idbClear(db, 'ec_stamp_images')
+  await idbPutAll(db, 'ec_stamp_images', parsed.images)
+}
+
 export async function exportBgImages(): Promise<void> {
   const db = await idbOpen('EcBgDB', 1, d => { if (!d.objectStoreNames.contains('ec_bg_images')) d.createObjectStore('ec_bg_images', { keyPath: 'id' }) })
   const images = await idbGetAll(db, 'ec_bg_images')

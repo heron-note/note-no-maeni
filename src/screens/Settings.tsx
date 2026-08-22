@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { Toast } from '../components/Toast'
-import { exportData, importData, exportArticles, importArticles, exportBgImages, importBgImages, downloadImage } from '../utils/transfer'
+import { exportData, importData, exportArticles, importArticles, exportBgImages, importBgImages, exportStampImages, importStampImages, downloadImage } from '../utils/transfer'
 import { storage } from '../utils/storage'
 import { useSlideBack } from '../hooks/useSlideBack'
 
@@ -24,6 +24,7 @@ export function Settings() {
   const importRef = useRef<HTMLInputElement>(null)
   const importArticlesRef = useRef<HTMLInputElement>(null)
   const importBgRef = useRef<HTMLInputElement>(null)
+  const importStampRef = useRef<HTMLInputElement>(null)
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
 
   const triggerBurst = (pos: { x: number; y: number }) => {
@@ -172,6 +173,17 @@ export function Settings() {
               catch (err) { const m = err instanceof Error ? err.message : ''; if (m !== 'cancelled') setToast(m || 'ファイルが正しくありません') }
             }} />
             <button className="btn-secondary backup-btn" onClick={() => importBgRef.current?.click()}>インポート</button>
+          </div>
+          <div className="backup-row">
+            <span className="backup-label">画像スタンプ</span>
+            <button className="btn-secondary backup-btn" onClick={() => exportStampImages().catch(() => setToast('エクスポート失敗'))}>エクスポート</button>
+            <input ref={importStampRef} type="file" accept=".json" style={{ display: 'none' }} onChange={async e => {
+              const f = e.target.files?.[0]; e.target.value = ''
+              if (!f) return
+              try { await importStampImages(f); setToast('インポートしました') }
+              catch (err) { const m = err instanceof Error ? err.message : ''; if (m !== 'cancelled') setToast(m || 'ファイルが正しくありません') }
+            }} />
+            <button className="btn-secondary backup-btn" onClick={() => importStampRef.current?.click()}>インポート</button>
           </div>
         </div>
       </div>
