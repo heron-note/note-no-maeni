@@ -40,12 +40,12 @@ export function ArticleStorcker() {
     if (initedRef.current) return
     initedRef.current = true
 
-    const DB_NAME = 'NoteUniversalArchiveDB'
-    const DB_VERSION = 3
-    const STORE_ARTICLES = 'articles'
-    const STORE_NOUNS = 'nouns'
-    const STORE_ARTICLE_NOUNS = 'article_nouns'
-    const STORE_COLLECTIONS = 'collections'
+    const DB_NAME = 'NobStockerV2DB'
+    const DB_VERSION = 1
+    const STORE_ARTICLES = 'nob_stk_articles'
+    const STORE_NOUNS = 'nob_stk_nouns'
+    const STORE_ARTICLE_NOUNS = 'nob_stk_article_nouns'
+    const STORE_COLLECTIONS = 'nob_stk_collections'
 
     let db: IDBDatabase | null = null
     let allArticles: any[] = []
