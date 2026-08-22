@@ -1791,7 +1791,8 @@ html, body, #root {
 /* Collection picker */
 .as-col-picker-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 400; display: flex; align-items: center; justify-content: center; visibility: hidden; opacity: 0; pointer-events: none; transition: opacity 0.2s, visibility 0.2s; }
 .as-col-picker-overlay.open { visibility: visible; opacity: 1; pointer-events: auto; }
-.as-drag-handle-wrap { display: none; justify-content: center; padding: 10px 0 4px; touch-action: none; }
+.as-sheet-header { touch-action: none; cursor: grab; flex-shrink: 0; }
+.as-drag-handle-wrap { display: none; justify-content: center; padding: 10px 0 2px; }
 .as-drag-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); }
 .as-modal-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .as-col-picker-box { background: var(--surface); border-radius: 14px; width: 100%; max-width: 480px; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }

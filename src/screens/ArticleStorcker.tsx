@@ -1230,10 +1230,12 @@ export function ArticleStorcker() {
       {/* Mobile modal */}
       <div id="as-mobile-modal" className="as-modal-viewer">
         <div className="as-modal-content">
-          <div id="as-modal-drag-area" className="as-drag-handle-wrap"><div className="as-drag-handle" /></div>
-          <div className="as-modal-header-row">
-            <h2 id="as-modal-title" className="as-view-title" style={{ flex: 1, margin: 0 }} />
-            <button id="as-modal-close" className="icon-btn" aria-label="閉じる">✕</button>
+          <div id="as-modal-drag-area" className="as-sheet-header">
+            <div className="as-drag-handle-wrap"><div className="as-drag-handle" /></div>
+            <div className="as-modal-header-row">
+              <h2 id="as-modal-title" className="as-view-title" style={{ flex: 1, margin: 0 }} />
+              <button id="as-modal-close" className="icon-btn" aria-label="閉じる">✕</button>
+            </div>
           </div>
           <div id="as-modal-meta" className="as-view-meta" />
           <div style={{ display: 'flex', gap: 8 }}>
@@ -1248,10 +1250,12 @@ export function ArticleStorcker() {
       {/* Collection picker modal */}
       <div id="as-col-picker" className="as-col-picker-overlay">
         <div className="as-col-picker-box">
-          <div id="as-col-picker-drag-area" className="as-drag-handle-wrap"><div className="as-drag-handle" /></div>
-          <div className="as-col-picker-header">
-            <span id="as-col-picker-title" className="as-col-picker-title">コレクションに追加</span>
-            <button id="as-col-picker-close" className="icon-btn" aria-label="閉じる">✕</button>
+          <div id="as-col-picker-drag-area" className="as-sheet-header">
+            <div className="as-drag-handle-wrap"><div className="as-drag-handle" /></div>
+            <div className="as-col-picker-header">
+              <span id="as-col-picker-title" className="as-col-picker-title">コレクションに追加</span>
+              <button id="as-col-picker-close" className="icon-btn" aria-label="閉じる">✕</button>
+            </div>
           </div>
           <div id="as-col-picker-list" className="as-col-picker-list" />
           <div className="as-col-picker-new">
