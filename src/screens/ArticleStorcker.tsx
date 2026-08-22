@@ -839,6 +839,21 @@ export function ArticleStorcker() {
       if (sortBtn) sortBtn.style.display = tab === 'article' ? '' : 'none'
       if (matchCount) matchCount.style.display = tab === 'article' ? '' : 'none'
       if (tab === 'noun') renderNounBrowseList(true)
+      if (tab !== 'collection') {
+        activeCollection = null
+        document.querySelectorAll('.as-collection-item').forEach(e => e.classList.remove('active'))
+        const detail = $('as-collection-detail')
+        if (detail) detail.style.display = 'none'
+        const viewer = $('as-viewer')
+        const placeholder = $('as-viewer-placeholder')
+        if (activeArticle && viewer) {
+          viewer.style.display = 'block'
+          if (placeholder) placeholder.style.display = 'none'
+        } else {
+          if (viewer) viewer.style.display = 'none'
+          if (placeholder) (placeholder as HTMLElement).style.display = ''
+        }
+      }
     }
 
     // ─── Article viewer ────────────────────────────────────────────────────────
