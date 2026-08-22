@@ -11,7 +11,6 @@ import { RestTemplateEditor } from './screens/RestTemplateEditor'
 import { EyecatchCreator } from './screens/EyecatchCreator'
 import { CharacterCreator } from './screens/CharacterCreator'
 import { SimpleCharacterCreator } from './screens/SimpleCharacterCreator'
-import { ArticleStorcker } from './screens/ArticleStorcker'
 import { SplashScreen } from './components/SplashScreen'
 import { preloadVoicevox } from './utils/voicevox'
 import type { VoicevoxKey } from './utils/voicevox'
@@ -33,10 +32,9 @@ const SCREENS: Record<ScreenName, JSX.Element> = {
   'eyecatch-creator':     <EyecatchCreator />,
   'character-creator':        <CharacterCreator />,
   'character-creator-simple': <SimpleCharacterCreator />,
-  'article-stocker':          <ArticleStorcker />,
 }
 
-const SLIDE_SCREENS: ScreenName[] = ['settings', 'template-editor', 'user-template-list', 'user-template-editor', 'rest-template-list', 'rest-template-editor', 'eyecatch-creator', 'character-creator', 'character-creator-simple', 'article-stocker']
+const SLIDE_SCREENS: ScreenName[] = ['settings', 'template-editor', 'user-template-list', 'user-template-editor', 'rest-template-list', 'rest-template-editor', 'eyecatch-creator', 'character-creator', 'character-creator-simple']
 
 export function App() {
   const screen = useAppStore(s => s.screen)

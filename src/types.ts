@@ -10,7 +10,6 @@ export type ScreenName =
   | 'rest-template-list'
   | 'rest-template-editor'
   | 'eyecatch-creator'
-  | 'article-stocker'
 
 export type ChoiceType = 'write' | 'rest'
 
