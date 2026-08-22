@@ -1710,7 +1710,7 @@ html, body, #root {
 .as-noun-filter-clear { background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; color: var(--text); }
 
 .as-article-list { display: flex; flex-direction: column; gap: 4px; flex: 1; overflow-y: auto; min-height: 0; min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 4px; background: var(--bg); }
-.as-article-item { padding: 8px 10px; background: var(--surface); border-radius: 6px; cursor: pointer; border: 1px solid transparent; font-size: 0.85rem; min-width: 0; overflow: hidden; }
+.as-article-item { padding: 8px 10px; background: var(--surface); border-radius: 6px; cursor: pointer; border: 1px solid transparent; font-size: 0.85rem; min-width: 0; }
 .as-article-item:hover { border-color: var(--primary); }
 .as-article-item.active { background: var(--primary); color: white; }
 .as-article-item strong { display: block; word-break: break-all; }
