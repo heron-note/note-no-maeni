@@ -689,6 +689,8 @@ export function ArticleStorcker() {
 
       const matchCount = $('as-match-count')
       if (matchCount) matchCount.textContent = `該当: ${currentFiltered.length}件` + (nounInput ? ` (名詞: ${nounInput})` : '')
+      const bulkBtn = $('as-bulk-add-col') as HTMLElement | null
+      if (bulkBtn) bulkBtn.style.display = currentFiltered.length > 0 ? '' : 'none'
       updateSearchToggleLabel()
       updateNounFilterBar()
 
@@ -960,6 +962,14 @@ export function ArticleStorcker() {
         setStatus(`${allArticles.length}件を形態素解析キューに追加しました`)
       })
 
+      $('as-delete-db')?.addEventListener('click', async () => {
+        if (!confirm('DBを完全に削除します。すべてのデータが消えます。よろしいですか？')) return
+        if (db) { db.close() }
+        const req = indexedDB.deleteDatabase('NobStockerV2DB')
+        req.onsuccess = () => { alert('DB削除完了。リロードします。'); location.reload() }
+        req.onerror = () => alert('DB削除失敗: ' + req.error)
+      })
+
       // Copy buttons
       const handleCopy = () => {
         if (!activeArticle) return
@@ -977,7 +987,7 @@ export function ArticleStorcker() {
       $('as-modal-close')?.addEventListener('click', () => $('as-mobile-modal')?.classList.remove('open'))
       $('as-modal-add-to-collection')?.addEventListener('click', () => {
         $('as-mobile-modal')?.classList.remove('open')
-        setTimeout(openColPicker, 50)
+        setTimeout(() => { if (activeArticle) openColPicker([activeArticle]) }, 50)
       })
       $('as-mobile-modal')?.addEventListener('click', (e) => { if (e.target === $('as-mobile-modal')) $('as-mobile-modal')?.classList.remove('open') })
 
@@ -994,26 +1004,34 @@ export function ArticleStorcker() {
       })
 
       // Collection picker
-      const openColPicker = () => {
-        if (!activeArticle) return
+      let pickerArticles: any[] = []
+
+      const openColPicker = (articles: any[]) => {
+        if (!articles.length) return
+        pickerArticles = articles
+        const isBulk = articles.length > 1
         const listEl = $('as-col-picker-list')
+        const titleEl = $('as-col-picker-title')
         if (!listEl) return
+        if (titleEl) titleEl.textContent = isBulk ? `${articles.length}件をコレクションに追加` : 'コレクションに追加'
         listEl.innerHTML = ''
         if (allCollections.length === 0) {
           listEl.innerHTML = '<div class="as-col-picker-empty">コレクションがまだありません</div>'
         } else {
           const sorted = [...allCollections].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
           sorted.forEach(col => {
-            const alreadyIn = col.articlePostIds.includes(activeArticle.postId)
+            const newIds = articles.map(a => a.postId).filter(id => !col.articlePostIds.includes(id))
+            const allAlreadyIn = newIds.length === 0
             const item = document.createElement('button')
-            item.className = 'as-col-picker-item' + (alreadyIn ? ' as-col-picker-item--added' : '')
-            item.disabled = alreadyIn
-            item.innerHTML = `<span class="as-col-picker-item-title">${col.title}</span><span class="as-col-picker-item-count">${col.articlePostIds.length}件${alreadyIn ? ' ✓' : ''}</span>`
+            item.className = 'as-col-picker-item' + (allAlreadyIn ? ' as-col-picker-item--added' : '')
+            item.disabled = allAlreadyIn
+            const countLabel = isBulk && !allAlreadyIn ? `+${newIds.length}件` : `${col.articlePostIds.length}件${allAlreadyIn ? ' ✓' : ''}`
+            item.innerHTML = `<span class="as-col-picker-item-title">${col.title}</span><span class="as-col-picker-item-count">${countLabel}</span>`
             item.addEventListener('click', async () => {
-              const updated = { ...col, articlePostIds: [...col.articlePostIds, activeArticle.postId] }
+              const updated = { ...col, articlePostIds: [...col.articlePostIds, ...newIds] }
               await saveCollection(updated)
               if (activeCollection?.id === updated.id) { activeCollection = updated; showCollectionDetail(updated) }
-              setStatus(`「${col.title}」に追加しました`, 'ok')
+              setStatus(`「${col.title}」に${newIds.length}件追加しました`, 'ok')
               $('as-col-picker')?.classList.remove('open')
             })
             listEl.appendChild(item)
@@ -1025,19 +1043,24 @@ export function ArticleStorcker() {
       }
 
       // "Add to collection" button in article viewer
-      $('as-add-to-collection')?.addEventListener('click', openColPicker)
+      $('as-add-to-collection')?.addEventListener('click', () => { if (activeArticle) openColPicker([activeArticle]) })
 
       $('as-col-picker-close')?.addEventListener('click', () => $('as-col-picker')?.classList.remove('open'))
       $('as-col-picker')?.addEventListener('click', (e) => { if (e.target === $('as-col-picker')) $('as-col-picker')?.classList.remove('open') })
       $('as-col-picker-create')?.addEventListener('click', async () => {
-        if (!activeArticle) return
+        if (!pickerArticles.length) return
         const input = $('as-col-picker-input') as HTMLInputElement | null
         const title = input?.value?.trim()
         if (!title) { input?.focus(); return }
-        const col: Collection = { id: crypto.randomUUID(), title, articlePostIds: [activeArticle.postId], memo: '', createdAt: new Date().toISOString() }
+        const col: Collection = { id: crypto.randomUUID(), title, articlePostIds: pickerArticles.map(a => a.postId), memo: '', createdAt: new Date().toISOString() }
         await saveCollection(col)
-        setStatus(`「${col.title}」を作成して追加しました`, 'ok')
+        setStatus(`「${col.title}」を作成して${pickerArticles.length}件追加しました`, 'ok')
         $('as-col-picker')?.classList.remove('open')
+      })
+
+      // 一括追加ボタン
+      $('as-bulk-add-col')?.addEventListener('click', () => {
+        if (currentFiltered.length > 0) openColPicker(currentFiltered)
       })
 
       // Collection detail actions
@@ -1106,6 +1129,7 @@ export function ArticleStorcker() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                 <span id="as-status" className="as-status" style={{ flex: 1 }}>DB接続中...</span>
                 <button id="as-reindex-nouns" className="as-clear-db-btn" style={{ background: 'var(--primary)', color: '#fff', flexShrink: 0 }}>名詞再解析</button>
+                <button id="as-delete-db" className="as-clear-db-btn" style={{ background: '#e53', color: '#fff', flexShrink: 0 }}>DB削除</button>
               </div>
             </div>
             <button id="as-search-toggle" className="as-search-toggle">検索条件を開く</button>
@@ -1140,6 +1164,7 @@ export function ArticleStorcker() {
               <button id="as-tab-collection" className="as-list-tab">コレクション</button>
             </div>
             <span id="as-match-count" className="as-match-count">該当: 0件</span>
+            <button id="as-bulk-add-col" className="as-bulk-add-btn" style={{ display: 'none' }}>一括追加</button>
             <button id="as-sort-toggle" className="as-sort-toggle">新しい順</button>
           </div>
 

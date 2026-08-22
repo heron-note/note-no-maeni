@@ -59,6 +59,7 @@ function isValidNoun(token) {
   if (token.pos_detail_1 === "数") return false;
   const w = token.surface_form;
   if (!w || STOP_NOUNS.has(w)) return false;
+  if (!/[\p{L}\p{N}]/u.test(w)) return false;  // 記号・括弧のみのトークンを除外
   if (isUrlLikeToken(w)) return false;
   if (/^[a-zA-Z0-9][a-zA-Z0-9+.#-]*$/.test(w)) return w.length >= 1;
   return w.length >= 2;

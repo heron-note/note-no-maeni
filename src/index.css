@@ -1800,3 +1800,4 @@ html, body, #root {
 .as-col-picker-item-title { font-weight: 600; font-size: 0.9rem; flex: 1; word-break: break-all; }
 .as-col-picker-item-count { font-size: 0.75rem; color: var(--text-light); white-space: nowrap; flex-shrink: 0; }
 .as-col-picker-new { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
+.as-bulk-add-btn { padding: 6px 14px; background: var(--primary); color: #fff; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
