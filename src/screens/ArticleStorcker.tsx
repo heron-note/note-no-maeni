@@ -932,6 +932,14 @@ export function ArticleStorcker() {
       })
       $('as-date-start')?.addEventListener('input', handleDateInput)
       $('as-date-end')?.addEventListener('input', handleDateInput)
+      $('as-search-exec')?.addEventListener('click', () => { (document.activeElement as HTMLElement)?.blur(); renderList() })
+      $('as-search-clear')?.addEventListener('click', () => {
+        ($('as-search-query') as HTMLInputElement).value = ''
+        ;($('as-search-noun') as HTMLInputElement).value = ''
+        ;($('as-date-start') as HTMLInputElement).value = ''
+        ;($('as-date-end') as HTMLInputElement).value = ''
+        renderList()
+      })
       $('as-sort-toggle')?.addEventListener('click', () => {
         currentSortOrder = currentSortOrder === 'desc' ? 'asc' : 'desc'
         const btn = $('as-sort-toggle')
@@ -1151,6 +1159,10 @@ export function ArticleStorcker() {
                     <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-light)' }}>─</div>
                     <input id="as-date-end" type="text" className="as-input" inputMode="numeric" placeholder="YYYY-MM-DD" autoComplete="off" />
                   </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                  <button id="as-search-exec" className="as-clear-db-btn" style={{ flex: 1, background: 'var(--primary)', color: '#fff' }}>絞り込む</button>
+                  <button id="as-search-clear" className="as-clear-db-btn" style={{ flex: 1 }}>クリア</button>
                 </div>
               </div>
             </div>
