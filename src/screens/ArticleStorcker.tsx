@@ -54,6 +54,7 @@ export function ArticleStorcker() {
     let nounById = new Map<number, any>()
     let nounByWord = new Map<string, any>()
     let currentFiltered: any[] = []
+    let selectedNoun = ''
     let dragDepth = 0
     let currentSortOrder = 'desc'
     let activeArticle: any = null
@@ -69,8 +70,6 @@ export function ArticleStorcker() {
     let queueRetryTimer: ReturnType<typeof setTimeout> | null = null
     const SUGGEST_PAGE_SIZE = 50
     const NOUN_BROWSE_PAGE_SIZE = 60
-    let nounSuggestFiltered: any[] = []
-    let nounSuggestRendered = 0
     let nounBrowseFiltered: any[] = []
     let nounBrowseRendered = 0
     const morphState = {
@@ -656,7 +655,7 @@ export function ArticleStorcker() {
       renderList()
     }
 
-    function getSearchNounInput() { return ($('as-search-noun') as HTMLInputElement)?.value?.trim() ?? '' }
+    function getSearchNounInput() { return selectedNoun }
     function getSearchQueryInput() { return ($('as-search-query') as HTMLInputElement)?.value ?? '' }
     function getDateStart() { return ($('as-date-start') as HTMLInputElement)?.value ?? '' }
     function getDateEnd() { return ($('as-date-end') as HTMLInputElement)?.value ?? '' }
@@ -778,44 +777,9 @@ export function ArticleStorcker() {
       if (nounBrowseRendered === 0 && nounBrowseFiltered.length > 0) appendNounBrowseItems()
     }
 
-    function appendNounSuggestItems() {
-      const end = Math.min(nounSuggestRendered + SUGGEST_PAGE_SIZE, nounSuggestFiltered.length)
-      const list = $('as-noun-suggest-list')
-      if (!list) return
-      for (let i = nounSuggestRendered; i < end; i++) {
-        const noun = nounSuggestFiltered[i]
-        const div = document.createElement('div')
-        div.className = 'as-suggest-item'
-        div.innerHTML = `<span>${noun.word}</span><span>${noun.articleCount}件</span>`
-        div.addEventListener('mousedown', (e) => { e.preventDefault(); applyNounFilter(noun.word) })
-        list.appendChild(div)
-      }
-      nounSuggestRendered = end
-    }
-
-    function showNounSuggestions(reset?: boolean) {
-      const list = $('as-noun-suggest-list')
-      if (!list) return
-      if (reset !== false) {
-        const q = ($('as-search-noun') as HTMLInputElement)?.value?.toLowerCase().trim() ?? ''
-        nounSuggestFiltered = allNouns.filter((n: any) => (n.articleCount || 0) > 0 && (!q || n.word.toLowerCase().includes(q)))
-        nounSuggestRendered = 0; list.innerHTML = ''
-      }
-      if (!nounSuggestFiltered.length) { list.style.display = 'none'; return }
-      if (nounSuggestRendered === 0) {
-        const header = document.createElement('div')
-        header.className = 'as-suggest-header'
-        header.textContent = `名詞 ${nounSuggestFiltered.length}件（スクロールで追加表示）`
-        list.appendChild(header)
-        appendNounSuggestItems()
-      }
-      list.style.display = 'block'
-    }
 
     function applyNounFilter(word: string) {
-      const el = $('as-search-noun') as HTMLInputElement | null
-      if (el) el.value = word
-      $('as-noun-suggest-list')!.style.display = 'none'
+      selectedNoun = word
       setListTab('article')
       renderList()
       if (window.innerWidth <= 768) {
@@ -923,13 +887,6 @@ export function ArticleStorcker() {
       })
       $('as-search-toggle')?.addEventListener('click', () => setSearchSectionOpen(!$('as-search-section')?.classList.contains('open')))
       $('as-search-query')?.addEventListener('input', renderList)
-      $('as-search-noun')?.addEventListener('focus', () => showNounSuggestions(true))
-      $('as-search-noun')?.addEventListener('input', () => { showNounSuggestions(true); renderList() })
-      $('as-search-noun')?.addEventListener('blur', () => { if ($('as-noun-suggest-list')) $('as-noun-suggest-list')!.style.display = 'none' })
-      $('as-noun-suggest-list')?.addEventListener('scroll', () => {
-        const el = $('as-noun-suggest-list')!
-        if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24 && nounSuggestRendered < nounSuggestFiltered.length) appendNounSuggestItems()
-      })
       $('as-date-start')?.addEventListener('input', handleDateInput)
       $('as-date-end')?.addEventListener('input', handleDateInput)
       $('as-sort-toggle')?.addEventListener('click', () => {
@@ -942,8 +899,7 @@ export function ArticleStorcker() {
       $('as-tab-noun')?.addEventListener('click', () => setListTab('noun'))
       $('as-tab-collection')?.addEventListener('click', () => setListTab('collection'))
       $('as-clear-noun-filter')?.addEventListener('click', () => {
-        const el = $('as-search-noun') as HTMLInputElement | null
-        if (el) el.value = ''
+        selectedNoun = ''
         renderList()
       })
       $('as-noun-browse-query')?.addEventListener('input', () => renderNounBrowseList(true))
@@ -1138,11 +1094,6 @@ export function ArticleStorcker() {
                 <div>
                   <label htmlFor="as-search-query" className="as-label">フリーワード検索</label>
                   <input id="as-search-query" type="text" className="as-input" placeholder="スペース区切りでAND検索" autoComplete="off" />
-                </div>
-                <div style={{ position: 'relative' }}>
-                  <label htmlFor="as-search-noun" className="as-label">名詞で絞り込み</label>
-                  <input id="as-search-noun" type="text" className="as-input" placeholder="タップで頻出名詞一覧を表示" autoComplete="off" />
-                  <div id="as-noun-suggest-list" className="as-suggest-list" style={{ display: 'none' }} />
                 </div>
                 <div>
                   <label className="as-label">日付期間</label>
