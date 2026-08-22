@@ -703,7 +703,7 @@ export function ArticleStorcker() {
         const item = document.createElement('div')
         item.className = 'as-article-item'
         const mark = needsNounIndexing(art) ? '<span style="font-size:0.7rem;opacity:0.6;"> [解析待ち]</span>' : ''
-        item.innerHTML = `<span class="as-date">${art.date}</span><strong>${art.title}</strong>${mark}`
+        item.innerHTML = `<span class="as-date">${art.date.split(' ')[0]}</span><span class="as-item-title">${art.title}</span>${mark}`
         item.addEventListener('click', () => {
           document.querySelectorAll('.as-article-item').forEach(el => el.classList.remove('active'))
           item.classList.add('active')
