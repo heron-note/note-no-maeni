@@ -472,7 +472,7 @@ export function ArticleStorcker() {
       sorted.forEach(col => {
         const item = document.createElement('div')
         item.className = 'as-collection-item' + (activeCollection?.id === col.id ? ' active' : '')
-        item.innerHTML = `<span class="as-col-item-title">${col.title}</span><span class="as-col-item-count">${col.articleTitles.length}件</span>`
+        item.innerHTML = `<span class="as-col-item-title">${col.title}</span><span class="as-col-item-count">${col.articlePostIds.length}件</span>`
         item.addEventListener('click', () => {
           document.querySelectorAll('.as-collection-item').forEach(e => e.classList.remove('active'))
           item.classList.add('active')
