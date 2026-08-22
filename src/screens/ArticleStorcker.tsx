@@ -108,11 +108,82 @@ export function ArticleStorcker() {
     const dbReq = indexedDB.open(DB_NAME, DB_VERSION)
     dbReq.onupgradeneeded = (e: IDBVersionChangeEvent) => {
       const idb = (e.target as IDBOpenDBRequest).result
+      const tx = (e.target as IDBOpenDBRequest).transaction!
+
       if (e.oldVersion < 2) {
-        ;[STORE_ARTICLES, STORE_NOUNS, STORE_ARTICLE_NOUNS, STORE_COLLECTIONS].forEach(s => {
-          if (idb.objectStoreNames.contains(s)) idb.deleteObjectStore(s)
-        })
+        // v1: STORE_ARTICLES keyPath='title', STORE_ARTICLE_NOUNS keyPath=['articleTitle','nounId']
+        // v2: keyPath='postId' / ['postId','nounId']
+        // v1データが存在する場合は読み出してpostIdを付与しながら移行する
+
+        const migrateV1 = () => {
+          // 旧ストアが存在する場合のみ移行
+          if (!idb.objectStoreNames.contains(STORE_ARTICLES)) return
+
+          const oldArticles: any[] = []
+          const oldLinks: any[] = []
+          const oldCollections: any[] = []
+
+          const readOldArticles = tx.objectStore(STORE_ARTICLES).getAll()
+          readOldArticles.onsuccess = () => {
+            oldArticles.push(...(readOldArticles.result as any[]))
+            const readOldLinks = idb.objectStoreNames.contains(STORE_ARTICLE_NOUNS)
+              ? tx.objectStore(STORE_ARTICLE_NOUNS).getAll()
+              : null
+            const afterLinks = (links: any[]) => {
+              oldLinks.push(...links)
+              const readOldCols = idb.objectStoreNames.contains(STORE_COLLECTIONS)
+                ? tx.objectStore(STORE_COLLECTIONS).getAll()
+                : null
+              const afterCols = (cols: any[]) => {
+                oldCollections.push(...cols)
+                // 旧ストアを削除して新ストアを作成
+                ;[STORE_ARTICLES, STORE_ARTICLE_NOUNS].forEach(s => {
+                  if (idb.objectStoreNames.contains(s)) idb.deleteObjectStore(s)
+                })
+                const newArticles = idb.createObjectStore(STORE_ARTICLES, { keyPath: 'postId' })
+                const newLinks = idb.createObjectStore(STORE_ARTICLE_NOUNS, { keyPath: ['postId', 'nounId'] })
+                newLinks.createIndex('nounId', 'nounId', { unique: false })
+                newLinks.createIndex('postId', 'postId', { unique: false })
+
+                // v1記事をpostId付きで書き直す（postIdはtitleから生成）
+                const titleToPostId = new Map<string, string>()
+                oldArticles.forEach(art => {
+                  const postId = 'legacy_' + art.title
+                  titleToPostId.set(art.title, postId)
+                  newArticles.put({ ...art, postId })
+                })
+                // リンクを移行
+                oldLinks.forEach(link => {
+                  const postId = titleToPostId.get(link.articleTitle)
+                  if (postId) newLinks.put({ postId, nounId: link.nounId })
+                })
+                // コレクションのarticleTitles → articlePostIds
+                if (idb.objectStoreNames.contains(STORE_COLLECTIONS)) {
+                  const colStore = tx.objectStore(STORE_COLLECTIONS)
+                  oldCollections.forEach(col => {
+                    const articlePostIds = (col.articleTitles as string[] ?? [])
+                      .map((t: string) => titleToPostId.get(t) ?? 'legacy_' + t)
+                    colStore.put({ ...col, articlePostIds, articleTitles: undefined })
+                  })
+                }
+              }
+              if (readOldCols) {
+                readOldCols.onsuccess = () => afterCols(readOldCols.result as any[])
+              } else {
+                afterCols([])
+              }
+            }
+            if (readOldLinks) {
+              readOldLinks.onsuccess = () => afterLinks(readOldLinks.result as any[])
+            } else {
+              afterLinks([])
+            }
+          }
+        }
+
+        migrateV1()
       }
+
       if (!idb.objectStoreNames.contains(STORE_ARTICLES)) {
         idb.createObjectStore(STORE_ARTICLES, { keyPath: 'postId' })
       }
