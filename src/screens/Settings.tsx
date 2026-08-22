@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { Toast } from '../components/Toast'
-import { exportData, importData, downloadImage } from '../utils/transfer'
+import { exportData, importData, exportArticles, importArticles, exportBgImages, importBgImages, downloadImage } from '../utils/transfer'
 import { storage } from '../utils/storage'
 import { useSlideBack } from '../hooks/useSlideBack'
 
@@ -22,6 +22,8 @@ export function Settings() {
   const [geminiKey, setGeminiKey] = useState(() => storage.loadGeminiKey() ?? '')
   const [charPersonality, setCharPersonality] = useState(() => storage.loadCharPersonality())
   const importRef = useRef<HTMLInputElement>(null)
+  const importArticlesRef = useRef<HTMLInputElement>(null)
+  const importBgRef = useRef<HTMLInputElement>(null)
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
 
   const triggerBurst = (pos: { x: number; y: number }) => {
@@ -140,14 +142,38 @@ export function Settings() {
         保存する
       </button>
 
-      <div className="transfer-row">
-        <button className="btn-secondary wide" onClick={() => exportData().catch(() => {})}>
-          データをエクスポート
-        </button>
-        <input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
-        <button className="btn-secondary wide" onClick={() => importRef.current?.click()}>
-          データをインポート
-        </button>
+      <div className="settings-row">
+        <p className="label">バックアップ</p>
+        <div className="backup-group">
+          <div className="backup-row">
+            <span className="backup-label">アプリ設定</span>
+            <button className="btn-secondary backup-btn" onClick={() => exportData().catch(() => {})}>エクスポート</button>
+            <input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+            <button className="btn-secondary backup-btn" onClick={() => importRef.current?.click()}>インポート</button>
+          </div>
+          <div className="backup-row">
+            <span className="backup-label">記事ストッカー</span>
+            <button className="btn-secondary backup-btn" onClick={() => exportArticles().catch(() => setToast('エクスポート失敗'))}>エクスポート</button>
+            <input ref={importArticlesRef} type="file" accept=".json" style={{ display: 'none' }} onChange={async e => {
+              const f = e.target.files?.[0]; e.target.value = ''
+              if (!f) return
+              try { await importArticles(f); setToast('インポートしました') }
+              catch (err) { const m = err instanceof Error ? err.message : ''; if (m !== 'cancelled') setToast(m || 'ファイルが正しくありません') }
+            }} />
+            <button className="btn-secondary backup-btn" onClick={() => importArticlesRef.current?.click()}>インポート</button>
+          </div>
+          <div className="backup-row">
+            <span className="backup-label">背景画像</span>
+            <button className="btn-secondary backup-btn" onClick={() => exportBgImages().catch(() => setToast('エクスポート失敗'))}>エクスポート</button>
+            <input ref={importBgRef} type="file" accept=".json" style={{ display: 'none' }} onChange={async e => {
+              const f = e.target.files?.[0]; e.target.value = ''
+              if (!f) return
+              try { await importBgImages(f); setToast('インポートしました') }
+              catch (err) { const m = err instanceof Error ? err.message : ''; if (m !== 'cancelled') setToast(m || 'ファイルが正しくありません') }
+            }} />
+            <button className="btn-secondary backup-btn" onClick={() => importBgRef.current?.click()}>インポート</button>
+          </div>
+        </div>
       </div>
 
       <Toast message={toast} onDone={() => setToast(null)} />

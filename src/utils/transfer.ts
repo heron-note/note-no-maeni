@@ -1,5 +1,97 @@
 import { encryptText, decryptText } from './crypto'
 
+// ─── IndexedDB helpers ─────────────────────────────────────────────────────
+
+function idbOpen(name: string, version: number, upgrade: (db: IDBDatabase) => void): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(name, version)
+    req.onupgradeneeded = () => upgrade(req.result)
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+function idbGetAll(db: IDBDatabase, store: string): Promise<unknown[]> {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(store, 'readonly').objectStore(store).getAll()
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+function idbClear(db: IDBDatabase, store: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(store, 'readwrite').objectStore(store).clear()
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+  })
+}
+
+function idbPutAll(db: IDBDatabase, store: string, records: unknown[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite')
+    records.forEach(r => tx.objectStore(store).put(r))
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+// ─── Article Stocker backup ─────────────────────────────────────────────────
+
+const AS_STORES = ['nob_stk_articles', 'nob_stk_nouns', 'nob_stk_article_nouns', 'nob_stk_collections'] as const
+
+function openAsDB(): Promise<IDBDatabase> {
+  return idbOpen('NobStockerV2DB', 2, db => {
+    const keyPaths: Record<string, string | null> = {
+      nob_stk_articles: 'postId', nob_stk_nouns: 'id',
+      nob_stk_article_nouns: null, nob_stk_collections: 'id',
+    }
+    AS_STORES.forEach(s => {
+      if (!db.objectStoreNames.contains(s)) {
+        const kp = keyPaths[s]
+        db.createObjectStore(s, kp ? { keyPath: kp } : { autoIncrement: true })
+      }
+    })
+  })
+}
+
+export async function exportArticles(): Promise<void> {
+  const db = await openAsDB()
+  const data: Record<string, unknown[]> = {}
+  for (const store of AS_STORES) data[store] = await idbGetAll(db, store)
+  saveFile(JSON.stringify({ __type__: 'nob_articles_v2', data }, null, 2),
+    `note-app-articles-${new Date().toISOString().slice(0, 10)}.json`)
+}
+
+export async function importArticles(file: File): Promise<void> {
+  const parsed = JSON.parse(await file.text())
+  if (parsed.__type__ !== 'nob_articles_v2' || typeof parsed.data !== 'object') throw new Error('invalid')
+  if (!window.confirm('記事ストッカーの既存データをすべて置き換えます。よろしいですか？')) throw new Error('cancelled')
+  const db = await openAsDB()
+  for (const store of AS_STORES) {
+    await idbClear(db, store)
+    if (Array.isArray(parsed.data[store])) await idbPutAll(db, store, parsed.data[store])
+  }
+}
+
+// ─── BgImages backup ────────────────────────────────────────────────────────
+
+export async function exportBgImages(): Promise<void> {
+  const db = await idbOpen('EcBgDB', 1, d => { if (!d.objectStoreNames.contains('ec_bg_images')) d.createObjectStore('ec_bg_images', { keyPath: 'id' }) })
+  const images = await idbGetAll(db, 'ec_bg_images')
+  saveFile(JSON.stringify({ __type__: 'nob_bgimages_v1', images }, null, 2),
+    `note-app-bgimages-${new Date().toISOString().slice(0, 10)}.json`)
+}
+
+export async function importBgImages(file: File): Promise<void> {
+  const parsed = JSON.parse(await file.text())
+  if (parsed.__type__ !== 'nob_bgimages_v1' || !Array.isArray(parsed.images)) throw new Error('invalid')
+  if (!window.confirm('背景画像の既存データをすべて置き換えます。よろしいですか？')) throw new Error('cancelled')
+  const db = await idbOpen('EcBgDB', 1, d => { if (!d.objectStoreNames.contains('ec_bg_images')) d.createObjectStore('ec_bg_images', { keyPath: 'id' }) })
+  await idbClear(db, 'ec_bg_images')
+  await idbPutAll(db, 'ec_bg_images', parsed.images)
+}
+
 const ENCRYPTED_MARKER = '__enc_v1__'
 
 function collectData(): Record<string, string> {

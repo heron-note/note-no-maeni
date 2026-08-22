@@ -171,6 +171,11 @@ html, body, #root {
 .form-block    { display: flex; flex-direction: column; }
 .settings-row  { display: flex; flex-direction: column; gap: 8px; }
 .transfer-row  { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.backup-group { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.backup-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.backup-row:last-child { border-bottom: none; }
+.backup-label { flex: 1; font-size: 0.9rem; color: var(--text); }
+.backup-btn { flex-shrink: 0; font-size: 0.8rem; padding: 5px 12px; }
 
 /* ===== CHAR GRID ===== */
 .char-grid { display: flex; flex-direction: row; gap: 12px; overflow-x: auto; width: 100%; padding-bottom: 4px; }
