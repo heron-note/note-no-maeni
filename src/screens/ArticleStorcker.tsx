@@ -21,7 +21,7 @@ function htmlToText(value: string): string {
 interface Collection {
   id: string
   title: string
-  articleTitles: string[]
+  articlePostIds: string[]
   memo: string
   createdAt: string
 }
@@ -41,7 +41,7 @@ export function ArticleStorcker() {
     initedRef.current = true
 
     const DB_NAME = 'NobStockerV2DB'
-    const DB_VERSION = 1
+    const DB_VERSION = 2
     const STORE_ARTICLES = 'nob_stk_articles'
     const STORE_NOUNS = 'nob_stk_nouns'
     const STORE_ARTICLE_NOUNS = 'nob_stk_article_nouns'
@@ -108,17 +108,22 @@ export function ArticleStorcker() {
     const dbReq = indexedDB.open(DB_NAME, DB_VERSION)
     dbReq.onupgradeneeded = (e: IDBVersionChangeEvent) => {
       const idb = (e.target as IDBOpenDBRequest).result
+      if (e.oldVersion < 2) {
+        ;[STORE_ARTICLES, STORE_NOUNS, STORE_ARTICLE_NOUNS, STORE_COLLECTIONS].forEach(s => {
+          if (idb.objectStoreNames.contains(s)) idb.deleteObjectStore(s)
+        })
+      }
       if (!idb.objectStoreNames.contains(STORE_ARTICLES)) {
-        idb.createObjectStore(STORE_ARTICLES, { keyPath: 'title' })
+        idb.createObjectStore(STORE_ARTICLES, { keyPath: 'postId' })
       }
       if (!idb.objectStoreNames.contains(STORE_NOUNS)) {
         const ns = idb.createObjectStore(STORE_NOUNS, { keyPath: 'id', autoIncrement: true })
         ns.createIndex('word', 'word', { unique: true })
       }
       if (!idb.objectStoreNames.contains(STORE_ARTICLE_NOUNS)) {
-        const ls = idb.createObjectStore(STORE_ARTICLE_NOUNS, { keyPath: ['articleTitle', 'nounId'] })
+        const ls = idb.createObjectStore(STORE_ARTICLE_NOUNS, { keyPath: ['postId', 'nounId'] })
         ls.createIndex('nounId', 'nounId', { unique: false })
-        ls.createIndex('articleTitle', 'articleTitle', { unique: false })
+        ls.createIndex('postId', 'postId', { unique: false })
       }
       if (!idb.objectStoreNames.contains(STORE_COLLECTIONS)) {
         idb.createObjectStore(STORE_COLLECTIONS, { keyPath: 'id' })
@@ -129,7 +134,7 @@ export function ArticleStorcker() {
       setStatus('データベース準備完了')
       loadAllFromDB().then(() => {
         const pending = allArticles.filter(needsNounIndexing)
-        if (pending.length > 0) enqueueArticleTitles(pending.map((a: any) => a.title))
+        if (pending.length > 0) enqueueArticles(pending)
       })
     }
     dbReq.onerror = () => setStatus('エラー: DB接続失敗')
@@ -183,13 +188,14 @@ export function ArticleStorcker() {
       }
     }
 
-    function enqueueArticleTitles(titles: string[]) {
+    function enqueueArticles(articles: any[]) {
       let added = 0
-      for (const title of titles) {
-        if (!title || nounQueueSet.has(title)) continue
-        const art = allArticles.find((a: any) => a.title === title)
-        if (art && !needsNounIndexing(art)) continue
-        nounQueue.push(title); nounQueueSet.add(title); added++
+      for (const art of articles) {
+        const postId = art.postId
+        if (!postId || nounQueueSet.has(postId)) continue
+        const stored = allArticles.find((a: any) => a.postId === postId)
+        if (stored && !needsNounIndexing(stored)) continue
+        nounQueue.push(postId); nounQueueSet.add(postId); added++
       }
       if (added > 0) { morphState.sessionTotal += added; updateMorphOverlay(); scheduleQueueProcessor() }
     }
@@ -206,21 +212,21 @@ export function ArticleStorcker() {
         await ensureNounWorker(false)
         morphState.phase = 'extracting'
         while (nounQueue.length > 0) {
-          const title = nounQueue.shift()!
-          nounQueueSet.delete(title)
-          const art = await loadArticleByTitle(title)
+          const postId = nounQueue.shift()!
+          nounQueueSet.delete(postId)
+          const art = await loadArticleByPostId(postId)
           if (!art || !needsNounIndexing(art)) { morphState.completed++; updateMorphOverlay(); continue }
-          morphState.currentTitle = title; updateMorphOverlay()
+          morphState.currentTitle = art.title; updateMorphOverlay()
           try {
             const nouns = await extractNounsFromText(art.title, art.body)
             await saveArticleWithNouns(art, nouns)
             await refreshNouns()
-            await updateLocalArticle(title)
+            await updateLocalArticle(postId)
             morphState.completed++
             renderList(); renderNounBrowseList(true)
           } catch (err: any) {
-            console.warn('名詞抽出失敗:', title, err)
-            nounQueue.push(title); nounQueueSet.add(title)
+            console.warn('名詞抽出失敗:', postId, err)
+            nounQueue.push(postId); nounQueueSet.add(postId)
             if (String(err.message || err).includes('形態素解析エンジン')) { resetNounWorker(); throw err }
           }
           updateMorphOverlay()
@@ -239,22 +245,22 @@ export function ArticleStorcker() {
       }
     }
 
-    async function loadArticleByTitle(title: string) {
-      const local = allArticles.find((a: any) => a.title === title)
+    async function loadArticleByPostId(postId: string) {
+      const local = allArticles.find((a: any) => a.postId === postId)
       if (local) return local
       if (!db) return null
       const tx = db.transaction(STORE_ARTICLES, 'readonly')
-      return idbRequest(tx.objectStore(STORE_ARTICLES).get(title))
+      return idbRequest(tx.objectStore(STORE_ARTICLES).get(postId))
     }
 
-    async function updateLocalArticle(title: string) {
+    async function updateLocalArticle(postId: string) {
       if (!db) return
       const tx = db.transaction(STORE_ARTICLES, 'readonly')
-      const art = await idbRequest(tx.objectStore(STORE_ARTICLES).get(title))
+      const art = await idbRequest(tx.objectStore(STORE_ARTICLES).get(postId))
       if (!art) return
-      const idx = allArticles.findIndex((a: any) => a.title === title)
+      const idx = allArticles.findIndex((a: any) => a.postId === postId)
       if (idx >= 0) allArticles[idx] = art; else allArticles.push(art)
-      if (activeArticle && activeArticle.title === title) {
+      if (activeArticle && activeArticle.postId === postId) {
         activeArticle = art
         const isMobile = window.innerWidth <= 768
         renderNounChips(isMobile ? $('as-modal-nouns')! : $('as-view-nouns')!, art)
@@ -312,21 +318,21 @@ export function ArticleStorcker() {
     }
 
     // ─── Article CRUD ──────────────────────────────────────────────────────────
-    async function clearArticleNounLinks(articleTitle: string) {
+    async function clearArticleNounLinks(postId: string) {
       if (!db) return
       const tx = db.transaction([STORE_ARTICLE_NOUNS, STORE_NOUNS], 'readwrite')
       const linkStore = tx.objectStore(STORE_ARTICLE_NOUNS)
       const nounStore = tx.objectStore(STORE_NOUNS)
-      const links = await idbRequest(linkStore.index('articleTitle').getAll(articleTitle))
+      const links = await idbRequest(linkStore.index('postId').getAll(postId))
       for (const link of links) {
         const noun = await idbRequest(nounStore.get(link.nounId))
         if (noun) { noun.articleCount = Math.max(0, (noun.articleCount || 1) - 1); nounStore.put(noun) }
-        linkStore.delete([link.articleTitle, link.nounId])
+        linkStore.delete([link.postId, link.nounId])
       }
       await waitTx(tx)
     }
 
-    async function linkArticleToNouns(articleTitle: string, nounWords: string[]): Promise<number[]> {
+    async function linkArticleToNouns(postId: string, nounWords: string[]): Promise<number[]> {
       if (!db) return []
       const tx = db.transaction([STORE_NOUNS, STORE_ARTICLE_NOUNS], 'readwrite')
       const nounStore = tx.objectStore(STORE_NOUNS)
@@ -339,23 +345,23 @@ export function ArticleStorcker() {
           noun = { id: newId, word, articleCount: 0 }
         }
         noun.articleCount = (noun.articleCount || 0) + 1
-        nounStore.put(noun); linkStore.put({ articleTitle, nounId: noun.id }); nounIds.push(noun.id)
+        nounStore.put(noun); linkStore.put({ postId, nounId: noun.id }); nounIds.push(noun.id)
       }
       await waitTx(tx)
       return nounIds
     }
 
     async function saveArticleBasic(article: any) {
-      await clearArticleNounLinks(article.title)
+      await clearArticleNounLinks(article.postId)
       if (!db) return
       const tx = db.transaction(STORE_ARTICLES, 'readwrite')
-      tx.objectStore(STORE_ARTICLES).put({ title: article.title, date: article.date, body: article.body, nounsIndexed: false, nounIds: [] })
+      tx.objectStore(STORE_ARTICLES).put({ postId: article.postId, title: article.title, date: article.date, body: article.body, nounsIndexed: false, nounIds: [] })
       await waitTx(tx)
     }
 
     async function saveArticleWithNouns(article: any, nounWords: string[]) {
-      await clearArticleNounLinks(article.title)
-      const nounIds = await linkArticleToNouns(article.title, nounWords)
+      await clearArticleNounLinks(article.postId)
+      const nounIds = await linkArticleToNouns(article.postId, nounWords)
       if (!db) return
       const tx = db.transaction(STORE_ARTICLES, 'readwrite')
       tx.objectStore(STORE_ARTICLES).put({ ...article, nounIds, nounsIndexed: true })
@@ -436,22 +442,22 @@ export function ArticleStorcker() {
       const listEl = $('as-col-article-list')
       if (!listEl) return
       listEl.innerHTML = ''
-      if (col.articleTitles.length === 0) {
+      if (col.articlePostIds.length === 0) {
         listEl.innerHTML = '<div class="as-col-art-empty">記事がまだありません</div>'
         return
       }
-      col.articleTitles.forEach((title, idx) => {
-        const art = allArticles.find((a: any) => a.title === title)
+      col.articlePostIds.forEach((postId, idx) => {
+        const art = allArticles.find((a: any) => a.postId === postId)
         const item = document.createElement('div')
         item.className = 'as-col-article-item'
         item.innerHTML = `
           <div class="as-col-art-info">
             <span class="as-col-art-date">${art?.date?.split(' ')[0] ?? '?'}</span>
-            <span class="as-col-art-title">${title}</span>
+            <span class="as-col-art-title">${art?.title ?? postId}</span>
           </div>
           <div class="as-col-art-btns">
             <button class="as-col-move-btn" data-dir="up" ${idx === 0 ? 'disabled' : ''}>↑</button>
-            <button class="as-col-move-btn" data-dir="down" ${idx === col.articleTitles.length - 1 ? 'disabled' : ''}>↓</button>
+            <button class="as-col-move-btn" data-dir="down" ${idx === col.articlePostIds.length - 1 ? 'disabled' : ''}>↓</button>
             <button class="as-col-rm-btn">✕</button>
           </div>`
         item.querySelector('[data-dir="up"]')?.addEventListener('click', () => moveInCollection(col, idx, -1))
@@ -464,34 +470,34 @@ export function ArticleStorcker() {
     function updateCollectionStats(col: Collection) {
       const el = $('as-col-stats')
       if (!el) return
-      const totalChars = col.articleTitles.reduce((sum, title) => {
-        const art = allArticles.find((a: any) => a.title === title)
+      const totalChars = col.articlePostIds.reduce((sum, postId) => {
+        const art = allArticles.find((a: any) => a.postId === postId)
         return sum + (art?.body?.length ?? 0)
       }, 0)
-      el.textContent = `${col.articleTitles.length}件 / 約${totalChars.toLocaleString()}文字`
+      el.textContent = `${col.articlePostIds.length}件 / 約${totalChars.toLocaleString()}文字`
     }
 
     async function moveInCollection(col: Collection, idx: number, dir: number) {
       const ni = idx + dir
-      if (ni < 0 || ni >= col.articleTitles.length) return
-      const titles = [...col.articleTitles];
-      [titles[idx], titles[ni]] = [titles[ni], titles[idx]]
-      const updated = { ...col, articleTitles: titles }
+      if (ni < 0 || ni >= col.articlePostIds.length) return
+      const ids = [...col.articlePostIds];
+      [ids[idx], ids[ni]] = [ids[ni], ids[idx]]
+      const updated = { ...col, articlePostIds: ids }
       await saveCollection(updated)
       activeCollection = updated
       showCollectionDetail(updated)
     }
 
     async function removeFromCollection(col: Collection, idx: number) {
-      const updated = { ...col, articleTitles: col.articleTitles.filter((_, i) => i !== idx) }
+      const updated = { ...col, articlePostIds: col.articlePostIds.filter((_, i) => i !== idx) }
       await saveCollection(updated)
       activeCollection = updated
       showCollectionDetail(updated)
     }
 
     function mergeAndExport(col: Collection) {
-      const texts = col.articleTitles.map(title => {
-        const art = allArticles.find((a: any) => a.title === title)
+      const texts = col.articlePostIds.map(postId => {
+        const art = allArticles.find((a: any) => a.postId === postId)
         return art ? `# ${art.title}\n日付: ${art.date?.split(' ')[0] ?? ''}\n\n${art.body}\n` : ''
       }).filter(Boolean)
       const merged = texts.join('\n\n---\n\n')
@@ -522,12 +528,15 @@ export function ArticleStorcker() {
             const status = item.getElementsByTagName('wp:status')[0]?.textContent?.trim()
             if (postType !== 'post' && postType !== 'page') continue
             if (status && status !== 'publish') continue
+            const postIdRaw = item.getElementsByTagName('wp:post_id')[0]?.textContent?.trim()
+            if (!postIdRaw) continue
+            const postId = postIdRaw
             const title = item.getElementsByTagName('title')[0]?.textContent?.trim() || 'untitled'
             const date = item.getElementsByTagName('wp:post_date')[0]?.textContent?.trim() || 'unknown'
             const rawBody = item.getElementsByTagName('content:encoded')[0]?.textContent || ''
             const body = htmlToText(rawBody)
             if (!body) continue
-            parsedArticles.push({ title, date, body })
+            parsedArticles.push({ postId, title, date, body })
           }
         }
         if (parsedArticles.length === 0) throw new Error('取り込める記事がありません。')
@@ -538,7 +547,7 @@ export function ArticleStorcker() {
         }
         setStatus(`${parsedArticles.length}件の記事をインポートしました`, 'ok')
         await loadAllFromDB()
-        enqueueArticleTitles(parsedArticles.map((a: any) => a.title))
+        enqueueArticles(parsedArticles)
         if (window.innerWidth <= 768) $('as-filter-section')?.classList.remove('open')
       } catch (err: any) {
         setStatus('エラー: ' + err.message)
@@ -915,7 +924,7 @@ export function ArticleStorcker() {
         for (const art of allArticles) await saveArticleBasic(art)
         await loadAllFromDB()
         morphState.sessionTotal = 0; morphState.completed = 0
-        enqueueArticleTitles(allArticles.map((a: any) => a.title))
+        enqueueArticles(allArticles)
         setStatus(`${allArticles.length}件を形態素解析キューに追加しました`)
       })
 
@@ -990,7 +999,7 @@ export function ArticleStorcker() {
       $('as-new-collection')?.addEventListener('click', async () => {
         const title = prompt('コレクション名を入力してください')
         if (!title?.trim()) return
-        const col: Collection = { id: crypto.randomUUID(), title: title.trim(), articleTitles: [], memo: '', createdAt: new Date().toISOString() }
+        const col: Collection = { id: crypto.randomUUID(), title: title.trim(), articlePostIds: [], memo: '', createdAt: new Date().toISOString() }
         await saveCollection(col)
         activeCollection = col
         setListTab('collection')
@@ -1004,23 +1013,23 @@ export function ArticleStorcker() {
         if (!allCollections.length) {
           const title = prompt('まずコレクション名を入力してください')
           if (!title?.trim()) return
-          const col: Collection = { id: crypto.randomUUID(), title: title.trim(), articleTitles: [activeArticle.title], memo: '', createdAt: new Date().toISOString() }
+          const col: Collection = { id: crypto.randomUUID(), title: title.trim(), articlePostIds: [activeArticle.postId], memo: '', createdAt: new Date().toISOString() }
           saveCollection(col).then(() => { setStatus(`「${col.title}」に追加しました`, 'ok') })
           return
         }
-        const opts = allCollections.map((c, i) => `${i + 1}: ${c.title} (${c.articleTitles.length}件)`).join('\n')
+        const opts = allCollections.map((c, i) => `${i + 1}: ${c.title} (${c.articlePostIds.length}件)`).join('\n')
         const input = prompt(`追加先のコレクション番号を入力:\n${opts}\n\n0: 新しいコレクションを作成`)
         if (input === null) return
         const n = parseInt(input)
         if (n === 0) {
           const title = prompt('新しいコレクション名')
           if (!title?.trim()) return
-          const col: Collection = { id: crypto.randomUUID(), title: title.trim(), articleTitles: [activeArticle.title], memo: '', createdAt: new Date().toISOString() }
+          const col: Collection = { id: crypto.randomUUID(), title: title.trim(), articlePostIds: [activeArticle.postId], memo: '', createdAt: new Date().toISOString() }
           saveCollection(col).then(() => setStatus(`「${col.title}」に追加しました`, 'ok'))
         } else if (n >= 1 && n <= allCollections.length) {
           const col = allCollections[n - 1]
-          if (col.articleTitles.includes(activeArticle.title)) { setStatus('すでにこのコレクションに含まれています', 'warn'); return }
-          const updated = { ...col, articleTitles: [...col.articleTitles, activeArticle.title] }
+          if (col.articlePostIds.includes(activeArticle.postId)) { setStatus('すでにこのコレクションに含まれています', 'warn'); return }
+          const updated = { ...col, articlePostIds: [...col.articlePostIds, activeArticle.postId] }
           saveCollection(updated).then(() => {
             if (activeCollection?.id === updated.id) { activeCollection = updated; showCollectionDetail(updated) }
             setStatus(`「${col.title}」に追加しました`, 'ok')
