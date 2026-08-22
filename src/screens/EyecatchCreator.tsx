@@ -1,10 +1,223 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { useSlideBack } from '../hooks/useSlideBack'
 import { useBottomSheet } from '../hooks/useBottomSheet'
 
 const CW = 1280
 const CH = 670
+
+// Background image storage
+const BG_OUT_W = 960
+const BG_OUT_H = Math.round(BG_OUT_W * CH / CW)  // 502
+const BG_CROP_W = 640
+const BG_CROP_H = Math.round(BG_CROP_W * CH / CW)  // 335
+const BG_MAX = 5
+const BG_DB_NAME = 'EcBgDB'
+const BG_STORE = 'ec_bg_images'
+
+interface BgImage {
+  id: string
+  dataUrl: string  // WebP data URL
+  createdAt: string
+}
+
+interface BgCropState {
+  offsetX: number; offsetY: number; scale: number
+  dragging: boolean; lastX: number; lastY: number; pinchDist: number
+}
+
+function openBgDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(BG_DB_NAME, 1)
+    req.onupgradeneeded = () => req.result.createObjectStore(BG_STORE, { keyPath: 'id' })
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+function BgCropPanel({ src, onConfirm, onCancel }: {
+  src: string; onConfirm: (dataUrl: string) => void; onCancel: () => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const imgRef = useRef<HTMLImageElement | null>(null)
+  const cropRef = useRef<BgCropState>({ offsetX: 0, offsetY: 0, scale: 1, dragging: false, lastX: 0, lastY: 0, pinchDist: 0 })
+  const [loaded, setLoaded] = useState(false)
+
+  const redraw = useCallback(() => {
+    const canvas = canvasRef.current; const img = imgRef.current
+    if (!canvas || !img) return
+    const ctx = canvas.getContext('2d')!
+    const { offsetX, offsetY, scale } = cropRef.current
+    ctx.clearRect(0, 0, BG_CROP_W, BG_CROP_H)
+    ctx.fillStyle = '#888'; ctx.fillRect(0, 0, BG_CROP_W, BG_CROP_H)
+    ctx.drawImage(img, offsetX, offsetY, img.width * scale, img.height * scale)
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2
+    ctx.strokeRect(1, 1, BG_CROP_W - 2, BG_CROP_H - 2)
+  }, [])
+
+  useEffect(() => {
+    const img = new Image()
+    img.onload = () => {
+      imgRef.current = img
+      const fitScale = Math.max(BG_CROP_W / img.width, BG_CROP_H / img.height)
+      cropRef.current = {
+        offsetX: (BG_CROP_W - img.width * fitScale) / 2,
+        offsetY: (BG_CROP_H - img.height * fitScale) / 2,
+        scale: fitScale, dragging: false, lastX: 0, lastY: 0, pinchDist: 0,
+      }
+      setLoaded(true)
+    }
+    img.src = src
+  }, [src])
+
+  useEffect(() => { if (loaded) redraw() }, [loaded, redraw])
+
+  useEffect(() => {
+    const canvas = canvasRef.current; if (!canvas || !loaded) return
+    const h = (e: TouchEvent) => { if (cropRef.current.dragging || e.touches.length >= 2) e.preventDefault() }
+    canvas.addEventListener('touchmove', h, { passive: false })
+    return () => canvas.removeEventListener('touchmove', h)
+  }, [loaded])
+
+  const scaled = (dx: number, dy: number) => {
+    const r = canvasRef.current?.getBoundingClientRect()
+    if (!r) return { dx, dy }
+    return { dx: dx * (BG_CROP_W / r.width), dy: dy * (BG_CROP_H / r.height) }
+  }
+
+  const zoom = (next: number) => {
+    const cx = BG_CROP_W / 2, cy = BG_CROP_H / 2
+    const { offsetX, offsetY, scale } = cropRef.current
+    const s = Math.max(0.1, Math.min(20, next)); const f = s / scale
+    cropRef.current.scale = s
+    cropRef.current.offsetX = cx + (offsetX - cx) * f
+    cropRef.current.offsetY = cy + (offsetY - cy) * f
+    redraw()
+  }
+
+  const onMouseDown = (e: React.MouseEvent) => { cropRef.current.dragging = true; cropRef.current.lastX = e.clientX; cropRef.current.lastY = e.clientY }
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!cropRef.current.dragging) return
+    const { dx, dy } = scaled(e.clientX - cropRef.current.lastX, e.clientY - cropRef.current.lastY)
+    cropRef.current.offsetX += dx; cropRef.current.offsetY += dy
+    cropRef.current.lastX = e.clientX; cropRef.current.lastY = e.clientY; redraw()
+  }
+  const stopDrag = () => { cropRef.current.dragging = false }
+  const onWheel = (e: React.WheelEvent) => { e.preventDefault(); zoom(cropRef.current.scale * (e.deltaY > 0 ? 0.9 : 1.1)) }
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      cropRef.current.dragging = true; cropRef.current.lastX = e.touches[0].clientX; cropRef.current.lastY = e.touches[0].clientY
+    } else if (e.touches.length === 2) {
+      cropRef.current.dragging = false
+      cropRef.current.pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
+    }
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && cropRef.current.dragging) {
+      const { dx, dy } = scaled(e.touches[0].clientX - cropRef.current.lastX, e.touches[0].clientY - cropRef.current.lastY)
+      cropRef.current.offsetX += dx; cropRef.current.offsetY += dy
+      cropRef.current.lastX = e.touches[0].clientX; cropRef.current.lastY = e.touches[0].clientY; redraw()
+    } else if (e.touches.length === 2) {
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
+      if (cropRef.current.pinchDist > 0) zoom(cropRef.current.scale * (d / cropRef.current.pinchDist))
+      cropRef.current.pinchDist = d
+    }
+  }
+
+  const handleConfirm = () => {
+    const img = imgRef.current; if (!img) return
+    const out = document.createElement('canvas'); out.width = BG_OUT_W; out.height = BG_OUT_H
+    const ctx = out.getContext('2d')!
+    const r = BG_OUT_W / BG_CROP_W
+    const { offsetX, offsetY, scale } = cropRef.current
+    ctx.drawImage(img, offsetX * r, offsetY * r, img.width * scale * r, img.height * scale * r)
+    onConfirm(out.toDataURL('image/webp', 0.85))
+  }
+
+  return (
+    <div className="bg-crop-overlay" onClick={onCancel}>
+      <div className="bg-crop-panel" onClick={e => e.stopPropagation()}>
+        <div className="bg-crop-header">
+          <span className="eyecatch-section-title" style={{ margin: 0 }}>背景画像のトリミング</span>
+          <button className="icon-btn" onClick={onCancel} aria-label="キャンセル">✕</button>
+        </div>
+        <p className="bg-crop-hint">ドラッグで位置調整・ピンチ/スクロールでズーム</p>
+        <div className="bg-crop-canvas-wrap">
+          <canvas
+            ref={canvasRef} width={BG_CROP_W} height={BG_CROP_H}
+            style={{ width: '100%', height: 'auto', display: 'block', cursor: 'grab', touchAction: 'none' }}
+            onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={stopDrag} onMouseLeave={stopDrag}
+            onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={stopDrag}
+            onWheel={onWheel}
+          />
+        </div>
+        <div className="bg-crop-actions">
+          <button className="btn-secondary" onClick={onCancel}>キャンセル</button>
+          <button className="btn-primary" onClick={handleConfirm} disabled={!loaded}>決定</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BgPickerPanel({ images, selectedId, onSelect, onAddFile, onDelete, onClose }: {
+  images: BgImage[]; selectedId: string | null
+  onSelect: (id: string | null) => void; onAddFile: (f: File) => void
+  onDelete: (id: string) => void; onClose: () => void
+}) {
+  const { closing, handleClose, sheetRef, dragHandleProps } = useBottomSheet(onClose)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <div className={`eyecatch-history-overlay${closing ? ' closing' : ''}`} onClick={handleClose}>
+      <div
+        ref={sheetRef}
+        className={`eyecatch-history-panel${closing ? ' sheet-leaving' : ''}`}
+        onClick={e => e.stopPropagation()}
+        style={{ gap: 0 }}
+      >
+        <div className="sheet-drag-handle-area" {...dragHandleProps}><div className="sheet-drag-handle" /></div>
+        <div className="eyecatch-history-header">
+          <span className="eyecatch-section-title" style={{ margin: 0 }}>背景画像</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>{images.length}/{BG_MAX}</span>
+            <button className="icon-btn" onClick={handleClose} aria-label="閉じる">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div className="bg-picker-list">
+          <button className={`bg-picker-item${selectedId === null ? ' selected' : ''}`} onClick={() => { onSelect(null); handleClose() }}>
+            <div className="bg-picker-thumb bg-picker-none">なし</div>
+            <span className="bg-picker-label">画像なし</span>
+          </button>
+          {images.map(img => (
+            <div key={img.id} className="bg-picker-row">
+              <button className={`bg-picker-item${selectedId === img.id ? ' selected' : ''}`} onClick={() => { onSelect(img.id); handleClose() }}>
+                <img src={img.dataUrl} className="bg-picker-thumb" alt="" />
+                <span className="bg-picker-label">{new Date(img.createdAt).toLocaleDateString('ja-JP')}</span>
+              </button>
+              <button className="bg-picker-del" onClick={() => onDelete(img.id)} aria-label="削除">✕</button>
+            </div>
+          ))}
+        </div>
+        {images.length < BG_MAX && (
+          <div style={{ padding: '8px 0 4px' }}>
+            <button className="btn-secondary wide" onClick={() => fileRef.current?.click()}>＋ 背景画像を追加</button>
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+              onChange={e => {
+                const f = e.target.files?.[0]; e.target.value = ''
+                if (f) { handleClose(); setTimeout(() => onAddFile(f), 260) }
+              }} />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 const HANDLE_R = 9
 const ROT_OFFSET = 40
 const STAMP_MASK_URL = `${import.meta.env.BASE_URL}assets/images/stamps/stamp-mask.png`
@@ -65,6 +278,7 @@ interface DragState {
 interface HistoryEntry {
   ts: string
   bgColor: string
+  bgImageId?: string | null
   borderPad: number | null
   borderWidth: number
   borderColor: string
@@ -108,13 +322,18 @@ function charImgSrc(charKey: string, pose: string): string {
 
 function renderCanvas(
   canvas: HTMLCanvasElement,
-  bgColor: string, borderPad: number | null, borderWidth: number, borderColor: string,
+  bgColor: string, bgImg: HTMLImageElement | null,
+  borderPad: number | null, borderWidth: number, borderColor: string,
   items: EcItem[], stampImg: HTMLImageElement | null,
   charaImgCache: Map<string, HTMLImageElement>,
 ) {
   const ctx = canvas.getContext('2d'); if (!ctx) return
   ctx.clearRect(0, 0, CW, CH)
-  ctx.fillStyle = bgColor; ctx.fillRect(0, 0, CW, CH)
+  if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
+    ctx.drawImage(bgImg, 0, 0, CW, CH)
+  } else {
+    ctx.fillStyle = bgColor; ctx.fillRect(0, 0, CW, CH)
+  }
   if (borderPad !== null) {
     const p = borderPad + borderWidth / 2
     ctx.strokeStyle = borderColor; ctx.lineWidth = borderWidth
@@ -288,6 +507,14 @@ export function EyecatchCreator() {
   const [editText, setEditText] = useState('')
   const [saveImageUrl, setSaveImageUrl] = useState<string | null>(null)
 
+  // Background image state
+  const [bgImageId, setBgImageId] = useState<string | null>(null)
+  const [bgImages, setBgImages] = useState<BgImage[]>([])
+  const [showBgPicker, setShowBgPicker] = useState(false)
+  const [bgCropSrc, setBgCropSrc] = useState<string | null>(null)
+  const bgImgRef = useRef<HTMLImageElement | null>(null)
+  const [bgImgVersion, setBgImgVersion] = useState(0)
+
   scaleRef.current = scale
   itemsRef.current = items
   selectedIdRef.current = selectedId
@@ -330,13 +557,18 @@ export function EyecatchCreator() {
     const canvas = canvasRef.current; if (!canvas) return
     const ctx = canvas.getContext('2d'); if (!ctx) return
     ctx.clearRect(0, 0, CW, CH)
-    ctx.fillStyle = bgColor; ctx.fillRect(0, 0, CW, CH)
+    const bgImg = bgImgRef.current
+    if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
+      ctx.drawImage(bgImg, 0, 0, CW, CH)
+    } else {
+      ctx.fillStyle = bgColor; ctx.fillRect(0, 0, CW, CH)
+    }
     if (borderPad !== null) {
       const p = borderPad + borderWidth / 2
       ctx.strokeStyle = borderColor; ctx.lineWidth = borderWidth
       ctx.strokeRect(p, p, CW - p*2, CH - p*2)
     }
-  }, [bgColor, borderPad, borderWidth, borderColor])
+  }, [bgColor, borderPad, borderWidth, borderColor, bgImgVersion])
 
   // Live-sync editText into the item while editing
   useEffect(() => {
@@ -347,6 +579,45 @@ export function EyecatchCreator() {
   useEffect(() => {
     if (editingId) setTimeout(() => editInputRef.current?.focus(), 50)
   }, [editingId])
+
+  // Load bg images from IndexedDB on mount
+  useEffect(() => {
+    openBgDB().then(db => {
+      const req = db.transaction(BG_STORE, 'readonly').objectStore(BG_STORE).getAll()
+      req.onsuccess = () => setBgImages((req.result as BgImage[]).sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
+    }).catch(() => {})
+  }, [])
+
+  // Load bg image element when selection changes
+  useEffect(() => {
+    if (!bgImageId) { bgImgRef.current = null; setBgImgVersion(v => v + 1); return }
+    const found = bgImages.find(b => b.id === bgImageId)
+    if (!found) { bgImgRef.current = null; setBgImgVersion(v => v + 1); return }
+    const img = new Image()
+    img.onload = () => { bgImgRef.current = img; setBgImgVersion(v => v + 1) }
+    img.src = found.dataUrl
+  }, [bgImageId, bgImages])
+
+  const saveBgImage = async (dataUrl: string) => {
+    const entry: BgImage = { id: Math.random().toString(36).slice(2, 10), dataUrl, createdAt: new Date().toISOString() }
+    const db = await openBgDB()
+    await new Promise<void>((res, rej) => {
+      const req = db.transaction(BG_STORE, 'readwrite').objectStore(BG_STORE).put(entry)
+      req.onsuccess = () => res(); req.onerror = () => rej(req.error)
+    })
+    setBgImages(prev => [...prev, entry])
+    setBgImageId(entry.id)
+  }
+
+  const deleteBgImage = async (id: string) => {
+    const db = await openBgDB()
+    await new Promise<void>((res, rej) => {
+      const req = db.transaction(BG_STORE, 'readwrite').objectStore(BG_STORE).delete(id)
+      req.onsuccess = () => res(); req.onerror = () => rej(req.error)
+    })
+    setBgImages(prev => prev.filter(b => b.id !== id))
+    if (bgImageId === id) setBgImageId(null)
+  }
 
   const confirmEditStable = () => {
     const id = editingIdRef2.current; if (!id) return
@@ -499,7 +770,7 @@ export function EyecatchCreator() {
     setSelectedId(null)
     setTimeout(() => {
       // Composite all layers to canvas for download
-      renderCanvas(canvas, bgColor, borderPad, borderWidth, borderColor, snapshot, stampImgRef.current, charaImgCacheRef.current)
+      renderCanvas(canvas, bgColor, bgImgRef.current, borderPad, borderWidth, borderColor, snapshot, stampImgRef.current, charaImgCacheRef.current)
       const dataUrl = canvas.toDataURL('image/png')
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
       if (isIOS) {
@@ -524,7 +795,7 @@ export function EyecatchCreator() {
         }
       }
       setHistory(prev => {
-        const entry: HistoryEntry = { ts, bgColor, borderPad, borderWidth, borderColor, items: snapshot, thumbnail }
+        const entry: HistoryEntry = { ts, bgColor, bgImageId, borderPad, borderWidth, borderColor, items: snapshot, thumbnail }
         const next = [entry, ...prev].slice(0, HISTORY_MAX)
         persistHistory(next); return next
       })
@@ -532,7 +803,8 @@ export function EyecatchCreator() {
   }
 
   const loadFromHistory = (entry: HistoryEntry) => {
-    setBgColor(entry.bgColor); setBorderPad(entry.borderPad)
+    setBgColor(entry.bgColor); setBgImageId(entry.bgImageId ?? null)
+    setBorderPad(entry.borderPad)
     setBorderWidth(entry.borderWidth ?? 4); setBorderColor(entry.borderColor)
     setItems(entry.items)
     setSelectedId(null); selectedIdRef.current = null
@@ -767,11 +1039,16 @@ export function EyecatchCreator() {
           {pendingChara && <span className="eyecatch-placing-hint"> — 相棒スタンプ選択中・キャンバスをタップして配置</span>}
         </p>
         <div className="eyecatch-row" style={{flexWrap:'wrap',gap:10}}>
-          <label className="eyecatch-color-lbl">
-            <span className="eyecatch-color-dot" style={{background:bgColor}}/>
-            <span>背景色</span>
-            <input type="color" value={bgColor} onChange={e=>setBgColor(e.target.value)}/>
-          </label>
+          {!bgImageId && (
+            <label className="eyecatch-color-lbl">
+              <span className="eyecatch-color-dot" style={{background:bgColor}}/>
+              <span>背景色</span>
+              <input type="color" value={bgColor} onChange={e=>setBgColor(e.target.value)}/>
+            </label>
+          )}
+          <button className={`eyecatch-mode-btn${bgImageId ? ' active' : ''}`} onClick={() => setShowBgPicker(true)}>
+            {bgImageId ? '背景画像 ✓' : '背景画像'}
+          </button>
           <label className="eyecatch-inline-label">
             <span>枠線</span>
             <select className="eyecatch-select" value={borderPad??'none'}
@@ -887,6 +1164,25 @@ export function EyecatchCreator() {
           history={history}
           onLoad={loadFromHistory}
           onClose={() => setShowHistory(false)}
+        />
+      )}
+
+      {showBgPicker && (
+        <BgPickerPanel
+          images={bgImages}
+          selectedId={bgImageId}
+          onSelect={id => setBgImageId(id)}
+          onAddFile={f => setBgCropSrc(URL.createObjectURL(f))}
+          onDelete={deleteBgImage}
+          onClose={() => setShowBgPicker(false)}
+        />
+      )}
+
+      {bgCropSrc && (
+        <BgCropPanel
+          src={bgCropSrc}
+          onConfirm={dataUrl => { saveBgImage(dataUrl); URL.revokeObjectURL(bgCropSrc); setBgCropSrc(null) }}
+          onCancel={() => { URL.revokeObjectURL(bgCropSrc); setBgCropSrc(null) }}
         />
       )}
     </div>
