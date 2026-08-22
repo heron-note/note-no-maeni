@@ -56,10 +56,6 @@ export function ArticleStorcker() {
     let currentFiltered: any[] = []
     let dragDepth = 0
     let currentSortOrder = 'desc'
-    let pipelineToken = 0
-    let pipePendingBlob: Blob | null = null
-    let pipePendingFilename = ''
-    let pipeDownloadUrl = ''
     let activeArticle: any = null
     let activeCollection: Collection | null = null
     let nounWorker: Worker | null = null
@@ -889,49 +885,6 @@ export function ArticleStorcker() {
       }
     }
 
-    // ─── Pipeline (ZIP export) ─────────────────────────────────────────────────
-    function sanitizeFilename(name: string) { return name.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim() }
-    function formatArticle(item: any) { return `${item.title}\ndate: ${item.date || 'unknown'}\n\n${item.body}\n` }
-    function revokePipeUrl() { if (pipeDownloadUrl) { URL.revokeObjectURL(pipeDownloadUrl); pipeDownloadUrl = '' } }
-
-    function triggerPipeDownload(blob: Blob, filename: string) {
-      revokePipeUrl()
-      pipeDownloadUrl = URL.createObjectURL(blob)
-      const a = document.createElement('a'); a.href = pipeDownloadUrl; a.download = filename
-      document.body.appendChild(a); a.click(); a.remove()
-    }
-
-    async function waitForPipeDownloadOrContinue(token: number): Promise<void> {
-      return new Promise((resolve, reject) => {
-        const dlBtn = $('as-pipe-dl') as HTMLButtonElement | null
-        const contBtn = $('as-pipe-cont') as HTMLButtonElement | null
-        const cleanup = () => {
-          dlBtn?.removeEventListener('click', onDl)
-          contBtn?.removeEventListener('click', onCont)
-          if (contBtn) contBtn.disabled = true
-        }
-        const onDl = () => {
-          if (token !== pipelineToken) { cleanup(); reject(new Error('中止')); return }
-          if (!pipePendingBlob) return
-          triggerPipeDownload(pipePendingBlob, pipePendingFilename)
-          pipePendingBlob = null; pipePendingFilename = ''
-          if (dlBtn) dlBtn.disabled = true
-          if (contBtn) contBtn.disabled = false
-          const st = $('as-pipe-status')
-          if (st) st.textContent = 'ダウンロード完了。下のボタンで次へ進んでください。'
-        }
-        const onCont = () => {
-          if (token !== pipelineToken) { cleanup(); reject(new Error('中止')); return }
-          if (pipePendingBlob) return
-          cleanup(); resolve()
-        }
-        if (contBtn) contBtn.disabled = true
-        if (dlBtn) dlBtn.disabled = false
-        dlBtn?.addEventListener('click', onDl)
-        contBtn?.addEventListener('click', onCont)
-      })
-    }
-
     // ─── Event bindings ────────────────────────────────────────────────────────
     function bindEvents() {
       const dropzone = $('as-dropzone')
@@ -1012,56 +965,6 @@ export function ArticleStorcker() {
         setTimeout(openColPicker, 50)
       })
       $('as-mobile-modal')?.addEventListener('click', (e) => { if (e.target === $('as-mobile-modal')) $('as-mobile-modal')?.classList.remove('open') })
-
-      // Pipeline
-      $('as-start-pipeline')?.addEventListener('click', async () => {
-        if (!currentFiltered.length) { alert('出力対象の記事がありません。'); return }
-        const batchSize = 200
-        const token = ++pipelineToken
-        revokePipeUrl(); pipePendingBlob = null; pipePendingFilename = ''
-        const prog = $('as-pipe-progress') as HTMLProgressElement | null
-        const st = $('as-pipe-status')
-        if (prog) prog.value = 0
-        if (st) st.textContent = 'ZIPバッチ初期化中...'
-        $('as-pipeline-modal')?.classList.add('open')
-        try {
-          let articleIndex = 1, batchIndex = 1, batchArticles: any[] = []
-          for (let i = 0; i < currentFiltered.length; i++) {
-            if (token !== pipelineToken) throw new Error('中止')
-            const art = currentFiltered[i]
-            batchArticles.push({ name: `${String(articleIndex).padStart(3, '0')}_${sanitizeFilename(art.title)}.txt`, content: formatArticle(art) })
-            articleIndex++
-            if (batchArticles.length >= batchSize || i === currentFiltered.length - 1) {
-              const sn = articleIndex - batchArticles.length, en = articleIndex - 1
-              const zipName = `note_articles_${String(sn).padStart(3,'0')}-${String(en).padStart(3,'0')}.zip`
-              if (st) st.textContent = `バッチ ${batchIndex} 生成中...`
-              const zip = new JSZip()
-              batchArticles.forEach(b => zip.file(b.name, b.content))
-              const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 5 } })
-              if (token !== pipelineToken) throw new Error('中止')
-              pipePendingBlob = blob; pipePendingFilename = zipName
-              if (prog) prog.value = Math.round(((i + 1) / currentFiltered.length) * 100)
-              if (st) st.textContent = `バッチ ${batchIndex} (${sn}-${en}) の準備完了。`
-              await waitForPipeDownloadOrContinue(token)
-              batchArticles = []; batchIndex++
-            }
-          }
-          if (st) st.textContent = `完了。計 ${articleIndex - 1} 記事`
-          const dlBtn = $('as-pipe-dl') as HTMLButtonElement | null
-          const contBtn = $('as-pipe-cont') as HTMLButtonElement | null
-          if (dlBtn) dlBtn.disabled = true
-          if (contBtn) { contBtn.textContent = '閉じる'; contBtn.disabled = false }
-          const closeOnce = () => {
-            $('as-pipeline-modal')?.classList.remove('open')
-            if (contBtn) { contBtn.textContent = '次のバッチへ'; contBtn.removeEventListener('click', closeOnce) }
-          }
-          contBtn?.addEventListener('click', closeOnce)
-        } catch (err: any) {
-          $('as-pipeline-modal')?.classList.remove('open')
-          if (err.message !== '中止') alert('エラー: ' + err.message)
-        }
-      })
-      $('as-pipe-cancel')?.addEventListener('click', () => { pipelineToken++; revokePipeUrl(); $('as-pipeline-modal')?.classList.remove('open') })
 
       // Collection actions
       $('as-new-collection')?.addEventListener('click', async () => {
@@ -1205,7 +1108,6 @@ export function ArticleStorcker() {
                     <input id="as-date-end" type="text" className="as-input" inputMode="numeric" placeholder="YYYY-MM-DD" autoComplete="off" />
                   </div>
                 </div>
-                <button id="as-start-pipeline" className="as-action-btn as-btn-ok">マッチ記事を順次ZIP保存</button>
               </div>
             </div>
           </div>
@@ -1310,20 +1212,6 @@ export function ArticleStorcker() {
           <div className="as-col-picker-new">
             <input id="as-col-picker-input" type="text" className="as-input" placeholder="新規コレクション名" />
             <button id="as-col-picker-create" className="as-action-btn as-btn-accent">作成して追加</button>
-          </div>
-        </div>
-      </div>
-
-      {/* Pipeline modal */}
-      <div id="as-pipeline-modal" className="as-pipeline-modal">
-        <div className="as-pipeline-box">
-          <h3 style={{ margin: 0, fontSize: '1.1rem' }}>順次ZIPエクスポート</h3>
-          <div id="as-pipe-status" style={{ fontSize: '0.9rem', color: 'var(--primary)' }}>準備中...</div>
-          <progress id="as-pipe-progress" max={100} value={0} style={{ width: '100%', height: 8 }} />
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button id="as-pipe-dl" className="as-action-btn as-btn-accent" style={{ flex: 1 }}>ダウンロード</button>
-            <button id="as-pipe-cont" className="as-action-btn as-btn-ok" style={{ flex: 1 }} disabled>次のバッチへ</button>
-            <button id="as-pipe-cancel" className="as-action-btn" style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text)' }}>中止</button>
           </div>
         </div>
       </div>
