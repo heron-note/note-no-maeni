@@ -78,6 +78,36 @@ export function ArticleStorcker() {
 
     const $ = (id: string) => document.getElementById(id)
 
+    function addSwipeToDismiss(handleEl: HTMLElement, contentEl: HTMLElement, overlayEl: HTMLElement, onClose: () => void) {
+      let startY = 0
+      handleEl.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY
+        contentEl.style.transition = 'none'
+      }, { passive: true })
+      handleEl.addEventListener('touchmove', (e) => {
+        const dy = Math.max(0, e.touches[0].clientY - startY)
+        contentEl.style.transform = `translateY(${dy}px)`
+      }, { passive: true })
+      handleEl.addEventListener('touchend', (e) => {
+        const dy = Math.max(0, e.changedTouches[0].clientY - startY)
+        if (dy > 80) {
+          contentEl.style.transition = 'transform 0.22s ease'
+          contentEl.style.transform = 'translateY(100%)'
+          overlayEl.style.transition = 'opacity 0.22s ease'
+          overlayEl.style.opacity = '0'
+          setTimeout(() => {
+            onClose()
+            contentEl.style.transition = ''; contentEl.style.transform = ''
+            overlayEl.style.transition = ''; overlayEl.style.opacity = ''
+          }, 220)
+        } else {
+          contentEl.style.transition = 'transform 0.3s cubic-bezier(0.22,1,0.36,1)'
+          contentEl.style.transform = 'translateY(0)'
+          setTimeout(() => { contentEl.style.transition = ''; contentEl.style.transform = '' }, 300)
+        }
+      })
+    }
+
     // ─── helpers ───────────────────────────────────────────────────────────────
     function idbRequest<T>(req: IDBRequest<T>): Promise<T> {
       return new Promise((resolve, reject) => {
@@ -1001,6 +1031,19 @@ export function ArticleStorcker() {
       $('as-add-to-collection')?.addEventListener('click', () => { if (activeArticle) openColPicker([activeArticle]) })
 
       $('as-col-picker-close')?.addEventListener('click', () => $('as-col-picker')?.classList.remove('open'))
+
+      // Swipe-to-dismiss
+      const modalDragArea = $('as-modal-drag-area') as HTMLElement | null
+      const modalContent = document.querySelector('.as-modal-content') as HTMLElement | null
+      const mobileModal = $('as-mobile-modal') as HTMLElement | null
+      if (modalDragArea && modalContent && mobileModal)
+        addSwipeToDismiss(modalDragArea, modalContent, mobileModal, () => mobileModal.classList.remove('open'))
+
+      const colPickerDragArea = $('as-col-picker-drag-area') as HTMLElement | null
+      const colPickerBox = document.querySelector('.as-col-picker-box') as HTMLElement | null
+      const colPicker = $('as-col-picker') as HTMLElement | null
+      if (colPickerDragArea && colPickerBox && colPicker)
+        addSwipeToDismiss(colPickerDragArea, colPickerBox, colPicker, () => colPicker.classList.remove('open'))
       $('as-col-picker')?.addEventListener('click', (e) => { if (e.target === $('as-col-picker')) $('as-col-picker')?.classList.remove('open') })
       $('as-col-picker-create')?.addEventListener('click', async () => {
         if (!pickerArticles.length) return
@@ -1187,8 +1230,11 @@ export function ArticleStorcker() {
       {/* Mobile modal */}
       <div id="as-mobile-modal" className="as-modal-viewer">
         <div className="as-modal-content">
-          <button id="as-modal-close" className="as-modal-close-btn">閉じる</button>
-          <h2 id="as-modal-title" className="as-view-title" />
+          <div id="as-modal-drag-area" className="as-drag-handle-wrap"><div className="as-drag-handle" /></div>
+          <div className="as-modal-header-row">
+            <h2 id="as-modal-title" className="as-view-title" style={{ flex: 1, margin: 0 }} />
+            <button id="as-modal-close" className="icon-btn" aria-label="閉じる">✕</button>
+          </div>
           <div id="as-modal-meta" className="as-view-meta" />
           <div style={{ display: 'flex', gap: 8 }}>
             <button id="as-modal-copy" className="as-action-btn as-btn-accent" style={{ flex: 1 }}>本文を一撃コピー</button>
@@ -1202,9 +1248,10 @@ export function ArticleStorcker() {
       {/* Collection picker modal */}
       <div id="as-col-picker" className="as-col-picker-overlay">
         <div className="as-col-picker-box">
+          <div id="as-col-picker-drag-area" className="as-drag-handle-wrap"><div className="as-drag-handle" /></div>
           <div className="as-col-picker-header">
-            <span className="as-col-picker-title">コレクションに追加</span>
-            <button id="as-col-picker-close" className="as-col-picker-close">✕</button>
+            <span id="as-col-picker-title" className="as-col-picker-title">コレクションに追加</span>
+            <button id="as-col-picker-close" className="icon-btn" aria-label="閉じる">✕</button>
           </div>
           <div id="as-col-picker-list" className="as-col-picker-list" />
           <div className="as-col-picker-new">
