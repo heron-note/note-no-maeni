@@ -981,13 +981,6 @@ export function ArticleStorcker() {
         const el = $('as-noun-browse-scroll')!
         if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24 && nounBrowseRendered < nounBrowseFiltered.length) appendNounBrowseItems()
       })
-      $('as-clear-db')?.addEventListener('click', () => {
-        if (!confirm('データベース内のすべての記事・名詞・コレクションデータを完全に消去します。よろしいですか？')) return
-        if (db) db.close(); nounQueue.length = 0; nounQueueSet.clear()
-        if (queueRetryTimer) clearTimeout(queueRetryTimer)
-        resetNounWorker()
-        indexedDB.deleteDatabase(DB_NAME).onsuccess = () => { alert('データベースを初期化しました。再読み込みします。'); location.reload() }
-      })
       $('as-reindex-nouns')?.addEventListener('click', async () => {
         if (!db || !allArticles.length) { alert('再解析する記事がありません。'); return }
         if (!confirm(`${allArticles.length}件すべての名詞解析をやり直します。よろしいですか？`)) return
@@ -1153,11 +1146,6 @@ export function ArticleStorcker() {
       <div className="as-header">
         <button className="back-btn" onClick={handleBack}>‹</button>
         <h2 className="subscreen-title">記事ストッカー</h2>
-        <div className="as-status-area">
-          <span id="as-status" className="as-status">DB接続中...</span>
-          <button id="as-reindex-nouns" className="as-clear-db-btn" style={{ background: 'var(--primary)', color: '#fff' }}>名詞再解析</button>
-          <button id="as-clear-db" className="as-clear-db-btn">DBクリア</button>
-        </div>
       </div>
 
       <div className="as-wrapper">
@@ -1170,6 +1158,10 @@ export function ArticleStorcker() {
               <div id="as-dropzone" className="as-dropzone">
                 <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>zipをドロップ または クリック</div>
                 <input id="as-zip-input" type="file" accept=".zip" style={{ display: 'none' }} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                <span id="as-status" className="as-status" style={{ flex: 1 }}>DB接続中...</span>
+                <button id="as-reindex-nouns" className="as-clear-db-btn" style={{ background: 'var(--primary)', color: '#fff', flexShrink: 0 }}>名詞再解析</button>
               </div>
             </div>
             <button id="as-search-toggle" className="as-search-toggle">検索条件を開く</button>
