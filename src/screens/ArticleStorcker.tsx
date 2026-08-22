@@ -1041,6 +1041,11 @@ export function ArticleStorcker() {
       })
 
       // Collection detail actions
+      $('as-col-detail-close')?.addEventListener('click', () => {
+        activeCollection = null
+        document.querySelectorAll('.as-collection-item').forEach(e => e.classList.remove('active'))
+        showCollectionDetail(null)
+      })
       $('as-col-title-save')?.addEventListener('click', async () => {
         if (!activeCollection) return
         const titleEl = $('as-col-detail-title') as HTMLInputElement | null
@@ -1180,7 +1185,10 @@ export function ArticleStorcker() {
           {/* Collection detail */}
           <div id="as-collection-detail" className="as-collection-detail" style={{ display: 'none' }}>
             <div className="as-col-detail-header">
-              <input id="as-col-detail-title" className="as-col-detail-title-input" type="text" placeholder="コレクション名" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input id="as-col-detail-title" className="as-col-detail-title-input" type="text" placeholder="コレクション名" style={{ flex: 1 }} />
+                <button id="as-col-detail-close" className="as-col-picker-close">✕</button>
+              </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button id="as-col-title-save" className="as-action-btn as-btn-accent" style={{ flex: 1 }}>保存</button>
                 <button id="as-col-delete" className="as-action-btn" style={{ flex: 1, background: 'transparent', color: 'var(--danger)', border: '1px solid var(--danger)' }}>削除</button>
