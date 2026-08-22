@@ -1007,6 +1007,10 @@ export function ArticleStorcker() {
       $('as-copy-body')?.addEventListener('click', handleCopy)
       $('as-modal-copy')?.addEventListener('click', handleCopy)
       $('as-modal-close')?.addEventListener('click', () => $('as-mobile-modal')?.classList.remove('open'))
+      $('as-modal-add-to-collection')?.addEventListener('click', () => {
+        $('as-mobile-modal')?.classList.remove('open')
+        setTimeout(openColPicker, 50)
+      })
       $('as-mobile-modal')?.addEventListener('click', (e) => { if (e.target === $('as-mobile-modal')) $('as-mobile-modal')?.classList.remove('open') })
 
       // Pipeline
@@ -1071,34 +1075,51 @@ export function ArticleStorcker() {
         renderCollectionList()
       })
 
-      // "Add to collection" button in article viewer
-      $('as-add-to-collection')?.addEventListener('click', () => {
+      // Collection picker
+      const openColPicker = () => {
         if (!activeArticle) return
-        if (!allCollections.length) {
-          const title = prompt('まずコレクション名を入力してください')
-          if (!title?.trim()) return
-          const col: Collection = { id: crypto.randomUUID(), title: title.trim(), articlePostIds: [activeArticle.postId], memo: '', createdAt: new Date().toISOString() }
-          saveCollection(col).then(() => { setStatus(`「${col.title}」に追加しました`, 'ok') })
-          return
-        }
-        const opts = allCollections.map((c, i) => `${i + 1}: ${c.title} (${c.articlePostIds.length}件)`).join('\n')
-        const input = prompt(`追加先のコレクション番号を入力:\n${opts}\n\n0: 新しいコレクションを作成`)
-        if (input === null) return
-        const n = parseInt(input)
-        if (n === 0) {
-          const title = prompt('新しいコレクション名')
-          if (!title?.trim()) return
-          const col: Collection = { id: crypto.randomUUID(), title: title.trim(), articlePostIds: [activeArticle.postId], memo: '', createdAt: new Date().toISOString() }
-          saveCollection(col).then(() => setStatus(`「${col.title}」に追加しました`, 'ok'))
-        } else if (n >= 1 && n <= allCollections.length) {
-          const col = allCollections[n - 1]
-          if (col.articlePostIds.includes(activeArticle.postId)) { setStatus('すでにこのコレクションに含まれています', 'warn'); return }
-          const updated = { ...col, articlePostIds: [...col.articlePostIds, activeArticle.postId] }
-          saveCollection(updated).then(() => {
-            if (activeCollection?.id === updated.id) { activeCollection = updated; showCollectionDetail(updated) }
-            setStatus(`「${col.title}」に追加しました`, 'ok')
+        const listEl = $('as-col-picker-list')
+        if (!listEl) return
+        listEl.innerHTML = ''
+        if (allCollections.length === 0) {
+          listEl.innerHTML = '<div class="as-col-picker-empty">コレクションがまだありません</div>'
+        } else {
+          const sorted = [...allCollections].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+          sorted.forEach(col => {
+            const alreadyIn = col.articlePostIds.includes(activeArticle.postId)
+            const item = document.createElement('button')
+            item.className = 'as-col-picker-item' + (alreadyIn ? ' as-col-picker-item--added' : '')
+            item.disabled = alreadyIn
+            item.innerHTML = `<span class="as-col-picker-item-title">${col.title}</span><span class="as-col-picker-item-count">${col.articlePostIds.length}件${alreadyIn ? ' ✓' : ''}</span>`
+            item.addEventListener('click', async () => {
+              const updated = { ...col, articlePostIds: [...col.articlePostIds, activeArticle.postId] }
+              await saveCollection(updated)
+              if (activeCollection?.id === updated.id) { activeCollection = updated; showCollectionDetail(updated) }
+              setStatus(`「${col.title}」に追加しました`, 'ok')
+              $('as-col-picker')?.classList.remove('open')
+            })
+            listEl.appendChild(item)
           })
         }
+        const input = $('as-col-picker-input') as HTMLInputElement | null
+        if (input) input.value = ''
+        $('as-col-picker')?.classList.add('open')
+      }
+
+      // "Add to collection" button in article viewer
+      $('as-add-to-collection')?.addEventListener('click', openColPicker)
+
+      $('as-col-picker-close')?.addEventListener('click', () => $('as-col-picker')?.classList.remove('open'))
+      $('as-col-picker')?.addEventListener('click', (e) => { if (e.target === $('as-col-picker')) $('as-col-picker')?.classList.remove('open') })
+      $('as-col-picker-create')?.addEventListener('click', async () => {
+        if (!activeArticle) return
+        const input = $('as-col-picker-input') as HTMLInputElement | null
+        const title = input?.value?.trim()
+        if (!title) { input?.focus(); return }
+        const col: Collection = { id: crypto.randomUUID(), title, articlePostIds: [activeArticle.postId], memo: '', createdAt: new Date().toISOString() }
+        await saveCollection(col)
+        setStatus(`「${col.title}」を作成して追加しました`, 'ok')
+        $('as-col-picker')?.classList.remove('open')
       })
 
       // Collection detail actions
@@ -1271,14 +1292,25 @@ export function ArticleStorcker() {
           <div id="as-modal-meta" className="as-view-meta" />
           <div style={{ display: 'flex', gap: 8 }}>
             <button id="as-modal-copy" className="as-action-btn as-btn-accent" style={{ flex: 1 }}>本文を一撃コピー</button>
-            <button className="as-action-btn as-btn-ok" style={{ flex: 1 }} onClick={() => {
-              const btn = document.getElementById('as-add-to-collection')
-              document.getElementById('as-mobile-modal')?.classList.remove('open')
-              setTimeout(() => btn?.click(), 100)
-            }}>＋ コレクションに追加</button>
+            <button id="as-modal-add-to-collection" className="as-action-btn as-btn-ok" style={{ flex: 1 }}>＋ コレクションに追加</button>
           </div>
           <div id="as-modal-body" className="as-view-body" />
           <div id="as-modal-nouns" className="as-noun-container" />
+        </div>
+      </div>
+
+      {/* Collection picker modal */}
+      <div id="as-col-picker" className="as-col-picker-overlay">
+        <div className="as-col-picker-box">
+          <div className="as-col-picker-header">
+            <span className="as-col-picker-title">コレクションに追加</span>
+            <button id="as-col-picker-close" className="as-col-picker-close">✕</button>
+          </div>
+          <div id="as-col-picker-list" className="as-col-picker-list" />
+          <div className="as-col-picker-new">
+            <input id="as-col-picker-input" type="text" className="as-input" placeholder="新規コレクション名" />
+            <button id="as-col-picker-create" className="as-action-btn as-btn-accent">作成して追加</button>
+          </div>
         </div>
       </div>
 
