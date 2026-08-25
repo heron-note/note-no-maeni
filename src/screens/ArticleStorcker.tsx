@@ -623,9 +623,9 @@ export function ArticleStorcker() {
             const status = item.getElementsByTagName('wp:status')[0]?.textContent?.trim()
             if (postType !== 'post' && postType !== 'page') continue
             if (status && status !== 'publish') continue
-            const postIdRaw = item.getElementsByTagName('wp:post_id')[0]?.textContent?.trim()
-            if (!postIdRaw) continue
-            const postId = postIdRaw
+            // guid (記事スラッグ) を識別子として使用。wp:post_id は連番でエクスポートをまたいで重複するため不適切
+            const postId = item.getElementsByTagName('guid')[0]?.textContent?.trim()
+            if (!postId) continue
             const title = item.getElementsByTagName('title')[0]?.textContent?.trim() || 'untitled'
             const date = item.getElementsByTagName('wp:post_date')[0]?.textContent?.trim() || 'unknown'
             const rawBody = item.getElementsByTagName('content:encoded')[0]?.textContent || ''
