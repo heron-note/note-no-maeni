@@ -1058,6 +1058,11 @@ html, body, #root {
   font-size: 13px;
   padding: 4px 12px;
 }
+.ec-confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; display: flex; align-items: center; justify-content: center; }
+.ec-confirm-panel { background: var(--card); border-radius: 14px; padding: 24px 20px 16px; width: min(320px, 90vw); box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+.ec-confirm-msg { font-size: 1rem; text-align: center; margin: 0 0 20px; color: var(--text); }
+.ec-confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.ec-confirm-actions .btn-secondary, .ec-confirm-actions .btn-primary { flex: 1; }
 .eyecatch-section {
   padding: 12px 16px;
   border-bottom: 1.5px solid var(--border);

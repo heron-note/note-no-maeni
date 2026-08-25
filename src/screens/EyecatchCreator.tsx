@@ -727,6 +727,8 @@ export function EyecatchCreator() {
   const bgImgRef = useRef<HTMLImageElement | null>(null)
   const [bgImgVersion, setBgImgVersion] = useState(0)
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
   // Image stamp state
   const [customStampImages, setCustomStampImages] = useState<StampImage[]>([])
   const [showStampPicker, setShowStampPicker] = useState(false)
@@ -1295,8 +1297,7 @@ export function EyecatchCreator() {
           {editingId && (
             <button className="btn-primary" style={{fontSize:13,padding:'4px 12px'}} onClick={confirmEdit}>確定</button>
           )}
-          <button className="btn-secondary eyecatch-del-btn"
-            onClick={()=>{setItems(prev=>prev.filter(it=>it.id!==selectedId));setSelectedId(null);selectedIdRef.current=null}}>
+          <button className="btn-secondary eyecatch-del-btn" onClick={() => setShowDeleteConfirm(true)}>
             削除
           </button>
           <button className="icon-btn" onClick={()=>{confirmEditStable();setSelectedId(null);selectedIdRef.current=null}} aria-label="選択解除">
@@ -1491,6 +1492,22 @@ export function EyecatchCreator() {
           onConfirm={dataUrl => { saveBgImage(dataUrl); URL.revokeObjectURL(bgCropSrc); setBgCropSrc(null) }}
           onCancel={() => { URL.revokeObjectURL(bgCropSrc); setBgCropSrc(null) }}
         />
+      )}
+
+      {showDeleteConfirm && (
+        <div className="ec-confirm-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="ec-confirm-panel" onClick={e => e.stopPropagation()}>
+            <p className="ec-confirm-msg">このアイテムを削除しますか？</p>
+            <div className="ec-confirm-actions">
+              <button className="btn-secondary" onClick={() => setShowDeleteConfirm(false)}>キャンセル</button>
+              <button className="btn-primary" style={{ background: '#e85d7a', borderColor: '#e85d7a' }} onClick={() => {
+                setItems(prev => prev.filter(it => it.id !== selectedId))
+                setSelectedId(null); selectedIdRef.current = null
+                setShowDeleteConfirm(false)
+              }}>削除</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showStampPicker && (
