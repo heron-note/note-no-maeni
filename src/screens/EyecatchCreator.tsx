@@ -728,6 +728,7 @@ export function EyecatchCreator() {
   const [bgImgVersion, setBgImgVersion] = useState(0)
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   // Image stamp state
   const [customStampImages, setCustomStampImages] = useState<StampImage[]>([])
@@ -1121,7 +1122,7 @@ export function EyecatchCreator() {
           <h2 className="subscreen-title">アイキャッチ作成</h2>
         </div>
         <div className="eyecatch-header-actions">
-          <button className="icon-btn" onClick={clear} aria-label="クリア">
+          <button className="icon-btn" onClick={() => setShowClearConfirm(true)} aria-label="クリア">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
               <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
@@ -1492,6 +1493,20 @@ export function EyecatchCreator() {
           onConfirm={dataUrl => { saveBgImage(dataUrl); URL.revokeObjectURL(bgCropSrc); setBgCropSrc(null) }}
           onCancel={() => { URL.revokeObjectURL(bgCropSrc); setBgCropSrc(null) }}
         />
+      )}
+
+      {showClearConfirm && (
+        <div className="ec-confirm-overlay" onClick={() => setShowClearConfirm(false)}>
+          <div className="ec-confirm-panel" onClick={e => e.stopPropagation()}>
+            <p className="ec-confirm-msg">すべてのアイテムをクリアしますか？</p>
+            <div className="ec-confirm-actions">
+              <button className="btn-secondary" onClick={() => setShowClearConfirm(false)}>キャンセル</button>
+              <button className="btn-primary" style={{ background: '#e85d7a', borderColor: '#e85d7a' }} onClick={() => {
+                clear(); setShowClearConfirm(false)
+              }}>クリア</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showDeleteConfirm && (
