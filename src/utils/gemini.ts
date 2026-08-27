@@ -1,18 +1,59 @@
-const FALLBACK_MODEL = 'llama-3.3-70b-versatile'
+// 優先モデル順（無料・高速なものを先頭に）
+const PREFERRED_MODELS = [
+  'llama-3.1-8b-instant',
+  'llama-3.3-70b-versatile',
+]
+
 let resolvedModel: string | null = null
 
-async function getModel(): Promise<string> {
+async function getModel(apiKey: string): Promise<string> {
   if (resolvedModel) return resolvedModel
+
+  // ai-config.json で手動指定があればそれを優先
   try {
-    const res = await fetch(`${import.meta.env.BASE_URL}ai-config.json`, { cache: 'no-store' })
-    if (res.ok) {
-      const cfg = await res.json()
-      resolvedModel = cfg.aiModel ?? FALLBACK_MODEL
+    const cfgRes = await fetch(`${import.meta.env.BASE_URL}ai-config.json`, { cache: 'no-store' })
+    if (cfgRes.ok) {
+      const cfg = await cfgRes.json()
+      if (cfg.aiModel) {
+        resolvedModel = cfg.aiModel
+        return resolvedModel
+      }
     }
   } catch {
     // ignore
   }
-  return resolvedModel ?? FALLBACK_MODEL
+
+  // Groq API から利用可能なモデルを取得して自動選択
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+    })
+    if (res.ok) {
+      const data = await res.json()
+      const ids: string[] = data.data?.map((m: { id: string }) => m.id) ?? []
+      for (const pref of PREFERRED_MODELS) {
+        if (ids.includes(pref)) {
+          resolvedModel = pref
+          return resolvedModel
+        }
+      }
+      // 優先リストにないときはテキスト系の最初のモデルを使用
+      const textModel = ids.find((id: string) =>
+        !id.includes('whisper') && !id.includes('guard') &&
+        !id.includes('orpheus') && !id.includes('safeguard') &&
+        !id.includes('tts'),
+      )
+      if (textModel) {
+        resolvedModel = textModel
+        return resolvedModel
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // 取得失敗時はキャッシュせず次回再試行できるようにする
+  return PREFERRED_MODELS[0]
 }
 
 export interface ChatMessage {
@@ -26,7 +67,7 @@ export async function sendGeminiMessage(
   userText: string,
   systemPrompt: string,
 ): Promise<string> {
-  const modelName = await getModel()
+  const modelName = await getModel(apiKey)
 
   const messages = [
     { role: 'system', content: systemPrompt },
