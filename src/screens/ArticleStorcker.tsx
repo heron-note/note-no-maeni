@@ -603,6 +603,33 @@ export function ArticleStorcker() {
       setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
 
+    function generateKindlePrompt(type: string): string {
+      if (!activeCollection || activeCollection.articlePostIds.length === 0) return ''
+      const articleLines = activeCollection.articlePostIds.map((postId, i) => {
+        const art = allArticles.find((a: any) => a.postId === postId)
+        if (!art) return `${i + 1}. (不明な記事)`
+        const nouns = (art.nounIds || [])
+          .map((id: number) => nounById.get(id)?.word)
+          .filter(Boolean)
+          .join('、')
+        const nounPart = nouns ? `\n   キーワード：${nouns}` : ''
+        return `${i + 1}. 「${art.title}」${nounPart}`
+      }).join('\n')
+      const header = `コレクション名：${activeCollection.title}\n\n記事一覧：\n${articleLines}`
+      switch (type) {
+        case 'structure':
+          return `以下の記事をKindleの1冊にまとめます。章立て・目次案を3パターン提案してください。各案は「章タイトル」と「含める記事番号」で示してください。\n\n${header}`
+        case 'duplicate':
+          return `以下の記事の中で、内容が重複・類似していると思われる組み合わせを指摘してください。\n\n${header}`
+        case 'gap':
+          return `以下の記事をKindleにまとめる場合、読者の理解を深めるために追加すべきテーマや章を提案してください。\n\n${header}`
+        case 'title':
+          return `以下の記事をまとめた本のタイトル候補を10個提案してください。Kindle向けで読者の目を引くものをお願いします。\n\n${header}`
+        default:
+          return ''
+      }
+    }
+
     // ─── ZIP import ────────────────────────────────────────────────────────────
     async function processZip(file: File) {
       if (!file || !db) { setStatus('エラー: DB未接続'); return }
@@ -1086,6 +1113,37 @@ export function ArticleStorcker() {
         if (activeCollection) mergeAndExport(activeCollection)
       })
 
+      const openPromptModal = (type: string) => {
+        document.querySelectorAll('.as-prompt-type-btn').forEach(b => {
+          b.classList.toggle('as-btn-accent', (b as HTMLElement).dataset.type === type)
+        })
+        const ta = $('as-prompt-text') as HTMLTextAreaElement | null
+        if (ta) ta.value = generateKindlePrompt(type)
+        $('as-prompt-modal')?.classList.add('open')
+      }
+      $('as-col-prompt-btn')?.addEventListener('click', () => {
+        if (!activeCollection || activeCollection.articlePostIds.length === 0) {
+          alert('記事が1件も含まれていません。'); return
+        }
+        openPromptModal('structure')
+      })
+      document.querySelectorAll('.as-prompt-type-btn').forEach(btn => {
+        btn.addEventListener('click', () => openPromptModal((btn as HTMLElement).dataset.type ?? 'structure'))
+      })
+      $('as-prompt-copy')?.addEventListener('click', () => {
+        const ta = $('as-prompt-text') as HTMLTextAreaElement | null
+        if (!ta) return
+        navigator.clipboard.writeText(ta.value).then(() => {
+          const btn = $('as-prompt-copy')
+          if (!btn) return
+          const orig = btn.textContent
+          btn.textContent = 'コピー完了！'
+          setTimeout(() => { btn.textContent = orig }, 1500)
+        })
+      })
+      $('as-prompt-close')?.addEventListener('click', () => $('as-prompt-modal')?.classList.remove('open'))
+      $('as-prompt-modal')?.addEventListener('click', (e) => { if (e.target === $('as-prompt-modal')) $('as-prompt-modal')?.classList.remove('open') })
+
       window.addEventListener('resize', () => {
         if (window.innerWidth > 768) {
           $('as-mobile-modal')?.classList.remove('open')
@@ -1211,6 +1269,7 @@ export function ArticleStorcker() {
                 <button id="as-col-title-save" className="as-action-btn as-btn-accent" style={{ flex: 1 }}>保存</button>
                 <button id="as-col-delete" className="as-action-btn" style={{ flex: 1, background: 'transparent', color: 'var(--danger)', border: '1px solid var(--danger)' }}>削除</button>
               </div>
+              <button id="as-col-prompt-btn" className="as-action-btn" style={{ width: '100%', background: 'var(--primary)', color: '#fff' }}>🤖 外部AI向けプロンプト生成</button>
               <textarea id="as-col-detail-memo" className="as-col-detail-memo" placeholder="メモ（任意）" rows={2} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span id="as-col-stats" className="as-col-stats" />
@@ -1261,6 +1320,31 @@ export function ArticleStorcker() {
           <div className="as-col-picker-new">
             <input id="as-col-picker-input" type="text" className="as-input" placeholder="新規コレクション名" />
             <button id="as-col-picker-create" className="as-action-btn as-btn-accent">作成して追加</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Prompt modal */}
+      <div id="as-prompt-modal" className="as-col-picker-overlay">
+        <div className="as-col-picker-box">
+          <div className="as-sheet-header">
+            <div className="as-drag-handle-wrap"><div className="as-drag-handle" /></div>
+            <div className="as-col-picker-header">
+              <span className="as-col-picker-title">🤖 外部AI向けプロンプト生成</span>
+              <button id="as-prompt-close" className="icon-btn" aria-label="閉じる">✕</button>
+            </div>
+          </div>
+          <div style={{ padding: '6px 12px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button className="as-prompt-type-btn as-action-btn" data-type="structure" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>章立て</button>
+            <button className="as-prompt-type-btn as-action-btn" data-type="duplicate" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>重複検出</button>
+            <button className="as-prompt-type-btn as-action-btn" data-type="gap" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>不足提案</button>
+            <button className="as-prompt-type-btn as-action-btn" data-type="title" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>タイトル候補</button>
+          </div>
+          <div style={{ padding: '0 12px' }}>
+            <textarea id="as-prompt-text" readOnly style={{ width: '100%', height: 220, boxSizing: 'border-box', fontSize: '0.78rem', lineHeight: 1.5, resize: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: 8, background: 'var(--surface)', color: 'var(--text)' }} />
+          </div>
+          <div style={{ padding: '8px 12px 16px' }}>
+            <button id="as-prompt-copy" className="as-action-btn as-btn-accent" style={{ width: '100%' }}>コピーして外部AIへ貼り付け</button>
           </div>
         </div>
       </div>
