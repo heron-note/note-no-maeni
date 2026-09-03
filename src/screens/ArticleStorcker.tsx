@@ -1182,6 +1182,15 @@ export function ArticleStorcker() {
                 <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>zipをドロップ または クリック</div>
                 <input id="as-zip-input" type="file" accept=".zip" style={{ display: 'none' }} />
               </div>
+              <a
+                href="https://note.com/nifty_sheep7386/n/ne25fb6fd9aae"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: '0.75rem', color: 'var(--primary)', display: 'block', marginTop: 4 }}
+                onClick={e => e.stopPropagation()}
+              >
+                noteのエクスポート手順はこちら
+              </a>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                 <span id="as-status" className="as-status" style={{ flex: 1 }}>DB接続中...</span>
                 <button id="as-reindex-nouns" className="as-clear-db-btn" style={{ background: 'var(--primary)', color: '#fff', flexShrink: 0 }}>名詞再解析</button>
