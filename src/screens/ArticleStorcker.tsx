@@ -1194,7 +1194,7 @@ export function ArticleStorcker() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                 <span id="as-status" className="as-status" style={{ flex: 1 }}>DB接続中...</span>
                 <button id="as-reindex-nouns" className="as-clear-db-btn" style={{ background: 'var(--primary)', color: '#fff', flexShrink: 0 }}>名詞再解析</button>
-                <button id="as-delete-db" className="as-clear-db-btn" style={{ background: '#e53', color: '#fff', flexShrink: 0 }}>DB削除</button>
+                {(import.meta.env.DEV || window.location.hostname.includes('vercel.app')) && <button id="as-delete-db" className="as-clear-db-btn" style={{ background: '#e53', color: '#fff', flexShrink: 0 }}>DB削除</button>}
               </div>
             </div>
             <button id="as-search-toggle" className="as-search-toggle">検索条件を開く</button>
