@@ -420,21 +420,20 @@ async function captureScreenshots() {
     await injectEyecatchAssets(page)
     await reloadAndGoToEyecatch(page)
 
-    // nf06a: スタンプ追加タブの「＋ 画像スタンプを追加」ボタンが見える状態
-    // ボタンは下の方にあるのでスクロール
-    await page.locator('button:has-text("＋ 画像スタンプを追加")').scrollIntoViewIfNeeded()
-    await page.waitForTimeout(300)
+    // nf06a: スタンプ追加タブにサムネイルが表示された状態
+    // （スタンプ登録済みの場合、「＋ 画像スタンプを追加」大ボタンは非表示になり
+    //   サムネイル行＋小「＋」ボタンに変わる）
     await shot(page, 'nf06a_ec_stamp_btn.png')
 
-    // nf06b: スタンプピッカーを開く（注入したスタンプが表示される）
-    await page.locator('button:has-text("＋ 画像スタンプを追加")').click()
+    // nf06b: サムネイル行の「＋」からスタンプピッカーを開く
+    await page.locator('.stamp-thumb-add').click()
     await page.waitForTimeout(500)
     await shot(page, 'nf06b_ec_stamp_picker.png')
 
-    // nf06c: スタンプを選択 → ピッカーが閉じてキャンバスに配置
+    // nf06c: ピッカーからスタンプを選択 → キャンバスをタップして配置
     await page.locator('.stamp-picker-item').first().click()
     await page.waitForTimeout(400)
-    // キャンバス中央をクリックして配置
+    // ピッカーが閉じ pendingCustom が設定される → キャンバス中央をクリックして配置
     const canvasWrap = page.locator('.eyecatch-canvas-wrap')
     const box = await canvasWrap.boundingBox()
     await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5)
