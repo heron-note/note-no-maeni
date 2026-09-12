@@ -26,7 +26,7 @@ export function StampOverlay({ declaration, onClose }: {
     return (last && all.find(t => t.id === last)) ? last : (all[0]?.id ?? '')
   })
   const [todayEvents, setTodayEvents] = useState<TodayEvent[]>([])
-  const [includeTodayEvent, setIncludeTodayEvent] = useState(false)
+  const [includeTodayEvent, setIncludeTodayEvent] = useState(() => storage.loadIncludeTodayEvent())
 
   useEffect(() => {
     getTodayEvents().then(setTodayEvents)
@@ -86,7 +86,7 @@ export function StampOverlay({ declaration, onClose }: {
               <input
                 type="checkbox"
                 checked={includeTodayEvent}
-                onChange={e => setIncludeTodayEvent(e.target.checked)}
+                onChange={e => { setIncludeTodayEvent(e.target.checked); storage.saveIncludeTodayEvent(e.target.checked) }}
               />
               <span>「今日は何の日」を含める</span>
             </label>

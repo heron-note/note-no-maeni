@@ -8,6 +8,7 @@ const SK = {
   restTemplates: 'nob_rest_templates',
   lastRestTplId: 'nob_last_rest_tpl',
   lastUserTplId: 'nob_last_user_tpl',
+  includeTodayEvent: 'nob_include_today_event',
 } as const
 
 function safeLoad<T>(key: string): T | null {
@@ -56,6 +57,9 @@ export const storage = {
 
   loadLastUserTplId: () => localStorage.getItem(SK.lastUserTplId),
   saveLastUserTplId: (id: string) => localStorage.setItem(SK.lastUserTplId, id),
+
+  loadIncludeTodayEvent: () => localStorage.getItem(SK.includeTodayEvent) === 'true',
+  saveIncludeTodayEvent: (v: boolean) => localStorage.setItem(SK.includeTodayEvent, v ? 'true' : 'false'),
 
   loadSoundEnabled: () => localStorage.getItem('nob_sound') !== 'off',
   saveSoundEnabled: (v: boolean) => localStorage.setItem('nob_sound', v ? 'on' : 'off'),
