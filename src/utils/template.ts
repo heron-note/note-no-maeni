@@ -169,7 +169,6 @@ export function buildUserTemplateHtml(lines: string[]): string {
   return parts.join('')
 }
 
-
 /** 今日は何の日ブロックを宣言文の直後に注入したプレーンテキストを返す */
 export function buildPlainTextWithEvent(template: Template, declaration: Declaration, events: TodayEvent[]): string {
   if (!events.length) return buildPlainText(template, declaration)
