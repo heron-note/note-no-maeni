@@ -54,46 +54,21 @@ export function buildTemplateHTML(template: Template, declaration: Declaration):
   return html
 }
 
-function todayEventPlain(events: TodayEvent[]): string {
-  const d = new Date()
-  const dateStr = `${d.getMonth() + 1}月${d.getDate()}日`
-  return (
-    `\n### ${dateStr} 今日は何の日？\n\n` +
-    events.map(e => `**${e.title}**\n> ${e.description}`).join('\n\n') +
-    '\n\n'
-  )
-}
-
-function todayEventHtml(events: TodayEvent[]): string {
-  const d = new Date()
-  const dateStr = `${d.getMonth() + 1}月${d.getDate()}日`
-  return (
-    `<h3>${escHtml(dateStr)} 今日は何の日？</h3>` +
-    events.map(e =>
-      `<p><strong>${escHtml(e.title)}</strong></p>` +
-      `<figure><blockquote><p>${escHtml(e.description)}</p></blockquote><figcaption></figcaption></figure>`
-    ).join('') +
-    '<p>&nbsp;</p>'
-  )
-}
-
-function declBlock(declaration: Declaration, todayEvents: TodayEvent[] = []): string {
-  let block = `\n## ${DECL_TITLE}\n\n> ${declaration.text}\n\n`
-  if (todayEvents.length > 0) block += todayEventPlain(todayEvents)
-  return block
+function declBlock(declaration: Declaration): string {
+  return `\n## ${DECL_TITLE}\n\n> ${declaration.text}\n\n`
 }
 
 /** テンプレート+宣言文 → クリップボード用プレーンテキスト */
-export function buildPlainText(template: Template, declaration: Declaration, todayEvents: TodayEvent[] = []): string {
+export function buildPlainText(template: Template, declaration: Declaration): string {
   const { lines, insertAfterIndex } = template
   const parts: string[] = []
 
-  if (insertAfterIndex === -1) parts.push(declBlock(declaration, todayEvents))
+  if (insertAfterIndex === -1) parts.push(declBlock(declaration))
   lines.forEach((lineHtml, i) => {
     parts.push(stripHtml(stripAlignPrefix(lineHtml)))
-    if (i === insertAfterIndex) parts.push(declBlock(declaration, todayEvents))
+    if (i === insertAfterIndex) parts.push(declBlock(declaration))
   })
-  if (insertAfterIndex >= lines.length) parts.push(declBlock(declaration, todayEvents))
+  if (insertAfterIndex >= lines.length) parts.push(declBlock(declaration))
 
   return parts.join('\n')
 }
@@ -108,13 +83,12 @@ function lineToTag(lineHtml: string): string {
 }
 
 /** テンプレート+宣言文 → HTML clipboard 用（リンク保持） */
-export function buildHtmlText(template: Template, declaration: Declaration, todayEvents: TodayEvent[] = []): string {
+export function buildHtmlText(template: Template, declaration: Declaration): string {
   const { lines, insertAfterIndex } = template
   const decl =
     `<h2>${escHtml(DECL_TITLE)}</h2>` +
     `<figure><blockquote><p>${escHtml(declaration.text)}</p></blockquote><figcaption></figcaption></figure>` +
-    `<p>&nbsp;</p>` +
-    (todayEvents.length > 0 ? todayEventHtml(todayEvents) : '')
+    `<p>&nbsp;</p>`
   const parts: string[] = []
 
   if (insertAfterIndex === -1) parts.push(decl)
@@ -195,6 +169,91 @@ export function buildUserTemplateHtml(lines: string[]): string {
   return parts.join('')
 }
 
+
+/** 今日は何の日ブロックを宣言文の直後に注入したプレーンテキストを返す */
+export function buildPlainTextWithEvent(template: Template, declaration: Declaration, events: TodayEvent[]): string {
+  if (!events.length) return buildPlainText(template, declaration)
+  const d = new Date()
+  const dateStr = `${d.getMonth() + 1}月${d.getDate()}日`
+  const eventBlock =
+    `\n### ${dateStr} 今日は何の日？\n\n` +
+    events.map(e => `**${e.title}**\n> ${e.description}`).join('\n\n') +
+    '\n\n'
+
+  const { lines, insertAfterIndex } = template
+  const parts: string[] = []
+  const decl = `\n## ${DECL_TITLE}\n\n> ${declaration.text}\n\n` + eventBlock
+
+  if (insertAfterIndex === -1) parts.push(decl)
+  lines.forEach((lineHtml, i) => {
+    parts.push(stripHtml(stripAlignPrefix(lineHtml)))
+    if (i === insertAfterIndex) parts.push(decl)
+  })
+  if (insertAfterIndex >= lines.length) parts.push(decl)
+
+  return parts.join('\n')
+}
+
+/** 今日は何の日ブロックを宣言文の直後に注入したHTMLを返す */
+export function buildHtmlTextWithEvent(template: Template, declaration: Declaration, events: TodayEvent[]): string {
+  if (!events.length) return buildHtmlText(template, declaration)
+  const d = new Date()
+  const dateStr = `${d.getMonth() + 1}月${d.getDate()}日`
+  const eventHtml =
+    `<h3>${escHtml(dateStr)} 今日は何の日？</h3>` +
+    events.map(e =>
+      `<p><strong>${escHtml(e.title)}</strong></p>` +
+      `<figure><blockquote><p>${escHtml(e.description)}</p></blockquote><figcaption></figcaption></figure>`
+    ).join('') +
+    '<p>&nbsp;</p>'
+
+  const { lines, insertAfterIndex } = template
+  const decl =
+    `<h2>${escHtml(DECL_TITLE)}</h2>` +
+    `<figure><blockquote><p>${escHtml(declaration.text)}</p></blockquote><figcaption></figcaption></figure>` +
+    `<p>&nbsp;</p>` +
+    eventHtml
+  const parts: string[] = []
+
+  if (insertAfterIndex === -1) parts.push(decl)
+  let i = 0
+  while (i < lines.length) {
+    const lineHtml = lines[i]
+    if (lineHtml === '```') {
+      const openIdx = i
+      const codeLines: string[] = []
+      i++
+      while (i < lines.length && lines[i] !== '```') { codeLines.push(lines[i]); i++ }
+      parts.push(`<pre><code>${codeLines.join('\n')}</code></pre>`)
+      if (openIdx === insertAfterIndex) parts.push(decl)
+      i++
+    } else if (lineHtml === '---') {
+      parts.push('<hr>')
+      if (i === insertAfterIndex) parts.push(decl)
+      i++
+    } else if (lineHtml.startsWith('- ')) {
+      const startIdx = i
+      const items: string[] = []
+      while (i < lines.length && lines[i].startsWith('- ')) { items.push(`<li>${lines[i].slice(2)}</li>`); i++ }
+      parts.push(`<ul>${items.join('')}</ul>`)
+      if (insertAfterIndex >= startIdx && insertAfterIndex < i) parts.push(decl)
+    } else if (/^\d+\. /.test(lineHtml)) {
+      const startIdx = i
+      const items: string[] = []
+      while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(`<li>${lines[i].replace(/^\d+\. /, '')}</li>`); i++ }
+      parts.push(`<ol>${items.join('')}</ol>`)
+      if (insertAfterIndex >= startIdx && insertAfterIndex < i) parts.push(decl)
+    } else {
+      parts.push(lineToTag(lineHtml))
+      if (i === insertAfterIndex) parts.push(decl)
+      i++
+    }
+  }
+  if (insertAfterIndex >= lines.length) parts.push(decl)
+
+  const result = parts.join('')
+  return result.startsWith('<figure>') ? `<p></p>${result}` : result
+}
 
 export async function copyToClipboard(text: string, html?: string): Promise<void> {
   if (html && (navigator.clipboard as any)?.write) {

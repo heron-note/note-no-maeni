@@ -3,7 +3,7 @@ import { pickStampColor } from '../data/declarations'
 import { playStampSound } from '../utils/audio'
 import { speakVoicevox } from '../utils/voicevox'
 import { storage } from '../utils/storage'
-import { buildPlainText, buildHtmlText, copyToClipboard } from '../utils/template'
+import { buildPlainText, buildHtmlText, buildPlainTextWithEvent, buildHtmlTextWithEvent, copyToClipboard } from '../utils/template'
 import { getTodayEvents } from '../utils/todayEvents'
 import { Toast } from './Toast'
 import type { Declaration, RestTemplate } from '../types'
@@ -49,9 +49,12 @@ export function StampOverlay({ declaration, onClose }: {
     window.open('https://note.com/notes/new', '_blank', 'noopener,noreferrer')
     const tpl = restTemplates.find(t => t.id === selectedTplId)
     const template = tpl ? { lines: tpl.lines, insertAfterIndex: tpl.insertAfterIndex } : { lines: [], insertAfterIndex: -1 }
-    const events = includeTodayEvent ? todayEvents : []
-    const text = buildPlainText(template, declaration, events)
-    const html = buildHtmlText(template, declaration, events)
+    const text = includeTodayEvent
+      ? buildPlainTextWithEvent(template, declaration, todayEvents)
+      : buildPlainText(template, declaration)
+    const html = includeTodayEvent
+      ? buildHtmlTextWithEvent(template, declaration, todayEvents)
+      : buildHtmlText(template, declaration)
     await copyToClipboard(text, html).catch(() => {})
     setToast('コピーしました！')
   }
