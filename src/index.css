@@ -1523,6 +1523,16 @@ html, body, #root {
   appearance: auto; cursor: pointer;
 }
 
+.today-event-check {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 10px 12px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); cursor: pointer; font-size: 14px; color: var(--text);
+}
+.today-event-check input[type="checkbox"] {
+  width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer;
+}
+
 /* ===== WRITE OVERLAY TEMPLATE PICKER ===== */
 .write-tpl-wrap { position: relative; width: 100%; }
 .write-tpl-btn { position: relative; }
