@@ -54,21 +54,46 @@ export function buildTemplateHTML(template: Template, declaration: Declaration):
   return html
 }
 
-function declBlock(declaration: Declaration): string {
-  return `\n## ${DECL_TITLE}\n\n> ${declaration.text}\n\n`
+function todayEventPlain(events: TodayEvent[]): string {
+  const d = new Date()
+  const dateStr = `${d.getMonth() + 1}月${d.getDate()}日`
+  return (
+    `\n### ${dateStr} 今日は何の日？\n\n` +
+    events.map(e => `**${e.title}**\n> ${e.description}`).join('\n\n') +
+    '\n\n'
+  )
+}
+
+function todayEventHtml(events: TodayEvent[]): string {
+  const d = new Date()
+  const dateStr = `${d.getMonth() + 1}月${d.getDate()}日`
+  return (
+    `<h3>${escHtml(dateStr)} 今日は何の日？</h3>` +
+    events.map(e =>
+      `<p><strong>${escHtml(e.title)}</strong></p>` +
+      `<figure><blockquote><p>${escHtml(e.description)}</p></blockquote><figcaption></figcaption></figure>`
+    ).join('') +
+    '<p>&nbsp;</p>'
+  )
+}
+
+function declBlock(declaration: Declaration, todayEvents: TodayEvent[] = []): string {
+  let block = `\n## ${DECL_TITLE}\n\n> ${declaration.text}\n\n`
+  if (todayEvents.length > 0) block += todayEventPlain(todayEvents)
+  return block
 }
 
 /** テンプレート+宣言文 → クリップボード用プレーンテキスト */
-export function buildPlainText(template: Template, declaration: Declaration): string {
+export function buildPlainText(template: Template, declaration: Declaration, todayEvents: TodayEvent[] = []): string {
   const { lines, insertAfterIndex } = template
   const parts: string[] = []
 
-  if (insertAfterIndex === -1) parts.push(declBlock(declaration))
+  if (insertAfterIndex === -1) parts.push(declBlock(declaration, todayEvents))
   lines.forEach((lineHtml, i) => {
     parts.push(stripHtml(stripAlignPrefix(lineHtml)))
-    if (i === insertAfterIndex) parts.push(declBlock(declaration))
+    if (i === insertAfterIndex) parts.push(declBlock(declaration, todayEvents))
   })
-  if (insertAfterIndex >= lines.length) parts.push(declBlock(declaration))
+  if (insertAfterIndex >= lines.length) parts.push(declBlock(declaration, todayEvents))
 
   return parts.join('\n')
 }
@@ -83,12 +108,13 @@ function lineToTag(lineHtml: string): string {
 }
 
 /** テンプレート+宣言文 → HTML clipboard 用（リンク保持） */
-export function buildHtmlText(template: Template, declaration: Declaration): string {
+export function buildHtmlText(template: Template, declaration: Declaration, todayEvents: TodayEvent[] = []): string {
   const { lines, insertAfterIndex } = template
   const decl =
     `<h2>${escHtml(DECL_TITLE)}</h2>` +
     `<figure><blockquote><p>${escHtml(declaration.text)}</p></blockquote><figcaption></figcaption></figure>` +
-    `<p>&nbsp;</p>`
+    `<p>&nbsp;</p>` +
+    (todayEvents.length > 0 ? todayEventHtml(todayEvents) : '')
   const parts: string[] = []
 
   if (insertAfterIndex === -1) parts.push(decl)
@@ -169,18 +195,6 @@ export function buildUserTemplateHtml(lines: string[]): string {
   return parts.join('')
 }
 
-export function buildTodayEventBlock(events: TodayEvent[]): { plain: string; html: string } {
-  if (!events.length) return { plain: '', html: '' }
-  const plain =
-    '\n## 今日は何の日？\n\n' +
-    events.map(e => `**${e.title}** — ${e.description}`).join('\n') +
-    '\n'
-  const html =
-    '<h2>今日は何の日？</h2>' +
-    events.map(e => `<p><strong>${escHtml(e.title)}</strong> — ${escHtml(e.description)}</p>`).join('') +
-    '<p>&nbsp;</p>'
-  return { plain, html }
-}
 
 export async function copyToClipboard(text: string, html?: string): Promise<void> {
   if (html && (navigator.clipboard as any)?.write) {
