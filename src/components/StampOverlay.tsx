@@ -3,9 +3,11 @@ import { pickStampColor } from '../data/declarations'
 import { playStampSound } from '../utils/audio'
 import { speakVoicevox } from '../utils/voicevox'
 import { storage } from '../utils/storage'
-import { buildPlainText, buildHtmlText, copyToClipboard } from '../utils/template'
+import { buildPlainText, buildHtmlText, buildTodayEventBlock, copyToClipboard } from '../utils/template'
+import { getTodayEvents } from '../utils/todayEvents'
 import { Toast } from './Toast'
 import type { Declaration, RestTemplate } from '../types'
+import type { TodayEvent } from '../utils/todayEvents'
 import { useBottomSheet } from '../hooks/useBottomSheet'
 
 export function StampOverlay({ declaration, onClose }: {
@@ -23,6 +25,12 @@ export function StampOverlay({ declaration, onClose }: {
     const all = storage.loadRestTemplates()
     return (last && all.find(t => t.id === last)) ? last : (all[0]?.id ?? '')
   })
+  const [todayEvents, setTodayEvents] = useState<TodayEvent[]>([])
+  const [includeTodayEvent, setIncludeTodayEvent] = useState(false)
+
+  useEffect(() => {
+    getTodayEvents().then(setTodayEvents)
+  }, [])
 
   useEffect(() => {
     const el = stampRef.current
@@ -41,8 +49,13 @@ export function StampOverlay({ declaration, onClose }: {
     window.open('https://note.com/notes/new', '_blank', 'noopener,noreferrer')
     const tpl = restTemplates.find(t => t.id === selectedTplId)
     const template = tpl ? { lines: tpl.lines, insertAfterIndex: tpl.insertAfterIndex } : { lines: [], insertAfterIndex: -1 }
-    const text = buildPlainText(template, declaration)
-    const html = buildHtmlText(template, declaration)
+    let text = buildPlainText(template, declaration)
+    let html = buildHtmlText(template, declaration)
+    if (includeTodayEvent && todayEvents.length > 0) {
+      const block = buildTodayEventBlock(todayEvents)
+      text += block.plain
+      html += block.html
+    }
     await copyToClipboard(text, html).catch(() => {})
     setToast('コピーしました！')
   }
@@ -68,6 +81,16 @@ export function StampOverlay({ declaration, onClose }: {
                 <option key={t.id} value={t.id}>{t.title}</option>
               ))}
             </select>
+          )}
+          {todayEvents.length > 0 && (
+            <label className="today-event-check">
+              <input
+                type="checkbox"
+                checked={includeTodayEvent}
+                onChange={e => setIncludeTodayEvent(e.target.checked)}
+              />
+              <span>「今日は何の日」を含める</span>
+            </label>
           )}
           <button className="btn-primary wide" onClick={handleCopy}>
             コピーしてnoteへ ↗

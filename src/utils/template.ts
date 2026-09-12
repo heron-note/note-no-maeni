@@ -1,4 +1,5 @@
 import type { Template, Declaration } from '../types'
+import type { TodayEvent } from './todayEvents'
 
 function splitAlign(l: string): [string, string] {
   if (l.startsWith('\x02c\x02')) return ['center', l.slice(3)]
@@ -166,6 +167,19 @@ export function buildUserTemplateHtml(lines: string[]): string {
     }
   }
   return parts.join('')
+}
+
+export function buildTodayEventBlock(events: TodayEvent[]): { plain: string; html: string } {
+  if (!events.length) return { plain: '', html: '' }
+  const plain =
+    '\n## 今日は何の日？\n\n' +
+    events.map(e => `**${e.title}** — ${e.description}`).join('\n') +
+    '\n'
+  const html =
+    '<h2>今日は何の日？</h2>' +
+    events.map(e => `<p><strong>${escHtml(e.title)}</strong> — ${escHtml(e.description)}</p>`).join('') +
+    '<p>&nbsp;</p>'
+  return { plain, html }
 }
 
 export async function copyToClipboard(text: string, html?: string): Promise<void> {
