@@ -21,10 +21,19 @@ async function loadMonth(month: string): Promise<MonthData> {
   return {}
 }
 
+function pickRandom2<T>(arr: T[]): T[] {
+  if (arr.length <= 2) return arr
+  const i = Math.floor(Math.random() * arr.length)
+  let j = Math.floor(Math.random() * (arr.length - 1))
+  if (j >= i) j++
+  return [arr[i], arr[j]]
+}
+
 export async function getTodayEvents(date: Date = new Date()): Promise<TodayEvent[]> {
   const mm = String(date.getMonth() + 1).padStart(2, '0')
   const dd = String(date.getDate()).padStart(2, '0')
   const key = `${mm}-${dd}`
   const data = await loadMonth(mm)
-  return data[key] ?? []
+  const events = data[key] ?? []
+  return pickRandom2(events)
 }
