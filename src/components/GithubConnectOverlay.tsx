@@ -42,7 +42,19 @@ export function GithubConnectOverlay({ onConnected, onClose }: {
   const [phase, setPhase] = useState<Phase>('requesting')
   const [device, setDevice] = useState<DeviceCodeResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+
+  const handleCopy = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code)
+    } catch {
+      // クリップボードAPIが使えない場合は無視（コードは画面に表示済みなので手入力できる）
+      return
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const start = () => {
     setPhase('requesting')
@@ -117,7 +129,12 @@ export function GithubConnectOverlay({ onConnected, onClose }: {
           {(phase === 'waiting' || phase === 'finalizing') && device && (
             <>
               <p className="settings-hint">下のコードをコピーして、GitHubのページで入力してください。</p>
-              <p className="github-user-code">{device.user_code}</p>
+              <div className="github-user-code-row">
+                <p className="github-user-code">{device.user_code}</p>
+                <button type="button" className="btn-secondary" onClick={() => handleCopy(device.user_code)}>
+                  {copied ? 'コピーしました' : 'コピー'}
+                </button>
+              </div>
               <a
                 className="btn-primary wide"
                 href={device.verification_uri}

@@ -901,10 +901,13 @@ html, body, #root {
 .settings-hint a { color: var(--write); }
 
 .github-connect-body { display: flex; flex-direction: column; gap: 12px; padding: 4px 4px 16px; align-items: stretch; }
+.github-user-code-row { display: flex; align-items: center; gap: 8px; }
 .github-user-code {
+  flex: 1;
   font-size: 28px; font-weight: 700; letter-spacing: 2px; text-align: center;
   background: var(--surface-soft, #f4f4f4); border-radius: 12px; padding: 12px; margin: 0;
 }
+.github-user-code-row .btn-secondary { flex-shrink: 0; white-space: nowrap; }
 
 /* ===== REACTION ===== */
 .bubble {
