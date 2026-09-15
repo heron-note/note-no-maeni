@@ -122,9 +122,36 @@ export function isIdbSyncPending(): boolean {
 }
 
 /**
- * GitHub連携直後、および次回起動時に未完了分を再開する際に呼び出す。GitHub側の
- * 記事・画像をローカルへマージ（無ければ追加、既存のローカル項目は消さない）
- * したうえで、マージ後の全件を必ずGitHubへもアップロードする（仕様書10章）。
+ * 1カテゴリ分の「GitHub側を先に取り込んでからpushする」処理本体。GitHub連携直後・
+ * 次回起動時の再試行・記事や画像の保存/削除の即時同期、そのすべてから必ずこの順番
+ * （pull→merge→push）で呼び出すこと。pushだけを行うと、まだ何も取り込んでいない
+ * 空のローカル状態でリモートの既存データを潰してしまう事故につながる
+ * （実際に、記事ストッカーのインデックスがこれで空上書きされた不具合があった）。
+ */
+type IdbCategory = 'articleStocker' | 'bgImages' | 'stampImages'
+
+const CATEGORY_LABELS: Record<IdbCategory, string> = {
+  articleStocker: '記事ストッカー', bgImages: '背景画像', stampImages: '画像スタンプ',
+}
+
+async function pullMergePushCategory(category: IdbCategory, token: string, owner: string): Promise<void> {
+  if (category === 'articleStocker') {
+    const remote = await pullArticleStocker(token, owner)
+    if (remote) await mergeArticleStocker(remote)
+    await pushArticleStocker(token, owner, await collectArticleStocker())
+  } else if (category === 'bgImages') {
+    const remote = await pullBgImages(token, owner)
+    if (remote) await mergeBgImages(remote)
+    await pushBgImages(token, owner, await collectBgImages())
+  } else {
+    const remote = await pullStampImages(token, owner)
+    if (remote) await mergeStampImages(remote)
+    await pushStampImages(token, owner, await collectStampImages())
+  }
+}
+
+/**
+ * GitHub連携直後、および次回起動時に未完了分を再開する際に呼び出す。
  *
  * 記事・背景画像・画像スタンプは互いに独立させる。1カテゴリの同期が失敗しても
  * 他のカテゴリの同期は実行する。全カテゴリ成功した場合のみ「完了」とし、
@@ -133,37 +160,18 @@ export function isIdbSyncPending(): boolean {
 export async function syncIdbOnConnect(token: string, owner: string): Promise<void> {
   markIdbSyncPending()
 
-  const results = await Promise.allSettled([
-    pullArticleStocker(token, owner).then(async remote => {
-      if (remote) await mergeArticleStocker(remote)
-      await pushArticleStocker(token, owner, await collectArticleStocker())
-    }),
-    pullBgImages(token, owner).then(async remote => {
-      if (remote) await mergeBgImages(remote)
-      await pushBgImages(token, owner, await collectBgImages())
-    }),
-    pullStampImages(token, owner).then(async remote => {
-      if (remote) await mergeStampImages(remote)
-      await pushStampImages(token, owner, await collectStampImages())
-    }),
-  ])
+  const categories: IdbCategory[] = ['articleStocker', 'bgImages', 'stampImages']
+  const results = await Promise.allSettled(categories.map(c => pullMergePushCategory(c, token, owner)))
 
-  const labels = ['記事ストッカー', '背景画像', '画像スタンプ']
   let allOk = true
   results.forEach((result, i) => {
     if (result.status === 'rejected') {
       allOk = false
-      console.error(`[GitHub連携] ${labels[i]}の同期に失敗しました`, result.reason)
+      console.error(`[GitHub連携] ${CATEGORY_LABELS[categories[i]]}の同期に失敗しました`, result.reason)
     }
   })
 
   if (allOk) clearIdbSyncPending()
-}
-
-type IdbCategory = 'articleStocker' | 'bgImages' | 'stampImages'
-
-const CATEGORY_LABELS: Record<IdbCategory, string> = {
-  articleStocker: '記事ストッカー', bgImages: '背景画像', stampImages: '画像スタンプ',
 }
 
 async function syncCategory(category: IdbCategory): Promise<void> {
@@ -171,13 +179,7 @@ async function syncCategory(category: IdbCategory): Promise<void> {
   if (!auth) return
   markIdbSyncPending()
   try {
-    if (category === 'articleStocker') {
-      await pushArticleStocker(auth.token, auth.username, await collectArticleStocker())
-    } else if (category === 'bgImages') {
-      await pushBgImages(auth.token, auth.username, await collectBgImages())
-    } else {
-      await pushStampImages(auth.token, auth.username, await collectStampImages())
-    }
+    await pullMergePushCategory(category, auth.token, auth.username)
     // このカテゴリ単体の呼び出しでは、他カテゴリの完了状況までは分からないため
     // pendingフラグはここでは下ろさない。次回起動時のsyncIdbOnConnectが
     // 全カテゴリまとめて確認し、揃って成功していればフラグを下ろす。
