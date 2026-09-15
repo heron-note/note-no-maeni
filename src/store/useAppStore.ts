@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { ScreenName, ChoiceType, User, LogEntry, Declaration } from '../types'
-import { storage, todayStr } from '../utils/storage'
+import { storage, todayStr, onGithubAuthCleared } from '../utils/storage'
+import { checkDataRepoValid } from '../utils/github'
 
 interface AppStore {
   // State
@@ -12,6 +13,10 @@ interface AppStore {
   editingUserTemplateId: string | null  // null = 新規作成
   editingRestTemplateId: string | null  // null = 新規作成
 
+  // GitHub連携（localStorageに永続化。毎回の再連携の手間を避けるため。仕様書3章参照）
+  githubToken: string | null
+  githubUsername: string | null
+
   // Actions
   init: () => void
   goTo: (screen: ScreenName) => void
@@ -22,12 +27,18 @@ interface AppStore {
   setDeclaration: (d: Declaration) => void
   setEditingUserTemplateId: (id: string | null) => void
   setEditingRestTemplateId: (id: string | null) => void
+  setGithubAuth: (token: string, username: string) => void
+  clearGithubAuth: () => void
 
   // Selectors
   todayLog: () => LogEntry | undefined
 }
 
-export const useAppStore = create<AppStore>((set, get) => ({
+export const useAppStore = create<AppStore>((set, get) => {
+  // 自動同期（storage.ts）が有効チェックの結果GitHub連携を解除した場合、ストアの状態も追従させる。
+  onGithubAuthCleared(() => set({ githubToken: null, githubUsername: null }))
+
+  return {
   screen: 'onboarding',
   user: null,
   logs: storage.loadLogs(),
@@ -35,6 +46,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   declaration: null,
   editingUserTemplateId: null,
   editingRestTemplateId: null,
+  githubToken: storage.loadGithubAuth()?.token ?? null,
+  githubUsername: storage.loadGithubAuth()?.username ?? null,
 
   init() {
     const user = storage.loadUser()
@@ -44,6 +57,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ screen: 'onboarding' })
     } else {
       set({ screen: 'home' })
+    }
+
+    // GitHub連携の有効チェック（仕様書10章）。
+    // 無効（リポジトリ誤削除・トークン失効等）なら連携状態だけを解除する。ローカルデータには触れない。
+    const { githubToken, githubUsername } = get()
+    if (githubToken && githubUsername) {
+      checkDataRepoValid(githubToken, githubUsername).then(valid => {
+        if (!valid) get().clearGithubAuth()
+      })
     }
   },
 
@@ -71,6 +93,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setDeclaration(declaration) { set({ declaration }) },
   setEditingUserTemplateId(id) { set({ editingUserTemplateId: id }) },
   setEditingRestTemplateId(id) { set({ editingRestTemplateId: id }) },
+  setGithubAuth(token, username) {
+    storage.saveGithubAuth(token, username)
+    set({ githubToken: token, githubUsername: username })
+  },
+  clearGithubAuth() {
+    storage.clearGithubAuth()
+    set({ githubToken: null, githubUsername: null })
+  },
 
   todayLog() { return get().logs[todayStr()] },
-}))
+  }
+})

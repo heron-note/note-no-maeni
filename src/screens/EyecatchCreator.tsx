@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { useSlideBack } from '../hooks/useSlideBack'
 import { useBottomSheet } from '../hooks/useBottomSheet'
+import { scheduleIdbSync } from '../utils/idbSync'
 
 const CW = 1280
 const CH = 670
@@ -827,6 +828,7 @@ export function EyecatchCreator() {
     const img = new Image(); img.src = dataUrl
     customImgCacheRef.current.set(entry.id, img)
     setCustomStampImages(prev => [...prev, entry])
+    scheduleIdbSync('stampImages')
   }
 
   const deleteStampImage = async (id: string) => {
@@ -838,6 +840,7 @@ export function EyecatchCreator() {
     customImgCacheRef.current.delete(id)
     setCustomStampImages(prev => prev.filter(s => s.id !== id))
     if (pendingCustom === id) { setPendingCustom(null); pendingCustomRef.current = null }
+    scheduleIdbSync('stampImages')
   }
 
   // Load bg images from IndexedDB on mount
@@ -867,6 +870,7 @@ export function EyecatchCreator() {
     })
     setBgImages(prev => [...prev, entry])
     setBgImageId(entry.id)
+    scheduleIdbSync('bgImages')
   }
 
   const deleteBgImage = async (id: string) => {
@@ -877,6 +881,7 @@ export function EyecatchCreator() {
     })
     setBgImages(prev => prev.filter(b => b.id !== id))
     if (bgImageId === id) setBgImageId(null)
+    scheduleIdbSync('bgImages')
   }
 
   const confirmEditStable = () => {

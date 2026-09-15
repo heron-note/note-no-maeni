@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { Toast } from '../components/Toast'
+import { GithubConnectOverlay } from '../components/GithubConnectOverlay'
 import { exportData, importData, exportArticles, importArticles, exportBgImages, importBgImages, exportStampImages, importStampImages, downloadImage } from '../utils/transfer'
 import { storage } from '../utils/storage'
 import { useSlideBack } from '../hooks/useSlideBack'
@@ -16,6 +17,10 @@ export function Settings() {
   const { closing, handleBack } = useSlideBack(goHome)
 
   const init = useAppStore(s => s.init)
+  const githubUsername = useAppStore(s => s.githubUsername)
+  const setGithubAuth = useAppStore(s => s.setGithubAuth)
+  const clearGithubAuth = useAppStore(s => s.clearGithubAuth)
+  const [showGithubConnect, setShowGithubConnect] = useState(false)
   const [name, setName] = useState(user?.name ?? '')
   const [char, setChar] = useState(user?.character ?? 'kuma')
   const [toast, setToast] = useState<string | null>(null)
@@ -144,6 +149,25 @@ export function Settings() {
       </button>
 
       <div className="settings-row">
+        <p className="label">GitHub連携</p>
+        {githubUsername ? (
+          <>
+            <p className="settings-hint">連携済み: {githubUsername}</p>
+            <button className="btn-secondary wide" onClick={() => { clearGithubAuth(); setToast('連携を解除しました') }}>
+              連携を解除
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="settings-hint">GitHubと連携すると、設定やデータを端末をまたいで使えるようになります（無料）。</p>
+            <button className="btn-primary wide" onClick={() => setShowGithubConnect(true)}>
+              GitHub連携する
+            </button>
+          </>
+        )}
+      </div>
+
+      <div className="settings-row">
         <p className="label">バックアップ</p>
         <div className="backup-group">
           <div className="backup-row">
@@ -202,6 +226,18 @@ export function Settings() {
           ))
         )}
       </div>
+
+      {showGithubConnect && (
+        <GithubConnectOverlay
+          onConnected={(token, username) => {
+            setGithubAuth(token, username)
+            init() // 取得したデータ（あれば）をストアへ反映
+            setShowGithubConnect(false)
+            setToast('GitHubと連携しました')
+          }}
+          onClose={() => setShowGithubConnect(false)}
+        />
+      )}
     </div>
   )
 }

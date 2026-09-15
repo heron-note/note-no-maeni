@@ -14,6 +14,7 @@ import { WikiHintCard } from '../components/WikiHintCard'
 import { pickDeclaration, pickWriteReaction } from '../data/declarations'
 import { storage, todayStr } from '../utils/storage'
 import { selectRecommend, recordRecommend } from '../utils/recommend'
+import { LP_FEATURE_ENABLED } from '../config/featureFlags'
 import type { ChoiceType, Declaration, Bookmark, NoteTag } from '../types'
 
 export function Home() {
@@ -200,6 +201,19 @@ export function Home() {
               </button>
             </div>
           </div>
+          {LP_FEATURE_ENABLED && (
+            <div className="speech-bubble-right">
+              <div className="bubble-action-row">
+                <button className="bubble-icon-btn" onClick={() => goTo('lp-editor')} aria-label="LP管理">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="2" y1="12" x2="22" y2="12"/>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 中央: キャラクター */}

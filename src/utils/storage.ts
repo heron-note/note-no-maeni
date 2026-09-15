@@ -1,4 +1,6 @@
 import type { User, LogEntry, Template, Bookmark, UserTemplate, RestTemplate } from '../types'
+import { pushLocalSettings, checkDataRepoValid } from './github'
+import { collectData } from './transfer'
 
 const SK = {
   user: 'nob_user',
@@ -20,7 +22,7 @@ function safeLoad<T>(key: string): T | null {
   }
 }
 
-export const storage = {
+const rawStorage = {
   loadUser: ()         => safeLoad<User>(SK.user),
   saveUser: (v: User)  => localStorage.setItem(SK.user, JSON.stringify(v)),
 
@@ -82,10 +84,75 @@ export const storage = {
   loadGeminiKey: () => localStorage.getItem('nob_gemini_key'),
   saveGeminiKey: (v: string) => localStorage.setItem('nob_gemini_key', v),
 
-
   loadCharPersonality: () => localStorage.getItem('nob_char_personality') ?? '',
   saveCharPersonality: (v: string) => localStorage.setItem('nob_char_personality', v),
+
+  // GitHub連携。意図的に nob_ プレフィックスを付けない
+  // （collectData() のバックアップ対象・GitHub同期対象から除外し、トークンをそれ自体に含めないため）。
+  loadGithubAuth: (): { token: string; username: string } | null => {
+    const token = localStorage.getItem('ghauth_token')
+    const username = localStorage.getItem('ghauth_username')
+    return token && username ? { token, username } : null
+  },
+  saveGithubAuth: (token: string, username: string) => {
+    localStorage.setItem('ghauth_token', token)
+    localStorage.setItem('ghauth_username', username)
+  },
+  clearGithubAuth: () => {
+    localStorage.removeItem('ghauth_token')
+    localStorage.removeItem('ghauth_username')
+  },
 }
+
+// ─── GitHub自動同期（仕様書10章: ローカルファースト方針） ───────────────────
+//
+// rawStorage の save* 系関数はすべて、呼ばれるたびに（デバウンスして）GitHubへの
+// 同期を試みる。どの画面・どの保存操作から呼ばれても漏れなく効くよう、個別の
+//呼び出し箇所に同期コードを書き足すのではなく、この一箇所だけに実装する。
+
+type SyncListener = () => void
+const authClearedListeners: SyncListener[] = []
+
+/** 有効チェックの結果、GitHub連携が解除された時に呼ばれる（Zustandストア等が状態を追従させるため）。 */
+export function onGithubAuthCleared(cb: SyncListener): void {
+  authClearedListeners.push(cb)
+}
+
+let syncTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleGithubSync(): void {
+  if (syncTimer) clearTimeout(syncTimer)
+  syncTimer = setTimeout(async () => {
+    const auth = rawStorage.loadGithubAuth()
+    if (!auth) return
+    try {
+      await pushLocalSettings(auth.token, auth.username, collectData())
+    } catch {
+      const valid = await checkDataRepoValid(auth.token, auth.username).catch(() => false)
+      if (!valid) {
+        rawStorage.clearGithubAuth()
+        authClearedListeners.forEach(cb => cb())
+      }
+    }
+  }, 2000)
+}
+
+const SYNC_EXCLUDED_KEYS = new Set(['saveGithubAuth', 'clearGithubAuth'])
+
+export const storage = new Proxy(rawStorage, {
+  get(target, prop) {
+    const value = target[prop as keyof typeof target]
+    if (typeof prop === 'string' && prop.startsWith('save') && !SYNC_EXCLUDED_KEYS.has(prop) && typeof value === 'function') {
+      return (...args: unknown[]) => {
+        // @ts-expect-error 呼び出し元の引数をそのまま転送する汎用ラッパー
+        const result = value(...args)
+        scheduleGithubSync()
+        return result
+      }
+    }
+    return value
+  },
+})
 
 export function todayStr(): string {
   const d = new Date()

@@ -11,6 +11,7 @@ export type ScreenName =
   | 'rest-template-editor'
   | 'eyecatch-creator'
   | 'article-stocker'
+  | 'lp-editor'
 
 export type ChoiceType = 'write' | 'rest'
 

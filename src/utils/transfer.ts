@@ -112,7 +112,7 @@ export async function importBgImages(file: File): Promise<void> {
 
 const ENCRYPTED_MARKER = '__enc_v1__'
 
-function collectData(): Record<string, string> {
+export function collectData(): Record<string, string> {
   const data: Record<string, string> = {}
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)!
@@ -166,6 +166,15 @@ export async function exportData(): Promise<void> {
 
   const encrypted = await encryptText(JSON.stringify(data), password)
   saveFile(JSON.stringify({ [ENCRYPTED_MARKER]: encrypted }), filename)
+}
+
+/** GitHub同期など、パスワード確認を挟まずに nob_ プレフィックスのデータをそのまま反映する。 */
+export function applyLocalData(data: Record<string, string>): void {
+  for (const [key, value] of Object.entries(data)) {
+    if (key.startsWith('nob_') && typeof value === 'string') {
+      localStorage.setItem(key, value)
+    }
+  }
 }
 
 export async function importData(file: File): Promise<void> {

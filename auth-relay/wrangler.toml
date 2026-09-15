@@ -1,0 +1,6 @@
+name = "note-no-maeni-auth-relay"
+main = "src/index.js"
+compatibility_date = "2026-09-15"
+
+[vars]
+GITHUB_CLIENT_ID = "REPLACE_WITH_YOUR_OAUTH_APP_CLIENT_ID"

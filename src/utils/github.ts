@@ -1,0 +1,437 @@
+// GitHub連携（Device Flow）と、アプリデータ保管用リポジトリの確認・作成。
+// 仕様: docs/LP作成機能_仕様書.md 3章・10章
+
+const AUTH_RELAY_URL = 'https://note-no-maeni-auth-relay.daisuke-hatano.workers.dev'
+const GITHUB_API = 'https://api.github.com'
+const DATA_REPO_NAME = 'note-no-maeni-data'
+const DATA_REPO_DESCRIPTION = 'noteのまえに - アプリデータ保管用リポジトリ（自動生成）'
+
+export class DeviceFlowError extends Error {}
+
+export interface DeviceCodeResponse {
+  device_code: string
+  user_code: string
+  verification_uri: string
+  expires_in: number
+  interval: number
+}
+
+interface TokenSuccess {
+  access_token: string
+  token_type: string
+  scope: string
+}
+
+interface TokenError {
+  error: string
+  error_description?: string
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+export async function requestDeviceCode(scope: string): Promise<DeviceCodeResponse> {
+  const res = await fetch(`${AUTH_RELAY_URL}/device/code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scope }),
+  })
+  if (!res.ok) throw new DeviceFlowError(`デバイスコードの取得に失敗しました (HTTP ${res.status})`)
+  return res.json()
+}
+
+async function requestToken(deviceCode: string): Promise<TokenSuccess | TokenError> {
+  const res = await fetch(`${AUTH_RELAY_URL}/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      device_code: deviceCode,
+      grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+    }),
+  })
+  return res.json()
+}
+
+export interface PollOptions {
+  signal?: AbortSignal
+}
+
+/** ユーザーがGitHub上で承認するまでポーリングし、アクセストークンを返す。 */
+export async function pollForAccessToken(device: DeviceCodeResponse, options: PollOptions = {}): Promise<string> {
+  let interval = device.interval
+  const deadline = Date.now() + device.expires_in * 1000
+
+  while (Date.now() < deadline) {
+    if (options.signal?.aborted) throw new DeviceFlowError('cancelled')
+    await sleep(interval * 1000)
+    if (options.signal?.aborted) throw new DeviceFlowError('cancelled')
+
+    const result = await requestToken(device.device_code)
+    if ('access_token' in result) return result.access_token
+
+    if (result.error === 'authorization_pending') continue
+    if (result.error === 'slow_down') { interval += 5; continue }
+    throw new DeviceFlowError(result.error_description || result.error)
+  }
+  throw new DeviceFlowError('expired_token')
+}
+
+export interface GithubUser {
+  login: string
+  id: number
+  avatar_url: string
+}
+
+// GitHub APIへのリクエストを直列化するキュー。
+// 設定・記録・記事・画像など複数カテゴリの同期が同時に発火しても、
+// 実際のAPIリクエストは常に1つずつ順番に処理される（連打によるレート制限回避）。
+let requestQueue: Promise<unknown> = Promise.resolve()
+
+function enqueueRequest<T>(task: () => Promise<T>): Promise<T> {
+  const run = requestQueue.then(task, task)
+  requestQueue = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
+}
+
+async function githubFetch(token: string, path: string, init: RequestInit = {}): Promise<Response> {
+  return enqueueRequest(() => fetch(`${GITHUB_API}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(init.headers ?? {}),
+    },
+  }))
+}
+
+export async function getAuthenticatedUser(token: string): Promise<GithubUser> {
+  const res = await githubFetch(token, '/user')
+  if (!res.ok) throw new Error(`GitHubのユーザー情報取得に失敗しました (HTTP ${res.status})`)
+  return res.json()
+}
+
+async function repoExists(token: string, owner: string, repo: string): Promise<boolean> {
+  const res = await githubFetch(token, `/repos/${owner}/${repo}`)
+  if (res.status === 404) return false
+  if (!res.ok) throw new Error(`リポジトリ確認に失敗しました (HTTP ${res.status})`)
+  return true
+}
+
+async function createDataRepo(token: string): Promise<void> {
+  const res = await githubFetch(token, '/user/repos', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: DATA_REPO_NAME,
+      private: true,
+      description: DATA_REPO_DESCRIPTION,
+      auto_init: true,
+    }),
+  })
+  // 422: 既に存在する（同時実行等）場合は許容
+  if (!res.ok && res.status !== 422) {
+    throw new Error(`${DATA_REPO_NAME} の作成に失敗しました (HTTP ${res.status})`)
+  }
+}
+
+export interface EnsureDataRepoResult {
+  owner: string
+  created: boolean
+}
+
+/** 汎用データリポジトリ（note-no-maeni-data）が無ければ作成する。仕様書10章参照。 */
+export async function ensureDataRepo(token: string): Promise<EnsureDataRepoResult> {
+  const user = await getAuthenticatedUser(token)
+  const exists = await repoExists(token, user.login, DATA_REPO_NAME)
+  if (exists) return { owner: user.login, created: false }
+  await createDataRepo(token)
+  return { owner: user.login, created: true }
+}
+
+/**
+ * データリポジトリ（note-no-maeni-data）が今も有効か確認する。
+ * トークン失効・リポジトリ誤削除などを検知するための「有効チェック」（仕様書10章）。
+ * 無効な場合、呼び出し側は「連携済み」状態だけを解除し、ローカルデータには触れないこと。
+ *
+ * 「無効」と判定するのは、GitHubが明確に404（リポジトリが存在しない）を返した場合のみ。
+ * レート制限やネットワーク不通などの一時的なエラーは「不明」として安全側に倒し、
+ * 連携を解除しない（誤って解除するとユーザーに無用な再連携の手間を強いることになるため）。
+ */
+export async function checkDataRepoValid(token: string, owner: string): Promise<boolean> {
+  try {
+    const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}`)
+    return res.status !== 404
+  } catch {
+    return true
+  }
+}
+
+// ─── アプリ全般データの同期（仕様書10章参照） ───────────────────────────────
+
+function utf8ToBase64(text: string): string {
+  return btoa(unescape(encodeURIComponent(text)))
+}
+
+function base64ToUtf8(b64: string): string {
+  return decodeURIComponent(escape(atob(b64.replace(/\n/g, ''))))
+}
+
+async function getRepoFile(token: string, owner: string, path: string): Promise<{ content: string; sha: string } | null> {
+  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`)
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`${path} の取得に失敗しました (HTTP ${res.status})`)
+  const data = await res.json()
+  return { content: base64ToUtf8(data.content), sha: data.sha }
+}
+
+async function putRepoFile(token: string, owner: string, path: string, content: string, message: string, sha?: string): Promise<void> {
+  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      message,
+      content: utf8ToBase64(content),
+      ...(sha ? { sha } : {}),
+    }),
+  })
+  if (!res.ok) throw new Error(`${path} の更新に失敗しました (HTTP ${res.status})`)
+}
+
+const SETTINGS_PATH = 'settings.json'
+const LOGS_PATH = 'logs.json'
+// nob_logs は「休む/書く」を押すたびに増え続け、他の設定と違って際限なく大きくなっていく。
+// 同じファイルに入れると、些細な設定変更のたびに肥大化した履歴ごと転送することになり
+// 使うほど同期が遅くなってしまうため、別ファイルに分離する。
+const LOGS_KEY = 'nob_logs'
+
+function splitLocalData(data: Record<string, string>): { settings: Record<string, string>; logs: Record<string, string> } {
+  const settings: Record<string, string> = {}
+  const logs: Record<string, string> = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (key === LOGS_KEY) logs[key] = value
+    else settings[key] = value
+  }
+  return { settings, logs }
+}
+
+async function pushJsonFile(token: string, owner: string, path: string, obj: unknown, message: string): Promise<void> {
+  const existing = await getRepoFile(token, owner, path)
+  const content = JSON.stringify(obj, null, 2)
+  if (existing && existing.content === content) return // 変更なしなら書き込まない
+  await putRepoFile(token, owner, path, content, message, existing?.sha)
+}
+
+async function pullJsonFile<T>(token: string, owner: string, path: string): Promise<T | null> {
+  const file = await getRepoFile(token, owner, path)
+  return file ? (JSON.parse(file.content) as T) : null
+}
+
+async function getRepoFileRaw(token: string, owner: string, path: string): Promise<{ content: string; sha: string } | null> {
+  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`)
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`${path} の取得に失敗しました (HTTP ${res.status})`)
+  const data = await res.json()
+  return { content: String(data.content).replace(/\n/g, ''), sha: data.sha }
+}
+
+async function putRepoFileRaw(token: string, owner: string, path: string, base64Content: string, message: string, sha?: string): Promise<void> {
+  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`, {
+    method: 'PUT',
+    body: JSON.stringify({ message, content: base64Content, ...(sha ? { sha } : {}) }),
+  })
+  if (!res.ok) throw new Error(`${path} の更新に失敗しました (HTTP ${res.status})`)
+}
+
+async function deleteRepoFileIfExists(token: string, owner: string, path: string, message: string): Promise<void> {
+  // sha を得るだけなので、バイナリ（画像）でも安全な raw 版を使う（UTF8デコードするとクラッシュするため）
+  const file = await getRepoFileRaw(token, owner, path)
+  if (!file) return
+  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ message, sha: file.sha }),
+  })
+  if (!res.ok && res.status !== 404) throw new Error(`${path} の削除に失敗しました (HTTP ${res.status})`)
+}
+
+/**
+ * ローカル設定（storage.ts の nob_ プレフィックス項目）を note-no-maeni-data リポジトリへアップロードする。
+ * GitHub連携の直後（初回アップロード）と、設定保存のたびに呼び出す（仕様書10章のローカルファースト方針）。
+ * 際限なく増える記録（nob_logs）は settings.json とは別ファイル（logs.json）に分けて保存する。
+ */
+export async function pushLocalSettings(token: string, owner: string, localData: Record<string, string>): Promise<void> {
+  const { settings, logs } = splitLocalData(localData)
+  await pushJsonFile(token, owner, SETTINGS_PATH, settings, '設定を同期')
+  if (Object.keys(logs).length > 0) {
+    await pushJsonFile(token, owner, LOGS_PATH, logs, '記録を同期')
+  }
+}
+
+/**
+ * GitHub側の設定・記録を取得する。どちらも無ければ null（まだ一度も同期していない）。
+ */
+export async function pullLocalSettings(token: string, owner: string): Promise<Record<string, string> | null> {
+  const [settingsFile, logsFile] = await Promise.all([
+    getRepoFile(token, owner, SETTINGS_PATH),
+    getRepoFile(token, owner, LOGS_PATH),
+  ])
+  if (!settingsFile && !logsFile) return null
+  return {
+    ...(settingsFile ? JSON.parse(settingsFile.content) : {}),
+    ...(logsFile ? JSON.parse(logsFile.content) : {}),
+  }
+}
+
+// ─── IndexedDBデータの同期（記事ストッカー・背景画像・画像スタンプ） ─────────
+// 仕様書10章参照。
+//
+// 記事・画像は件数が増えていくため、1ファイルにまとめず「ディレクトリ内に1件1ファイル
+// ＋ 一覧を持つインデックスファイル」の構成にする。新規追加分だけをアップロードし、
+// 既存ファイル（記事・画像とも内容が変わらない前提）は再アップロードしない。
+// 削除された分だけインデックスと突き合わせて個別に削除する。
+// これにより、件数が増えるほど毎回の同期が重くなる問題を避ける。
+
+// ---- 記事ストッカー ----
+// nob_stk_articles は1記事1ファイル＋インデックスに分割。
+// nob_stk_nouns / nob_stk_article_nouns / nob_stk_collections は形態素解析の
+// 内部インデックス・ユーザーが作るコレクション一覧で、件数が少なく低頻度更新のため
+// 単一ファイル（articles-meta.json）にまとめたままにする。
+
+interface ArticleIndexEntry { postId: string; title: string; date: string }
+
+const ARTICLES_INDEX_PATH = 'articles/index.json'
+const ARTICLES_META_PATH = 'articles-meta.json'
+
+function articleFilePath(postId: string): string {
+  return `articles/${postId}.json`
+}
+
+async function syncArticleFiles(token: string, owner: string, localArticles: unknown[]): Promise<void> {
+  const remoteIndex = (await pullJsonFile<ArticleIndexEntry[]>(token, owner, ARTICLES_INDEX_PATH)) ?? []
+  const remoteIds = new Set(remoteIndex.map(e => e.postId))
+  const localIds = new Set<string>()
+
+  for (const article of localArticles) {
+    const rec = article as { postId?: unknown; title?: unknown; date?: unknown }
+    const postId = String(rec.postId ?? '')
+    if (!postId) continue
+    localIds.add(postId)
+    if (remoteIds.has(postId)) continue // 既存記事は不変な前提で再アップロードしない
+    await pushJsonFile(token, owner, articleFilePath(postId), article, `記事を追加: ${postId}`)
+  }
+
+  for (const entry of remoteIndex) {
+    if (localIds.has(entry.postId)) continue
+    await deleteRepoFileIfExists(token, owner, articleFilePath(entry.postId), `記事を削除: ${entry.postId}`)
+  }
+
+  const newIndex: ArticleIndexEntry[] = localArticles.map(a => {
+    const rec = a as { postId?: unknown; title?: unknown; date?: unknown }
+    return { postId: String(rec.postId ?? ''), title: String(rec.title ?? ''), date: String(rec.date ?? '') }
+  })
+  await pushJsonFile(token, owner, ARTICLES_INDEX_PATH, newIndex, '記事インデックスを更新')
+}
+
+async function pullArticleFiles(token: string, owner: string): Promise<unknown[] | null> {
+  const remoteIndex = await pullJsonFile<ArticleIndexEntry[]>(token, owner, ARTICLES_INDEX_PATH)
+  if (!remoteIndex) return null
+  const articles: unknown[] = []
+  for (const entry of remoteIndex) {
+    const article = await pullJsonFile(token, owner, articleFilePath(entry.postId))
+    if (article) articles.push(article)
+  }
+  return articles
+}
+
+export async function pushArticleStocker(token: string, owner: string, data: Record<string, unknown[]>): Promise<void> {
+  await syncArticleFiles(token, owner, data.nob_stk_articles ?? [])
+  await pushJsonFile(token, owner, ARTICLES_META_PATH, {
+    nob_stk_nouns: data.nob_stk_nouns ?? [],
+    nob_stk_article_nouns: data.nob_stk_article_nouns ?? [],
+    nob_stk_collections: data.nob_stk_collections ?? [],
+  }, '記事メタデータを同期')
+}
+
+export async function pullArticleStocker(token: string, owner: string): Promise<Record<string, unknown[]> | null> {
+  const [articles, meta] = await Promise.all([
+    pullArticleFiles(token, owner),
+    pullJsonFile<Record<string, unknown[]>>(token, owner, ARTICLES_META_PATH),
+  ])
+  if (articles === null && meta === null) return null
+  return {
+    nob_stk_articles: articles ?? [],
+    nob_stk_nouns: meta?.nob_stk_nouns ?? [],
+    nob_stk_article_nouns: meta?.nob_stk_article_nouns ?? [],
+    nob_stk_collections: meta?.nob_stk_collections ?? [],
+  }
+}
+
+// ---- 背景画像・画像スタンプ ----
+// 1画像1ファイル（バイナリのまま）＋インデックスに分割。
+
+interface ImageRecord { id: string; dataUrl: string; createdAt: unknown }
+interface ImageIndexEntry { id: string; createdAt: unknown; ext: string }
+
+function parseDataUrl(dataUrl: string): { base64: string; ext: string } {
+  const match = /^data:image\/(\w+);base64,(.+)$/.exec(dataUrl)
+  if (!match) return { base64: '', ext: 'png' }
+  const ext = match[1] === 'jpeg' ? 'jpg' : match[1]
+  return { base64: match[2], ext }
+}
+
+function toDataUrl(base64: string, ext: string): string {
+  const mime = ext === 'jpg' ? 'jpeg' : ext
+  return `data:image/${mime};base64,${base64}`
+}
+
+async function syncImageFiles(token: string, owner: string, dir: string, localImages: ImageRecord[]): Promise<void> {
+  const indexPath = `${dir}/index.json`
+  const remoteIndex = (await pullJsonFile<ImageIndexEntry[]>(token, owner, indexPath)) ?? []
+  const remoteIds = new Set(remoteIndex.map(e => e.id))
+  const localIds = new Set(localImages.map(i => i.id))
+
+  for (const img of localImages) {
+    if (remoteIds.has(img.id)) continue // 既存画像は不変な前提で再アップロードしない
+    const { base64, ext } = parseDataUrl(img.dataUrl)
+    await putRepoFileRaw(token, owner, `${dir}/${img.id}.${ext}`, base64, `画像を追加: ${img.id}`)
+  }
+
+  for (const entry of remoteIndex) {
+    if (localIds.has(entry.id)) continue
+    await deleteRepoFileIfExists(token, owner, `${dir}/${entry.id}.${entry.ext}`, `画像を削除: ${entry.id}`)
+  }
+
+  const newIndex: ImageIndexEntry[] = localImages.map(img => ({
+    id: img.id,
+    createdAt: img.createdAt,
+    ext: parseDataUrl(img.dataUrl).ext,
+  }))
+  await pushJsonFile(token, owner, indexPath, newIndex, '画像インデックスを更新')
+}
+
+async function pullImageFiles(token: string, owner: string, dir: string): Promise<ImageRecord[] | null> {
+  const remoteIndex = await pullJsonFile<ImageIndexEntry[]>(token, owner, `${dir}/index.json`)
+  if (!remoteIndex) return null
+  const images: ImageRecord[] = []
+  for (const entry of remoteIndex) {
+    const file = await getRepoFileRaw(token, owner, `${dir}/${entry.id}.${entry.ext}`)
+    if (file) images.push({ id: entry.id, dataUrl: toDataUrl(file.content, entry.ext), createdAt: entry.createdAt })
+  }
+  return images
+}
+
+export async function pushBgImages(token: string, owner: string, images: unknown[]): Promise<void> {
+  await syncImageFiles(token, owner, 'images/bg', images as ImageRecord[])
+}
+export async function pullBgImages(token: string, owner: string): Promise<unknown[] | null> {
+  return pullImageFiles(token, owner, 'images/bg')
+}
+
+export async function pushStampImages(token: string, owner: string, images: unknown[]): Promise<void> {
+  await syncImageFiles(token, owner, 'images/stamp', images as ImageRecord[])
+}
+export async function pullStampImages(token: string, owner: string): Promise<unknown[] | null> {
+  return pullImageFiles(token, owner, 'images/stamp')
+}
