@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { ScreenName, ChoiceType, User, LogEntry, Declaration } from '../types'
 import { storage, todayStr, onGithubAuthCleared } from '../utils/storage'
 import { checkDataRepoValid } from '../utils/github'
+import { syncIdbOnConnect, isIdbSyncPending } from '../utils/idbSync'
 
 interface AppStore {
   // State
@@ -64,7 +65,16 @@ export const useAppStore = create<AppStore>((set, get) => {
     const { githubToken, githubUsername } = get()
     if (githubToken && githubUsername) {
       checkDataRepoValid(githubToken, githubUsername).then(valid => {
-        if (!valid) get().clearGithubAuth()
+        if (!valid) {
+          get().clearGithubAuth()
+          return
+        }
+        // 記事・画像の同期が前回完了しきれていなければ、起動のたびに自動で
+        // 再開する（PWAがバックグラウンド化で同期処理を打ち切ってしまい、
+        // 画像だけ同期されない、という問題への対処。仕様書10章参照）。
+        if (isIdbSyncPending()) {
+          void syncIdbOnConnect(githubToken, githubUsername)
+        }
       })
     }
   },

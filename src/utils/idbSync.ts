@@ -92,16 +92,38 @@ async function mergeStampImages(images: unknown[]): Promise<void> {
   await idbPutAll(await openStampDB(), 'ec_stamp_images', images)
 }
 
+// ─── 同期未完了の永続化・自動リトライ ──────────────────────────────────────
+// ホーム画面に追加したPWA（特にiOS）は、バックグラウンド化されるとJS実行が
+// 通常のSafariタブより積極的に打ち切られることがある。設定・記録・記事・画像を
+// 1本のキューで順番に処理する都合上、途中で打ち切られると後ろの方（画像）の
+// 同期だけが毎回犠牲になる（実機で確認済み: 通常タブでは成功、PWAでは失敗）。
+//
+// 1回の実行で必ず終わらせようとするのではなく、「次回アプリ起動時に、まだ
+// 終わっていなければ自動的にやり直す」という自己修復の仕組みにする。
+const IDB_SYNC_PENDING_KEY = 'ghauth_idb_sync_pending'
+
+function markIdbSyncPending(): void {
+  localStorage.setItem(IDB_SYNC_PENDING_KEY, '1')
+}
+function clearIdbSyncPending(): void {
+  localStorage.removeItem(IDB_SYNC_PENDING_KEY)
+}
+export function isIdbSyncPending(): boolean {
+  return localStorage.getItem(IDB_SYNC_PENDING_KEY) === '1'
+}
+
 /**
- * GitHub連携直後に呼び出す。GitHub側の記事・画像をローカルへマージ（無ければ追加、
- * 既存のローカル項目は消さない）したうえで、マージ後の全件を必ずGitHubへも
- * アップロードする。片方だけの上書きにならないようにする（仕様書10章）。
+ * GitHub連携直後、および次回起動時に未完了分を再開する際に呼び出す。GitHub側の
+ * 記事・画像をローカルへマージ（無ければ追加、既存のローカル項目は消さない）
+ * したうえで、マージ後の全件を必ずGitHubへもアップロードする（仕様書10章）。
  *
  * 記事・背景画像・画像スタンプは互いに独立させる。1カテゴリの同期が失敗しても
- * 他のカテゴリの同期は実行する（原因不明のまま全カテゴリが同期されない、という
- * 状態を避けるため）。
+ * 他のカテゴリの同期は実行する。全カテゴリ成功した場合のみ「完了」とし、
+ * 1つでも失敗が残っていれば次回起動時にまた自動で再試行される。
  */
 export async function syncIdbOnConnect(token: string, owner: string): Promise<void> {
+  markIdbSyncPending()
+
   const results = await Promise.allSettled([
     pullArticleStocker(token, owner).then(async remote => {
       if (remote) await mergeArticleStocker(remote)
@@ -118,22 +140,27 @@ export async function syncIdbOnConnect(token: string, owner: string): Promise<vo
   ])
 
   const labels = ['記事ストッカー', '背景画像', '画像スタンプ']
+  let allOk = true
   results.forEach((result, i) => {
     if (result.status === 'rejected') {
+      allOk = false
       console.error(`[GitHub連携] ${labels[i]}の同期に失敗しました`, result.reason)
     }
   })
+
+  if (allOk) clearIdbSyncPending()
 }
 
 type IdbCategory = 'articleStocker' | 'bgImages' | 'stampImages'
 
-const timers: Record<IdbCategory, ReturnType<typeof setTimeout> | null> = {
-  articleStocker: null, bgImages: null, stampImages: null,
+const CATEGORY_LABELS: Record<IdbCategory, string> = {
+  articleStocker: '記事ストッカー', bgImages: '背景画像', stampImages: '画像スタンプ',
 }
 
 async function syncCategory(category: IdbCategory): Promise<void> {
   const auth = storage.loadGithubAuth()
   if (!auth) return
+  markIdbSyncPending()
   try {
     if (category === 'articleStocker') {
       await pushArticleStocker(auth.token, auth.username, await collectArticleStocker())
@@ -142,15 +169,24 @@ async function syncCategory(category: IdbCategory): Promise<void> {
     } else {
       await pushStampImages(auth.token, auth.username, await collectStampImages())
     }
-  } catch {
+    // このカテゴリ単体の呼び出しでは、他カテゴリの完了状況までは分からないため
+    // pendingフラグはここでは下ろさない。次回起動時のsyncIdbOnConnectが
+    // 全カテゴリまとめて確認し、揃って成功していればフラグを下ろす。
+  } catch (e) {
+    console.error(`[GitHub連携] ${CATEGORY_LABELS[category]}の同期に失敗しました`, e)
     const valid = await checkDataRepoValid(auth.token, auth.username).catch(() => false)
     if (!valid) storage.clearGithubAuth() // ローカルデータには触れない（仕様書10章）
   }
 }
 
-/** 記事ストッカー・背景画像・画像スタンプの保存/削除箇所から呼び出す（デバウンス付き）。 */
+/**
+ * 記事ストッカー・背景画像・画像スタンプの保存/削除箇所から呼び出す。
+ *
+ * 画像の登録・削除は連打されるような操作ではないため、デバウンスせず即座に
+ * 同期する。以前は2秒待ってから同期する作りだったが、保存直後にアプリを
+ * 閉じる／再読み込みするとタイマーが発火する前に消えてしまい、何度やっても
+ * 永遠にアップロードされないという重大な不具合があった。
+ */
 export function scheduleIdbSync(category: IdbCategory): void {
-  const existing = timers[category]
-  if (existing) clearTimeout(existing)
-  timers[category] = setTimeout(() => syncCategory(category), 2000)
+  void syncCategory(category)
 }
