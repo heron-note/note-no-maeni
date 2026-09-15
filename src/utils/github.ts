@@ -41,6 +41,44 @@ export async function requestDeviceCode(scope: string): Promise<DeviceCodeRespon
   return res.json()
 }
 
+// ─── 承認待ち状態の永続化 ───────────────────────────────────────────────────
+// GitHubの承認ページを開くと、ホーム画面に追加したPWA（特にiOS）ではSafariへ
+// 切り替わり、戻ってきた際にページが再読み込みされてReactの状態（発行済みの
+// デバイスコード等）が失われることがある。その場合でも「もう一度試す」だけで
+// 同じコードのまま承認確認を再開できるよう、localStorageに保存しておく。
+const PENDING_FLOW_KEY = 'ghauth_pending_device_flow'
+
+interface PendingDeviceFlow {
+  device: DeviceCodeResponse
+  requestedAt: number
+}
+
+export function savePendingDeviceFlow(device: DeviceCodeResponse): void {
+  const pending: PendingDeviceFlow = { device, requestedAt: Date.now() }
+  localStorage.setItem(PENDING_FLOW_KEY, JSON.stringify(pending))
+}
+
+/** 有効期限内の承認待ちコードが残っていれば返す。期限切れなら破棄してnullを返す。 */
+export function loadPendingDeviceFlow(): PendingDeviceFlow | null {
+  try {
+    const raw = localStorage.getItem(PENDING_FLOW_KEY)
+    if (!raw) return null
+    const pending = JSON.parse(raw) as PendingDeviceFlow
+    const deadline = pending.requestedAt + pending.device.expires_in * 1000
+    if (Date.now() >= deadline) {
+      localStorage.removeItem(PENDING_FLOW_KEY)
+      return null
+    }
+    return pending
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingDeviceFlow(): void {
+  localStorage.removeItem(PENDING_FLOW_KEY)
+}
+
 async function requestToken(deviceCode: string): Promise<TokenSuccess | TokenError> {
   const res = await fetch(`${AUTH_RELAY_URL}/token`, {
     method: 'POST',
@@ -55,12 +93,14 @@ async function requestToken(deviceCode: string): Promise<TokenSuccess | TokenErr
 
 export interface PollOptions {
   signal?: AbortSignal
+  /** 明示的な絶対期限（ms epoch）。省略時は device.expires_in から算出する。承認待ちの再開時に使う。 */
+  deadline?: number
 }
 
 /** ユーザーがGitHub上で承認するまでポーリングし、アクセストークンを返す。 */
 export async function pollForAccessToken(device: DeviceCodeResponse, options: PollOptions = {}): Promise<string> {
   let interval = device.interval
-  const deadline = Date.now() + device.expires_in * 1000
+  const deadline = options.deadline ?? (Date.now() + device.expires_in * 1000)
 
   while (Date.now() < deadline) {
     if (options.signal?.aborted) throw new DeviceFlowError('cancelled')
