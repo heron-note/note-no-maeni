@@ -13,6 +13,11 @@ import { useAppStore } from '../store/useAppStore'
  * トークン取得＋リポジトリ確認が終わった時点で「連携完了」とし、
  * この重い処理はダイアログを閉じた後も中断せず継続する（画面遷移とは無関係に完了させる）。
  * 完了後、画面に反映するため init() を呼び直す。
+ *
+ * 設定同期と記事・画像同期は別々のtry/catchにする。片方が失敗しても
+ * もう片方の同期が実行されなくなる（＝原因不明のまま画像が一切同期されない）
+ * ことを避けるため。失敗した内容はconsoleに出す（原因調査のため。以降は
+ * 通常の自動同期で再試行される）。
  */
 function syncInBackground(token: string, owner: string): void {
   ;(async () => {
@@ -23,12 +28,17 @@ function syncInBackground(token: string, owner: string): void {
       } else {
         await pushLocalSettings(token, owner, collectData())
       }
-      await syncIdbOnConnect(token, owner)
-      useAppStore.getState().init()
-    } catch {
-      // 失敗しても、以降の通常の自動同期（storage.ts / idbSync.ts）で再試行されるため、
-      // ここではユーザーに見せるエラーは出さない。
+    } catch (e) {
+      console.error('[GitHub連携] 設定・記録の同期に失敗しました', e)
     }
+
+    try {
+      await syncIdbOnConnect(token, owner)
+    } catch (e) {
+      console.error('[GitHub連携] 記事・画像の同期に失敗しました', e)
+    }
+
+    useAppStore.getState().init()
   })()
 }
 
@@ -145,6 +155,9 @@ export function GithubConnectOverlay({ onConnected, onClose }: {
               </a>
               <p className="settings-hint">
                 {phase === 'finalizing' ? '連携を完了しています…' : '承認をお待ちしています…（自動で進みます）'}
+              </p>
+              <p className="settings-hint">
+                承認が終わったら、開いた画面の「完了」または「×」を押してこのアプリに戻ってきてください。
               </p>
             </>
           )}

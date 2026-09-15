@@ -26,14 +26,6 @@ function idbGetAll(db: IDBDatabase, store: string): Promise<unknown[]> {
   })
 }
 
-function idbClear(db: IDBDatabase, store: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(store, 'readwrite').objectStore(store).clear()
-    req.onsuccess = () => resolve()
-    req.onerror = () => reject(req.error)
-  })
-}
-
 function idbPutAll(db: IDBDatabase, store: string, records: unknown[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(store, 'readwrite')
@@ -82,43 +74,55 @@ async function collectStampImages(): Promise<unknown[]> {
   return idbGetAll(await openStampDB(), 'ec_stamp_images')
 }
 
-async function applyArticleStocker(data: Record<string, unknown[]>): Promise<void> {
+// 「リモートにあればローカルを丸ごと上書き、無ければアップロード」という排他的な
+// 分岐は、リモートに何かしらデータがある場合にローカルだけにある項目（他端末で
+// まだ同期していない画像・記事）を消してしまう（アップロードされずに終わる）
+// 重大なバグだった。IndexedDBへの反映は「無ければ追加」だけ行い、既存のローカル
+// 項目は消さない（idbClearしない）。そのうえで必ずマージ後の全件をpushする。
+async function mergeArticleStocker(data: Record<string, unknown[]>): Promise<void> {
   const db = await openArticleStockerDB()
   for (const store of AS_STORES) {
-    await idbClear(db, store)
     if (Array.isArray(data[store])) await idbPutAll(db, store, data[store])
   }
 }
-async function applyBgImages(images: unknown[]): Promise<void> {
-  const db = await openBgDB()
-  await idbClear(db, 'ec_bg_images')
-  await idbPutAll(db, 'ec_bg_images', images)
+async function mergeBgImages(images: unknown[]): Promise<void> {
+  await idbPutAll(await openBgDB(), 'ec_bg_images', images)
 }
-async function applyStampImages(images: unknown[]): Promise<void> {
-  const db = await openStampDB()
-  await idbClear(db, 'ec_stamp_images')
-  await idbPutAll(db, 'ec_stamp_images', images)
+async function mergeStampImages(images: unknown[]): Promise<void> {
+  await idbPutAll(await openStampDB(), 'ec_stamp_images', images)
 }
 
 /**
- * GitHub連携直後に呼び出す。GitHub側にデータがあれば取得してIndexedDBへ反映し、
- * 無ければ（初回セットアップ）ローカルの内容をアップロードする（仕様書10章）。
+ * GitHub連携直後に呼び出す。GitHub側の記事・画像をローカルへマージ（無ければ追加、
+ * 既存のローカル項目は消さない）したうえで、マージ後の全件を必ずGitHubへも
+ * アップロードする。片方だけの上書きにならないようにする（仕様書10章）。
+ *
+ * 記事・背景画像・画像スタンプは互いに独立させる。1カテゴリの同期が失敗しても
+ * 他のカテゴリの同期は実行する（原因不明のまま全カテゴリが同期されない、という
+ * 状態を避けるため）。
  */
 export async function syncIdbOnConnect(token: string, owner: string): Promise<void> {
-  const [remoteArticles, remoteBg, remoteStamps] = await Promise.all([
-    pullArticleStocker(token, owner),
-    pullBgImages(token, owner),
-    pullStampImages(token, owner),
+  const results = await Promise.allSettled([
+    pullArticleStocker(token, owner).then(async remote => {
+      if (remote) await mergeArticleStocker(remote)
+      await pushArticleStocker(token, owner, await collectArticleStocker())
+    }),
+    pullBgImages(token, owner).then(async remote => {
+      if (remote) await mergeBgImages(remote)
+      await pushBgImages(token, owner, await collectBgImages())
+    }),
+    pullStampImages(token, owner).then(async remote => {
+      if (remote) await mergeStampImages(remote)
+      await pushStampImages(token, owner, await collectStampImages())
+    }),
   ])
 
-  if (remoteArticles) await applyArticleStocker(remoteArticles)
-  else await pushArticleStocker(token, owner, await collectArticleStocker())
-
-  if (remoteBg) await applyBgImages(remoteBg)
-  else await pushBgImages(token, owner, await collectBgImages())
-
-  if (remoteStamps) await applyStampImages(remoteStamps)
-  else await pushStampImages(token, owner, await collectStampImages())
+  const labels = ['記事ストッカー', '背景画像', '画像スタンプ']
+  results.forEach((result, i) => {
+    if (result.status === 'rejected') {
+      console.error(`[GitHub連携] ${labels[i]}の同期に失敗しました`, result.reason)
+    }
+  })
 }
 
 type IdbCategory = 'articleStocker' | 'bgImages' | 'stampImages'
