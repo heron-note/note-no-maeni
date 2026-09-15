@@ -228,16 +228,25 @@ async function getRepoFile(token: string, owner: string, path: string): Promise<
   return { content: base64ToUtf8(data.content), sha: data.sha }
 }
 
+// 複数端末が同時に接続していると、片方が読んだshaがもう片方の書き込みで古くなり、
+// 更新時に409 Conflictになることがある。取得し直したshaで数回リトライすることで、
+// 「2端末を同時に開くと同期が失敗する」事態を避ける（内容はローカル側が正として上書きする）。
 async function putRepoFile(token: string, owner: string, path: string, content: string, message: string, sha?: string): Promise<void> {
-  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`, {
-    method: 'PUT',
-    body: JSON.stringify({
-      message,
-      content: utf8ToBase64(content),
-      ...(sha ? { sha } : {}),
-    }),
-  })
-  if (!res.ok) throw new Error(`${path} の更新に失敗しました (HTTP ${res.status})`)
+  let currentSha = sha
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        message,
+        content: utf8ToBase64(content),
+        ...(currentSha ? { sha: currentSha } : {}),
+      }),
+    })
+    if (res.ok) return
+    if (res.status !== 409 || attempt === 2) throw new Error(`${path} の更新に失敗しました (HTTP ${res.status})`)
+    const latest = await getRepoFile(token, owner, path)
+    currentSha = latest?.sha
+  }
 }
 
 const SETTINGS_PATH = 'settings.json'
@@ -278,11 +287,17 @@ async function getRepoFileRaw(token: string, owner: string, path: string): Promi
 }
 
 async function putRepoFileRaw(token: string, owner: string, path: string, base64Content: string, message: string, sha?: string): Promise<void> {
-  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`, {
-    method: 'PUT',
-    body: JSON.stringify({ message, content: base64Content, ...(sha ? { sha } : {}) }),
-  })
-  if (!res.ok) throw new Error(`${path} の更新に失敗しました (HTTP ${res.status})`)
+  let currentSha = sha
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`, {
+      method: 'PUT',
+      body: JSON.stringify({ message, content: base64Content, ...(currentSha ? { sha: currentSha } : {}) }),
+    })
+    if (res.ok) return
+    if (res.status !== 409 || attempt === 2) throw new Error(`${path} の更新に失敗しました (HTTP ${res.status})`)
+    const latest = await getRepoFileRaw(token, owner, path)
+    currentSha = latest?.sha
+  }
 }
 
 async function deleteRepoFileIfExists(token: string, owner: string, path: string, message: string): Promise<void> {
@@ -350,6 +365,13 @@ function articleFilePath(postId: string): string {
 
 async function syncArticleFiles(token: string, owner: string, localArticles: unknown[]): Promise<void> {
   const remoteIndex = (await pullJsonFile<ArticleIndexEntry[]>(token, owner, ARTICLES_INDEX_PATH)) ?? []
+
+  // ローカルが空なのにリモートには記事がある場合、IndexedDBの読み込みが終わる前に
+  // 同期が走った等の異常とみなし、インデックス上書き・ファイル削除を行わない。
+  // 複数端末を同時に開いた際、片方が空の状態で同期を走らせてしまい、もう片方が
+  // アップロード済みの記事インデックスを空で潰してしまう実害が確認されたための安全策。
+  if (localArticles.length === 0 && remoteIndex.length > 0) return
+
   const remoteIds = new Set(remoteIndex.map(e => e.postId))
   const localIds = new Set<string>()
 
@@ -429,6 +451,10 @@ function toDataUrl(base64: string, ext: string): string {
 async function syncImageFiles(token: string, owner: string, dir: string, localImages: ImageRecord[]): Promise<void> {
   const indexPath = `${dir}/index.json`
   const remoteIndex = (await pullJsonFile<ImageIndexEntry[]>(token, owner, indexPath)) ?? []
+
+  // 記事ストッカーと同様、ローカルが空でリモートに画像がある場合は上書き・削除しない安全策。
+  if (localImages.length === 0 && remoteIndex.length > 0) return
+
   const remoteIds = new Set(remoteIndex.map(e => e.id))
   const localIds = new Set(localImages.map(i => i.id))
 

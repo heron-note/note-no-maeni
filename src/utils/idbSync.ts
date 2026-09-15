@@ -37,19 +37,28 @@ function idbPutAll(db: IDBDatabase, store: string, records: unknown[]): Promise<
 
 const AS_DB_NAME = 'NobStockerV2DB'
 const AS_STORES = ['nob_stk_articles', 'nob_stk_nouns', 'nob_stk_article_nouns', 'nob_stk_collections'] as const
-const AS_KEY_PATHS: Record<string, string | null> = {
-  nob_stk_articles: 'postId', nob_stk_nouns: 'id',
-  nob_stk_article_nouns: null, nob_stk_collections: 'id',
-}
 
+// ArticleStorcker.tsx側のスキーマ（keyPath・autoIncrement・インデックス）と完全に一致させること。
+// GitHub連携直後など、ArticleStorcker画面を一度も開いていない端末でこちらが先にDBを
+// 新規作成してしまうと、onupgradeneededが再度発火せずスキーマ不一致のまま固定されてしまう
+// （必要なインデックスが無く、画面側の名詞検索等がエラーになる）ため。
 function openArticleStockerDB(): Promise<IDBDatabase> {
   return idbOpen(AS_DB_NAME, 2, db => {
-    AS_STORES.forEach(s => {
-      if (!db.objectStoreNames.contains(s)) {
-        const kp = AS_KEY_PATHS[s]
-        db.createObjectStore(s, kp ? { keyPath: kp } : { autoIncrement: true })
-      }
-    })
+    if (!db.objectStoreNames.contains('nob_stk_articles')) {
+      db.createObjectStore('nob_stk_articles', { keyPath: 'postId' })
+    }
+    if (!db.objectStoreNames.contains('nob_stk_nouns')) {
+      const ns = db.createObjectStore('nob_stk_nouns', { keyPath: 'id', autoIncrement: true })
+      ns.createIndex('word', 'word', { unique: true })
+    }
+    if (!db.objectStoreNames.contains('nob_stk_article_nouns')) {
+      const ls = db.createObjectStore('nob_stk_article_nouns', { keyPath: ['postId', 'nounId'] })
+      ls.createIndex('nounId', 'nounId', { unique: false })
+      ls.createIndex('postId', 'postId', { unique: false })
+    }
+    if (!db.objectStoreNames.contains('nob_stk_collections')) {
+      db.createObjectStore('nob_stk_collections', { keyPath: 'id' })
+    }
   })
 }
 
