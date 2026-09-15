@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { ScreenName, ChoiceType, User, LogEntry, Declaration } from '../types'
-import { storage, todayStr, onGithubAuthCleared } from '../utils/storage'
+import { storage, todayStr, onGithubAuthCleared, syncSettingsWithGithub } from '../utils/storage'
 import { checkDataRepoValid } from '../utils/github'
 import { syncIdbOnConnect } from '../utils/idbSync'
 
@@ -69,12 +69,13 @@ export const useAppStore = create<AppStore>((set, get) => {
           get().clearGithubAuth()
           return
         }
-        // 接続済みなら起動のたびに必ず記事・画像の同期を試みる（pendingフラグの
-        // 有無に関わらず）。この仕組みが入る前に登録された画像等、フラグが
-        // 立っていない既存データも取りこぼさないようにするため。既に同期済みの
-        // 内容は変更なしとしてスキップされるので、通信コストは小さい
-        // （PWAがバックグラウンド化で同期処理を打ち切ってしまい、画像だけ
+        // 接続済みなら起動のたびに必ず設定・記録・記事・画像の同期を試みる
+        // （pendingフラグの有無に関わらず）。この仕組みが入る前に登録された
+        // 画像等、フラグが立っていない既存データも取りこぼさないようにするため。
+        // 既に同期済みの内容は変更なしとしてスキップされるので、通信コストは
+        // 小さい（PWAがバックグラウンド化で同期処理を打ち切ってしまい、画像だけ
         // 同期されない、という問題への対処。仕様書10章参照）。
+        void syncSettingsWithGithub()
         void syncIdbOnConnect(githubToken, githubUsername)
       })
     }

@@ -26,13 +26,37 @@ function idbGetAll(db: IDBDatabase, store: string): Promise<unknown[]> {
   })
 }
 
-function idbPutAll(db: IDBDatabase, store: string, records: unknown[]): Promise<void> {
+function extractKey(record: unknown, keyPath: string | string[]): IDBValidKey {
+  const rec = record as Record<string, unknown>
+  return Array.isArray(keyPath) ? (keyPath.map(k => rec[k]) as IDBValidKey) : (rec[keyPath] as IDBValidKey)
+}
+
+// マージでは「まだローカルに無いレコードだけ追加する」。既にローカルにある同じidの
+// レコードは上書きしない。同じidを put で単純に上書きすると、例えば
+// コレクションの並び替え・記事の削除直後にsync（pull→merge→push）が走った際、
+// まだそのローカル編集を知らない（1歩古い）リモートの内容でローカルの編集
+// そのものを潰して元に戻してしまう（＝編集が無かったことになる）重大な不具合になる。
+function idbPutIfAbsent(db: IDBDatabase, store: string, records: unknown[], keyPath: string | string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(store, 'readwrite')
-    records.forEach(r => tx.objectStore(store).put(r))
+    const os = tx.objectStore(store)
+    for (const r of records) {
+      const getReq = os.get(extractKey(r, keyPath))
+      getReq.onsuccess = () => { if (getReq.result === undefined) os.put(r) }
+    }
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
   })
+}
+
+// マージで取り込むリモートのレコードから、指定idのものだけ除外する。
+// 「ユーザーが今まさにこの端末で削除した項目」をmerge対象から外すために使う。
+// これが無いと、削除直後にpull→mergeすると「リモートにはまだ残っている
+// （このpushで消すはずだった）削除済み項目」が削除前の状態としてローカルに
+// 復活してしまい、削除操作そのものが無かったことになってしまう。
+function excludeById(records: unknown[], keyField: string, excludeId: string | undefined): unknown[] {
+  if (!excludeId) return records
+  return records.filter(r => (r as Record<string, unknown>)[keyField] !== excludeId)
 }
 
 const AS_DB_NAME = 'NobStockerV2DB'
@@ -87,18 +111,26 @@ async function collectStampImages(): Promise<unknown[]> {
 // 分岐は、リモートに何かしらデータがある場合にローカルだけにある項目（他端末で
 // まだ同期していない画像・記事）を消してしまう（アップロードされずに終わる）
 // 重大なバグだった。IndexedDBへの反映は「無ければ追加」だけ行い、既存のローカル
-// 項目は消さない（idbClearしない）。そのうえで必ずマージ後の全件をpushする。
-async function mergeArticleStocker(data: Record<string, unknown[]>): Promise<void> {
+// 項目は消さない（idbClearしない）だけでなく、上書きもしない（idbPutIfAbsent）。
+// そのうえで必ずマージ後の全件をpushする。
+const AS_KEYPATHS: Record<string, string | string[]> = {
+  nob_stk_articles: 'postId', nob_stk_nouns: 'id',
+  nob_stk_article_nouns: ['postId', 'nounId'], nob_stk_collections: 'id',
+}
+
+async function mergeArticleStocker(data: Record<string, unknown[]>, excludeCollectionId?: string): Promise<void> {
   const db = await openArticleStockerDB()
   for (const store of AS_STORES) {
-    if (Array.isArray(data[store])) await idbPutAll(db, store, data[store])
+    if (!Array.isArray(data[store])) continue
+    const records = store === 'nob_stk_collections' ? excludeById(data[store], 'id', excludeCollectionId) : data[store]
+    await idbPutIfAbsent(db, store, records, AS_KEYPATHS[store])
   }
 }
-async function mergeBgImages(images: unknown[]): Promise<void> {
-  await idbPutAll(await openBgDB(), 'ec_bg_images', images)
+async function mergeBgImages(images: unknown[], excludeId?: string): Promise<void> {
+  await idbPutIfAbsent(await openBgDB(), 'ec_bg_images', excludeById(images, 'id', excludeId), 'id')
 }
-async function mergeStampImages(images: unknown[]): Promise<void> {
-  await idbPutAll(await openStampDB(), 'ec_stamp_images', images)
+async function mergeStampImages(images: unknown[], excludeId?: string): Promise<void> {
+  await idbPutIfAbsent(await openStampDB(), 'ec_stamp_images', excludeById(images, 'id', excludeId), 'id')
 }
 
 // ─── 同期未完了の永続化・自動リトライ ──────────────────────────────────────
@@ -134,19 +166,24 @@ const CATEGORY_LABELS: Record<IdbCategory, string> = {
   articleStocker: '記事ストッカー', bgImages: '背景画像', stampImages: '画像スタンプ',
 }
 
-async function pullMergePushCategory(category: IdbCategory, token: string, owner: string): Promise<void> {
+/**
+ * excludeId: 呼び出し元がこの同期の直前に削除した項目のid（記事ストッカーの
+ * 場合はコレクションid）。指定があれば、リモートから取り込む際にこのidだけは
+ * 除外し、削除がmergeによって復活しないようにする。
+ */
+async function pullMergePushCategory(category: IdbCategory, token: string, owner: string, excludeId?: string): Promise<void> {
   if (category === 'articleStocker') {
     const remote = await pullArticleStocker(token, owner)
-    if (remote) await mergeArticleStocker(remote)
+    if (remote) await mergeArticleStocker(remote, excludeId)
     await pushArticleStocker(token, owner, await collectArticleStocker())
   } else if (category === 'bgImages') {
     const remote = await pullBgImages(token, owner)
-    if (remote) await mergeBgImages(remote)
-    await pushBgImages(token, owner, await collectBgImages())
+    if (remote) await mergeBgImages(remote, excludeId)
+    await pushBgImages(token, owner, await collectBgImages(), excludeId)
   } else {
     const remote = await pullStampImages(token, owner)
-    if (remote) await mergeStampImages(remote)
-    await pushStampImages(token, owner, await collectStampImages())
+    if (remote) await mergeStampImages(remote, excludeId)
+    await pushStampImages(token, owner, await collectStampImages(), excludeId)
   }
 }
 
@@ -174,12 +211,12 @@ export async function syncIdbOnConnect(token: string, owner: string): Promise<vo
   if (allOk) clearIdbSyncPending()
 }
 
-async function syncCategory(category: IdbCategory): Promise<void> {
+async function syncCategory(category: IdbCategory, excludeId?: string): Promise<void> {
   const auth = storage.loadGithubAuth()
   if (!auth) return
   markIdbSyncPending()
   try {
-    await pullMergePushCategory(category, auth.token, auth.username)
+    await pullMergePushCategory(category, auth.token, auth.username, excludeId)
     // このカテゴリ単体の呼び出しでは、他カテゴリの完了状況までは分からないため
     // pendingフラグはここでは下ろさない。次回起動時のsyncIdbOnConnectが
     // 全カテゴリまとめて確認し、揃って成功していればフラグを下ろす。
@@ -197,7 +234,11 @@ async function syncCategory(category: IdbCategory): Promise<void> {
  * 同期する。以前は2秒待ってから同期する作りだったが、保存直後にアプリを
  * 閉じる／再読み込みするとタイマーが発火する前に消えてしまい、何度やっても
  * 永遠にアップロードされないという重大な不具合があった。
+ *
+ * deletedId: 直前に削除した項目のid（背景画像・画像スタンプはそのid、記事
+ * ストッカーはコレクションid）。削除操作から呼ぶ場合は必ず渡すこと。渡さないと
+ * pull→mergeで削除前の状態がリモートから復活し、削除がpushされずに終わる。
  */
-export function scheduleIdbSync(category: IdbCategory): void {
-  void syncCategory(category)
+export function scheduleIdbSync(category: IdbCategory, deletedId?: string): void {
+  void syncCategory(category, deletedId)
 }

@@ -840,7 +840,7 @@ export function EyecatchCreator() {
     customImgCacheRef.current.delete(id)
     setCustomStampImages(prev => prev.filter(s => s.id !== id))
     if (pendingCustom === id) { setPendingCustom(null); pendingCustomRef.current = null }
-    scheduleIdbSync('stampImages')
+    scheduleIdbSync('stampImages', id)
   }
 
   // Load bg images from IndexedDB on mount
@@ -881,7 +881,7 @@ export function EyecatchCreator() {
     })
     setBgImages(prev => prev.filter(b => b.id !== id))
     if (bgImageId === id) setBgImageId(null)
-    scheduleIdbSync('bgImages')
+    scheduleIdbSync('bgImages', id)
   }
 
   const confirmEditStable = () => {

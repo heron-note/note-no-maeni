@@ -1,5 +1,5 @@
 import type { User, LogEntry, Template, Bookmark, UserTemplate, RestTemplate } from '../types'
-import { pushLocalSettings, checkDataRepoValid } from './github'
+import { pushLocalSettings, pullLocalSettings, checkDataRepoValid } from './github'
 import { collectData } from './transfer'
 
 const SK = {
@@ -118,23 +118,56 @@ export function onGithubAuthCleared(cb: SyncListener): void {
   authClearedListeners.push(cb)
 }
 
+// リモートの nob_ 設定値をローカルへ取り込む。ローカルに既にあるキーは
+// （今まさに保存した値である可能性があるため）上書きしない。無いキーだけ補う。
+// nob_logs だけは「日付をキーにしたレコード集合」なので、キー単位ではなく
+// 日付単位でマージする（同じ日付はローカル優先、リモートだけにある日付を残す）。
+function mergeRemoteIntoLocal(remote: Record<string, string>): void {
+  for (const [key, value] of Object.entries(remote)) {
+    if (!key.startsWith('nob_') || key === SK.logs) continue
+    if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
+  }
+  const remoteLogsRaw = remote[SK.logs]
+  if (remoteLogsRaw) {
+    try {
+      const remoteLogs = JSON.parse(remoteLogsRaw) as Record<string, LogEntry>
+      const localLogs = rawStorage.loadLogs()
+      const merged = { ...remoteLogs, ...localLogs }
+      localStorage.setItem(SK.logs, JSON.stringify(merged))
+    } catch {
+      // リモートのログが壊れている場合は無視（ローカルはそのまま）
+    }
+  }
+}
+
+/**
+ * 設定・記録の同期本体。必ずpull→merge→pushの順で行う。pushだけを行うと、
+ * まだ他端末の変更を取り込んでいないローカル状態でリモートを丸ごと上書きしてしまい、
+ * 他端末側の設定・記録を消してしまう（記事・画像の同期で実際に起きた不具合と同種）。
+ * GitHub連携直後の初回同期・保存のたびの自動同期・起動時の同期、すべてここを通す。
+ */
+export async function syncSettingsWithGithub(): Promise<void> {
+  const auth = rawStorage.loadGithubAuth()
+  if (!auth) return
+  try {
+    const remote = await pullLocalSettings(auth.token, auth.username)
+    if (remote) mergeRemoteIntoLocal(remote)
+    await pushLocalSettings(auth.token, auth.username, collectData())
+  } catch (e) {
+    console.error('[GitHub連携] 設定・記録の同期に失敗しました', e)
+    const valid = await checkDataRepoValid(auth.token, auth.username).catch(() => false)
+    if (!valid) {
+      rawStorage.clearGithubAuth()
+      authClearedListeners.forEach(cb => cb())
+    }
+  }
+}
+
 let syncTimer: ReturnType<typeof setTimeout> | null = null
 
 function scheduleGithubSync(): void {
   if (syncTimer) clearTimeout(syncTimer)
-  syncTimer = setTimeout(async () => {
-    const auth = rawStorage.loadGithubAuth()
-    if (!auth) return
-    try {
-      await pushLocalSettings(auth.token, auth.username, collectData())
-    } catch {
-      const valid = await checkDataRepoValid(auth.token, auth.username).catch(() => false)
-      if (!valid) {
-        rawStorage.clearGithubAuth()
-        authClearedListeners.forEach(cb => cb())
-      }
-    }
-  }, 2000)
+  syncTimer = setTimeout(() => { void syncSettingsWithGithub() }, 2000)
 }
 
 const SYNC_EXCLUDED_KEYS = new Set(['saveGithubAuth', 'clearGithubAuth'])

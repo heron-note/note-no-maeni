@@ -229,8 +229,11 @@ async function getRepoFile(token: string, owner: string, path: string): Promise<
 }
 
 // 複数端末が同時に接続していると、片方が読んだshaがもう片方の書き込みで古くなり、
-// 更新時に409 Conflictになることがある。取得し直したshaで数回リトライすることで、
+// 更新時に409 Conflictになることがある（新規作成のつもりでsha無しで送った場合は、
+// 別端末が先に作っていると422になる）。取得し直したshaで数回リトライすることで、
 // 「2端末を同時に開くと同期が失敗する」事態を避ける（内容はローカル側が正として上書きする）。
+const CONFLICT_STATUSES = new Set([409, 422])
+
 async function putRepoFile(token: string, owner: string, path: string, content: string, message: string, sha?: string): Promise<void> {
   let currentSha = sha
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -243,7 +246,7 @@ async function putRepoFile(token: string, owner: string, path: string, content: 
       }),
     })
     if (res.ok) return
-    if (res.status !== 409 || attempt === 2) throw new Error(`${path} の更新に失敗しました (HTTP ${res.status})`)
+    if (!CONFLICT_STATUSES.has(res.status) || attempt === 2) throw new Error(`${path} の更新に失敗しました (HTTP ${res.status})`)
     const latest = await getRepoFile(token, owner, path)
     currentSha = latest?.sha
   }
@@ -294,7 +297,7 @@ async function putRepoFileRaw(token: string, owner: string, path: string, base64
       body: JSON.stringify({ message, content: base64Content, ...(currentSha ? { sha: currentSha } : {}) }),
     })
     if (res.ok) return
-    if (res.status !== 409 || attempt === 2) throw new Error(`${path} の更新に失敗しました (HTTP ${res.status})`)
+    if (!CONFLICT_STATUSES.has(res.status) || attempt === 2) throw new Error(`${path} の更新に失敗しました (HTTP ${res.status})`)
     const latest = await getRepoFileRaw(token, owner, path)
     currentSha = latest?.sha
   }
@@ -302,13 +305,17 @@ async function putRepoFileRaw(token: string, owner: string, path: string, base64
 
 async function deleteRepoFileIfExists(token: string, owner: string, path: string, message: string): Promise<void> {
   // sha を得るだけなので、バイナリ（画像）でも安全な raw 版を使う（UTF8デコードするとクラッシュするため）
-  const file = await getRepoFileRaw(token, owner, path)
-  if (!file) return
-  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`, {
-    method: 'DELETE',
-    body: JSON.stringify({ message, sha: file.sha }),
-  })
-  if (!res.ok && res.status !== 404) throw new Error(`${path} の削除に失敗しました (HTTP ${res.status})`)
+  let file = await getRepoFileRaw(token, owner, path)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (!file) return // 他端末が既に削除済みなら何もしない
+    const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ message, sha: file.sha }),
+    })
+    if (res.ok || res.status === 404) return
+    if (!CONFLICT_STATUSES.has(res.status) || attempt === 2) throw new Error(`${path} の削除に失敗しました (HTTP ${res.status})`)
+    file = await getRepoFileRaw(token, owner, path) // shaが古くなっていたので取り直してリトライ
+  }
 }
 
 /**
@@ -448,12 +455,16 @@ function toDataUrl(base64: string, ext: string): string {
   return `data:image/${mime};base64,${base64}`
 }
 
-async function syncImageFiles(token: string, owner: string, dir: string, localImages: ImageRecord[]): Promise<void> {
+async function syncImageFiles(token: string, owner: string, dir: string, localImages: ImageRecord[], excludeId?: string): Promise<void> {
   const indexPath = `${dir}/index.json`
   const remoteIndex = (await pullJsonFile<ImageIndexEntry[]>(token, owner, indexPath)) ?? []
 
   // 記事ストッカーと同様、ローカルが空でリモートに画像がある場合は上書き・削除しない安全策。
-  if (localImages.length === 0 && remoteIndex.length > 0) return
+  // ただし、呼び出し元がexcludeIdで「今まさに削除した1件」を教えてくれている場合は、
+  // その1件を除いてもリモートに何か残っているかどうかで判定する
+  // （最後の1件を削除したときに、削除自体がブロックされてしまわないようにするため）。
+  const remoteIndexExcludingDeleted = excludeId ? remoteIndex.filter(e => e.id !== excludeId) : remoteIndex
+  if (localImages.length === 0 && remoteIndexExcludingDeleted.length > 0) return
 
   const remoteIds = new Set(remoteIndex.map(e => e.id))
   const localIds = new Set(localImages.map(i => i.id))
@@ -488,15 +499,15 @@ async function pullImageFiles(token: string, owner: string, dir: string): Promis
   return images
 }
 
-export async function pushBgImages(token: string, owner: string, images: unknown[]): Promise<void> {
-  await syncImageFiles(token, owner, 'images/bg', images as ImageRecord[])
+export async function pushBgImages(token: string, owner: string, images: unknown[], excludeId?: string): Promise<void> {
+  await syncImageFiles(token, owner, 'images/bg', images as ImageRecord[], excludeId)
 }
 export async function pullBgImages(token: string, owner: string): Promise<unknown[] | null> {
   return pullImageFiles(token, owner, 'images/bg')
 }
 
-export async function pushStampImages(token: string, owner: string, images: unknown[]): Promise<void> {
-  await syncImageFiles(token, owner, 'images/stamp', images as ImageRecord[])
+export async function pushStampImages(token: string, owner: string, images: unknown[], excludeId?: string): Promise<void> {
+  await syncImageFiles(token, owner, 'images/stamp', images as ImageRecord[], excludeId)
 }
 export async function pullStampImages(token: string, owner: string): Promise<unknown[] | null> {
   return pullImageFiles(token, owner, 'images/stamp')

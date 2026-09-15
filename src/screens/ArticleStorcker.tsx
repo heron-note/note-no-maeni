@@ -484,7 +484,7 @@ export function ArticleStorcker() {
       allCollections = allCollections.filter(c => c.id !== id)
       if (activeCollection?.id === id) { activeCollection = null; showCollectionDetail(null) }
       renderCollectionList()
-      scheduleIdbSync('articleStocker')
+      scheduleIdbSync('articleStocker', id)
     }
 
     function renderCollectionList() {

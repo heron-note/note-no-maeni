@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBottomSheet } from '../hooks/useBottomSheet'
 import {
-  requestDeviceCode, pollForAccessToken, ensureDataRepo, pullLocalSettings, pushLocalSettings, DeviceFlowError,
+  requestDeviceCode, pollForAccessToken, ensureDataRepo, DeviceFlowError,
   savePendingDeviceFlow, loadPendingDeviceFlow, clearPendingDeviceFlow, type DeviceCodeResponse,
 } from '../utils/github'
-import { collectData, applyLocalData } from '../utils/transfer'
+import { syncSettingsWithGithub } from '../utils/storage'
 import { syncIdbOnConnect } from '../utils/idbSync'
 import { useAppStore } from '../store/useAppStore'
 
@@ -18,22 +18,19 @@ import { useAppStore } from '../store/useAppStore'
  * もう片方の同期が実行されなくなる（＝原因不明のまま画像が一切同期されない）
  * ことを避けるため。失敗した内容はconsoleに出す（原因調査のため。以降は
  * 通常の自動同期で再試行される）。
+ *
+ * 設定同期は必ずpull→merge→pushのsyncSettingsWithGithubを使う。以前はリモートが
+ * 存在すればローカルを丸ごとリモートで上書きしていたが、これだと接続前から
+ * この端末にだけあった設定・記録が消えてしまう（記事・画像の同期で実際に
+ * 起きた「空データで上書きされる」不具合の逆パターン）。
  */
-function syncInBackground(token: string, owner: string): void {
+function syncInBackground(): void {
   ;(async () => {
-    try {
-      const remote = await pullLocalSettings(token, owner)
-      if (remote) {
-        applyLocalData(remote)
-      } else {
-        await pushLocalSettings(token, owner, collectData())
-      }
-    } catch (e) {
-      console.error('[GitHub連携] 設定・記録の同期に失敗しました', e)
-    }
+    await syncSettingsWithGithub()
 
+    const { githubToken, githubUsername } = useAppStore.getState()
     try {
-      await syncIdbOnConnect(token, owner)
+      if (githubToken && githubUsername) await syncIdbOnConnect(githubToken, githubUsername)
     } catch (e) {
       console.error('[GitHub連携] 記事・画像の同期に失敗しました', e)
     }
@@ -105,8 +102,11 @@ export function GithubConnectOverlay({ onConnected, onClose }: {
 
         // ここで接続完了とする。設定・記録・記事・画像の同期（重い処理になりうる）は
         // バックグラウンドに回し、ダイアログはすぐ閉じられるようにする（仕様書10章）。
-        syncInBackground(token, owner)
+        // onConnected() が storage.saveGithubAuth() を呼びlocalStorageへ保存するのが先。
+        // syncInBackground() 内の同期処理はそのlocalStorageの認証情報を読むため、
+        // 順序を逆にすると「まだ認証情報が無い」として同期が黙って何もしなくなる。
         onConnected(token, owner)
+        syncInBackground()
       } catch (e) {
         if (e instanceof DeviceFlowError && e.message === 'cancelled') return
         if (e instanceof DeviceFlowError && e.message === 'expired_token') clearPendingDeviceFlow()

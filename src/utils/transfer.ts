@@ -168,15 +168,6 @@ export async function exportData(): Promise<void> {
   saveFile(JSON.stringify({ [ENCRYPTED_MARKER]: encrypted }), filename)
 }
 
-/** GitHub同期など、パスワード確認を挟まずに nob_ プレフィックスのデータをそのまま反映する。 */
-export function applyLocalData(data: Record<string, string>): void {
-  for (const [key, value] of Object.entries(data)) {
-    if (key.startsWith('nob_') && typeof value === 'string') {
-      localStorage.setItem(key, value)
-    }
-  }
-}
-
 export async function importData(file: File): Promise<void> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
