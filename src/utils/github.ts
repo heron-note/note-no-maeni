@@ -1,6 +1,8 @@
 // GitHub連携（Device Flow）と、アプリデータ保管用リポジトリの確認・作成。
 // 仕様: docs/LP作成機能_仕様書.md 3章・10章
 
+import JSZip from 'jszip'
+
 const AUTH_RELAY_URL = 'https://note-no-maeni-auth-relay.daisuke-hatano.workers.dev'
 const GITHUB_API = 'https://api.github.com'
 const DATA_REPO_NAME = 'note-no-maeni-data'
@@ -704,4 +706,86 @@ export async function pushInitialSnapshot(token: string, owner: string, data: In
   }
 
   await commitTreeChanges(token, owner, entries, 'GitHub連携: 初回データをまとめてアップロード')
+}
+
+// ─── 新規端末で既存リポジトリに接続した際の一括ダウンロード ───────────────────
+// 記事が数百件になると、記事ごとに1リクエストで取得する方式（pullArticleFiles）
+// は新規端末での初回復元時にリクエスト数がそのまま記事数になってしまい、
+// 実際に403件中200件程度までしか降ってこない不具合が起きた。GitHubは
+// リポジトリ全体をzip一つでダウンロードできるエンドポイントを提供しており、
+// ここから直接読み出せば、記事・画像が何百件あってもリクエストは1回で済む
+// （以後の展開・JSON解析はすべてローカルで行う）。
+async function fetchRepoZip(token: string, owner: string): Promise<JSZip | null> {
+  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/zipball/${DATA_REPO_BRANCH}`)
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`リポジトリのアーカイブ取得に失敗しました (HTTP ${res.status})`)
+  const blob = await res.blob()
+  return JSZip.loadAsync(blob)
+}
+
+/**
+ * zipballの中身は "{owner}-{repo}-{shortsha}/" という単一のルートディレクトリの下に
+ * 展開される。そのプレフィックスを取り除いてパス指定できるようにする。
+ */
+function makeZipReader(zip: JSZip) {
+  const rootEntry = Object.keys(zip.files).find(name => /^[^/]+\/$/.test(name))
+  const rootPrefix = rootEntry ?? ''
+  return {
+    async readJson<T>(relPath: string): Promise<T | null> {
+      const file = zip.file(rootPrefix + relPath)
+      if (!file) return null
+      try {
+        return JSON.parse(await file.async('string')) as T
+      } catch {
+        return null
+      }
+    },
+    async readBase64(relPath: string): Promise<string | null> {
+      const file = zip.file(rootPrefix + relPath)
+      return file ? file.async('base64') : null
+    },
+  }
+}
+
+/**
+ * リポジトリの中身を1回のzipダウンロードでまとめて取得する。新規端末で
+ * 既存リポジトリに接続した直後（＝ローカルはまだ空）にのみ使う。それ以外の
+ * 場面（他端末の変更との突き合わせが必要な場合）は従来のカテゴリ別
+ * pull→merge→pushを使うこと。
+ */
+export async function pullRepoSnapshot(token: string, owner: string): Promise<InitialSnapshotData | null> {
+  const zip = await fetchRepoZip(token, owner)
+  if (!zip) return null
+  const { readJson, readBase64 } = makeZipReader(zip)
+
+  const settings = (await readJson<Record<string, string>>(SETTINGS_PATH)) ?? {}
+  const logs = (await readJson<Record<string, string>>(LOGS_PATH)) ?? {}
+
+  const articleIndex = (await readJson<ArticleIndexEntry[]>(ARTICLES_INDEX_PATH)) ?? []
+  const articles: unknown[] = []
+  for (const entry of articleIndex) {
+    const article = await readJson(articleFilePath(entry.postId))
+    if (article) articles.push(article)
+  }
+  const articleMeta = await readJson<Record<string, unknown[]>>(ARTICLES_META_PATH)
+
+  async function readImages(dir: string): Promise<ImageRecord[]> {
+    const index = (await readJson<ImageIndexEntry[]>(`${dir}/index.json`)) ?? []
+    const images: ImageRecord[] = []
+    for (const entry of index) {
+      const base64 = await readBase64(`${dir}/${entry.id}.${entry.ext}`)
+      if (base64) images.push({ id: entry.id, dataUrl: toDataUrl(base64, entry.ext), createdAt: entry.createdAt })
+    }
+    return images
+  }
+
+  return {
+    localData: { ...settings, ...logs },
+    articles,
+    articleNouns: articleMeta?.nob_stk_nouns ?? [],
+    articleNounLinks: articleMeta?.nob_stk_article_nouns ?? [],
+    collections: articleMeta?.nob_stk_collections ?? [],
+    bgImages: await readImages('images/bg'),
+    stampImages: await readImages('images/stamp'),
+  }
 }

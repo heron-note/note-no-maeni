@@ -5,7 +5,7 @@ import {
   checkDataRepoValid, requestDeviceCode, pollForAccessToken, ensureDataRepo, DeviceFlowError,
   savePendingDeviceFlow, loadPendingDeviceFlow, clearPendingDeviceFlow, type DeviceCodeResponse,
 } from '../utils/github'
-import { syncIdbOnConnect, pushInitialSnapshotToGithub } from '../utils/idbSync'
+import { syncIdbOnConnect, pushInitialSnapshotToGithub, pullInitialSnapshotFromGithub } from '../utils/idbSync'
 
 export type GithubConnectPhase = 'idle' | 'requesting' | 'waiting' | 'finalizing' | 'error'
 
@@ -64,19 +64,42 @@ interface AppStore {
  * カテゴリごとに分けて処理する理由（突き合わせるべきリモートの状態）が
  * 初回には存在しないため、その分の無駄なやり取り・同じrefを取り合う余地を無くす。
  *
- * 既存リポジトリへの再接続時は、他端末の変更を取りこぼさないよう従来どおり
- * 設定同期と記事・画像同期を別々のtry/catchで順番に行う。片方が失敗しても
- * もう片方の同期が実行されなくなる（＝原因不明のまま画像が一切同期されない）
- * ことを避けるため。失敗した内容はconsoleに出す（原因調査のため。以降は
- * 通常の自動同期で再試行される）。
+ * isFreshDevice（この端末にはまだローカルデータが無い＝新規端末からの初回接続）
+ * がtrueなら、記事ごとに1リクエストで取得するカテゴリ別pullではなく、
+ * リポジトリ全体をzip1回でダウンロードするpullInitialSnapshotFromGithubで
+ * まとめて復元する。記事が数百件ある場合、カテゴリ別pullは件数分リクエストが
+ * 発生し、実際に403件中200件程度までしか降ってこない不具合が起きたため。
+ *
+ * どちらでもない（既にローカルにデータがある端末が、既存リポジトリに再接続・
+ * 再起動時に同期する）場合のみ、他端末の変更を取りこぼさないよう従来どおり
+ * カテゴリ別のpull→merge→pushを行う。設定同期と記事・画像同期は別々の
+ * try/catchにする。片方が失敗してももう片方が実行されなくなる（＝原因不明の
+ * まま画像が一切同期されない）ことを避けるため。失敗した内容はconsoleに出す
+ * （原因調査のため。以降は通常の自動同期で再試行される）。
  */
-function syncGithubDataInBackground(token: string, owner: string, isFreshRepo: boolean): void {
+function syncGithubDataInBackground(token: string, owner: string, isFreshRepo: boolean, isFreshDevice: boolean): void {
   ;(async () => {
     if (isFreshRepo) {
       try {
         await pushInitialSnapshotToGithub(token, owner)
       } catch (e) {
         console.error('[GitHub連携] 初回データのアップロードに失敗しました', e)
+      }
+    } else if (isFreshDevice) {
+      let restored = false
+      try {
+        restored = await pullInitialSnapshotFromGithub(token, owner)
+      } catch (e) {
+        console.error('[GitHub連携] 初回データの復元に失敗しました', e)
+      }
+      if (!restored) {
+        // リポジトリの中身が読めなかった等、通常のカテゴリ別処理にフォールバック。
+        await syncSettingsWithGithub()
+        try {
+          await syncIdbOnConnect(token, owner)
+        } catch (e) {
+          console.error('[GitHub連携] 記事・画像の同期に失敗しました', e)
+        }
       }
     } else {
       await syncSettingsWithGithub()
@@ -235,11 +258,16 @@ export const useAppStore = create<AppStore>((set, get) => {
 
         const { owner, created } = await ensureDataRepo(token)
 
+        // この端末にまだローカルデータが無いか（オンボーディング未完了＝
+        // nob_userが無い）で「新規端末」を判定する。GithubConnectOverlayを
+        // Onboarding画面から開いて復元する場合がまさにこのケース。
+        const isFreshDevice = storage.loadUser() === null
+
         get().setGithubAuth(token, owner)
         set({ githubConnectPhase: 'idle', githubConnectDevice: null })
 
         // 重い同期処理はバックグラウンドに回し、ここでは待たない（仕様書10章）。
-        syncGithubDataInBackground(token, owner, created)
+        syncGithubDataInBackground(token, owner, created, isFreshDevice)
       } catch (e) {
         if (e instanceof DeviceFlowError && e.message === 'expired_token') clearPendingDeviceFlow()
         set({

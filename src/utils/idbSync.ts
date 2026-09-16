@@ -8,7 +8,7 @@ import { collectData } from './transfer'
 import {
   pushArticleStocker, pushBgImages, pushStampImages, checkDataRepoValid,
   pullArticleStocker, pullBgImages, pullStampImages,
-  pullArticleIndex, pullImageIndex, pushInitialSnapshot, type ImageRecord,
+  pullArticleIndex, pullImageIndex, pushInitialSnapshot, pullRepoSnapshot, type ImageRecord,
 } from './github'
 
 function idbOpen(name: string, version: number, upgrade: (db: IDBDatabase) => void): Promise<IDBDatabase> {
@@ -260,6 +260,38 @@ export async function pushInitialSnapshotToGithub(token: string, owner: string):
       bgImages: (await collectBgImages()) as ImageRecord[],
       stampImages: (await collectStampImages()) as ImageRecord[],
     })
+  })
+}
+
+/**
+ * 新規端末で既存のリポジトリに接続した直後（＝ローカルはまだ空）にだけ使う。
+ * 記事ごとに1リクエストで取得するカテゴリ別pullだと、記事が数百件ある場合に
+ * その件数分リクエストが発生し、実際に403件中200件程度までしか降ってこない
+ * 不具合が起きた。リポジトリ全体をzip1回でダウンロードして展開する
+ * pullRepoSnapshotを使うことで、件数によらずリクエストは1回で済む。
+ *
+ * 戻り値は「リモートに何かデータがあり、復元を試みたか」。false（リポジトリの
+ * 中身が読めなかった）の場合、呼び出し側は従来のカテゴリ別pull→merge→push に
+ * フォールバックすること。
+ */
+export async function pullInitialSnapshotFromGithub(token: string, owner: string): Promise<boolean> {
+  return withGithubSyncIndicator(async () => {
+    const snapshot = await pullRepoSnapshot(token, owner)
+    if (!snapshot) return false
+
+    for (const [key, value] of Object.entries(snapshot.localData)) {
+      if (key.startsWith('nob_') && typeof value === 'string') localStorage.setItem(key, value)
+    }
+
+    await mergeArticleStocker({
+      nob_stk_articles: snapshot.articles,
+      nob_stk_nouns: snapshot.articleNouns,
+      nob_stk_article_nouns: snapshot.articleNounLinks,
+      nob_stk_collections: snapshot.collections,
+    })
+    await mergeBgImages(snapshot.bgImages)
+    await mergeStampImages(snapshot.stampImages)
+    return true
   })
 }
 
