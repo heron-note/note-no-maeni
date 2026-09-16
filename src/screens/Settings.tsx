@@ -231,7 +231,12 @@ export function Settings() {
         <GithubConnectOverlay
           onConnected={(token, username) => {
             setGithubAuth(token, username)
-            init() // 取得したデータ（あれば）をストアへ反映
+            // ここでinit()は呼ばない。init()は接続の有効性チェック
+            // （checkDataRepoValid）を伴うが、リポジトリを作成した直後は
+            // GitHub側の反映にわずかなラグがあり得るため、直後に叩くと
+            // 誤って無効判定され連携が即座に解除されてしまうことがある。
+            // 実際のデータ読み書きが成功した後（＝有効なことが証明された後）に
+            // GithubConnectOverlay側のsyncInBackground()がinit()を呼ぶ。
             setShowGithubConnect(false)
             setToast('GitHubと連携しました')
           }}
