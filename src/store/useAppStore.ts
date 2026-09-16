@@ -108,6 +108,45 @@ function syncGithubDataInBackground(token: string, owner: string, isFreshRepo: b
   })()
 }
 
+// GitHub連携の有効チェック（仕様書10章）＋設定・記録・記事・画像の同期を試みる。
+// 無効（リポジトリ誤削除・トークン失効等）なら連携状態だけを解除する。ローカルデータには触れない。
+// 起動時（init）だけでなく、アプリがバックグラウンドから復帰した時（visibilitychange）にも
+// 呼ぶ。iOSのPWAはバックグラウンド化でJS実行が打ち切られやすく、同期処理が完了する前に
+// 中断されることがある。以前は「次にアプリを起動し直すまで再開されない」状態だったが、
+// バックグラウンド→フォアグラウンド復帰のタイミングで自動的に続きを試みるようにすることで、
+// アプリを閉じ直さなくても（少し時間を置いて戻ってくるだけで）自己修復されるようにする。
+let lastGithubSyncAttemptAt = 0
+const MIN_GITHUB_SYNC_INTERVAL_MS = 30 * 1000 // 短時間に何度もvisibilitychangeが起きても連打しない
+
+function attemptGithubSync(): void {
+  const { githubToken, githubUsername } = useAppStore.getState()
+  if (!githubToken || !githubUsername) return
+  const now = Date.now()
+  if (now - lastGithubSyncAttemptAt < MIN_GITHUB_SYNC_INTERVAL_MS) return
+  lastGithubSyncAttemptAt = now
+
+  checkDataRepoValid(githubToken, githubUsername).then(valid => {
+    if (!valid) {
+      useAppStore.getState().clearGithubAuth()
+      return
+    }
+    // 設定同期と記事・画像同期を並行に走らせない。どちらも同じmainブランチの
+    // refを更新するコミットを行うため、同時に走らせると片方のコミットが
+    // 進んだ後にもう片方がfast-forwardできず失敗しうる（コンフリクト時は
+    // リトライするが、無用な衝突自体を避けるほうが確実）。
+    void (async () => {
+      await syncSettingsWithGithub()
+      await syncIdbOnConnect(githubToken, githubUsername)
+    })()
+  })
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') attemptGithubSync()
+  })
+}
+
 export const useAppStore = create<AppStore>((set, get) => {
   // 自動同期（storage.ts）が有効チェックの結果GitHub連携を解除した場合、ストアの状態も追従させる。
   onGithubAuthCleared(() => set({ githubToken: null, githubUsername: null }))
@@ -139,31 +178,12 @@ export const useAppStore = create<AppStore>((set, get) => {
       set({ screen: 'home' })
     }
 
-    // GitHub連携の有効チェック（仕様書10章）。
-    // 無効（リポジトリ誤削除・トークン失効等）なら連携状態だけを解除する。ローカルデータには触れない。
-    const { githubToken, githubUsername } = get()
-    if (githubToken && githubUsername) {
-      checkDataRepoValid(githubToken, githubUsername).then(valid => {
-        if (!valid) {
-          get().clearGithubAuth()
-          return
-        }
-        // 接続済みなら起動のたびに必ず設定・記録・記事・画像の同期を試みる
-        // （pendingフラグの有無に関わらず）。この仕組みが入る前に登録された
-        // 画像等、フラグが立っていない既存データも取りこぼさないようにするため。
-        // 既に同期済みの内容は変更なしとしてスキップされるので、通信コストは
-        // 小さい（PWAがバックグラウンド化で同期処理を打ち切ってしまい、画像だけ
-        // 同期されない、という問題への対処。仕様書10章参照）。
-        // 設定同期と記事・画像同期を並行に走らせない。どちらも同じmainブランチの
-        // refを更新するコミットを行うため、同時に走らせると片方のコミットが
-        // 進んだ後にもう片方がfast-forwardできず失敗しうる（コンフリクト時は
-        // リトライするが、無用な衝突自体を避けるほうが確実）。
-        void (async () => {
-          await syncSettingsWithGithub()
-          await syncIdbOnConnect(githubToken, githubUsername)
-        })()
-      })
-    }
+    // 接続済みなら起動のたびに必ず設定・記録・記事・画像の同期を試みる
+    // （pendingフラグの有無に関わらず）。この仕組みが入る前に登録された
+    // 画像等、フラグが立っていない既存データも取りこぼさないようにするため。
+    // 既に同期済みの内容は変更なしとしてスキップされるので、通信コストは
+    // 小さい。バックグラウンド復帰時にも同じ関数を呼ぶ（attemptGithubSync参照）。
+    attemptGithubSync()
   },
 
   // init()から画面遷移の副作用を切り離したもの。バックグラウンド同期の完了後など、
