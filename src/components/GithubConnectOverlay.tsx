@@ -1,56 +1,43 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBottomSheet } from '../hooks/useBottomSheet'
-import {
-  requestDeviceCode, pollForAccessToken, ensureDataRepo, DeviceFlowError,
-  savePendingDeviceFlow, loadPendingDeviceFlow, clearPendingDeviceFlow, type DeviceCodeResponse,
-} from '../utils/github'
-import { syncSettingsWithGithub } from '../utils/storage'
-import { syncIdbOnConnect } from '../utils/idbSync'
 import { useAppStore } from '../store/useAppStore'
 
 /**
- * 設定・記録・記事・画像の同期をバックグラウンドで行う。
- * トークン取得＋リポジトリ確認が終わった時点で「連携完了」とし、
- * この重い処理はダイアログを閉じた後も中断せず継続する（画面遷移とは無関係に完了させる）。
- * 完了後、画面に反映するため init() を呼び直す。
+ * GitHub連携（Device Flow）ダイアログ。
  *
- * 設定同期と記事・画像同期は別々のtry/catchにする。片方が失敗しても
- * もう片方の同期が実行されなくなる（＝原因不明のまま画像が一切同期されない）
- * ことを避けるため。失敗した内容はconsoleに出す（原因調査のため。以降は
- * 通常の自動同期で再試行される）。
+ * 連携処理そのもの（デバイスコード取得〜ポーリング〜リポジトリ確認〜バック
+ * グラウンド同期）はuseAppStore.startGithubConnect()側で行う。このコンポーネントは
+ * その進行状況（githubConnectPhase/Device/Error）を購読して表示するだけの
+ * 「ビュー」に徹する。
  *
- * 設定同期は必ずpull→merge→pushのsyncSettingsWithGithubを使う。以前はリモートが
- * 存在すればローカルを丸ごとリモートで上書きしていたが、これだと接続前から
- * この端末にだけあった設定・記録が消えてしまう（記事・画像の同期で実際に
- * 起きた「空データで上書きされる」不具合の逆パターン）。
+ * 以前はこの処理全体をこのコンポーネント内で行い、AbortControllerでコンポーネントの
+ * unmountに連動して中断させていた。そのため、リポジトリ作成後・連携完了前に
+ * ダイアログが閉じる（あるいは何らかの理由で再マウントされる）と、連携処理が
+ * 完了を通知する前に静かに止まってしまう不具合があった。connect処理をUIの
+ * マウント状態から切り離すことで、ダイアログを閉じても連携は継続し、
+ * githubTokenが設定された時点で自動的に閉じるようにする。
  */
-function syncInBackground(): void {
-  ;(async () => {
-    await syncSettingsWithGithub()
-
-    const { githubToken, githubUsername } = useAppStore.getState()
-    try {
-      if (githubToken && githubUsername) await syncIdbOnConnect(githubToken, githubUsername)
-    } catch (e) {
-      console.error('[GitHub連携] 記事・画像の同期に失敗しました', e)
-    }
-
-    useAppStore.getState().init()
-  })()
-}
-
-type Phase = 'requesting' | 'waiting' | 'finalizing' | 'error'
-
-export function GithubConnectOverlay({ onConnected, onClose }: {
-  onConnected: (token: string, username: string) => void
-  onClose: () => void
-}) {
+export function GithubConnectOverlay({ onClose }: { onClose: () => void }) {
   const { closing, handleClose, sheetRef, dragHandleProps } = useBottomSheet(onClose)
-  const [phase, setPhase] = useState<Phase>('requesting')
-  const [device, setDevice] = useState<DeviceCodeResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const phase = useAppStore(s => s.githubConnectPhase)
+  const device = useAppStore(s => s.githubConnectDevice)
+  const error = useAppStore(s => s.githubConnectError)
+  const githubToken = useAppStore(s => s.githubToken)
+  const startGithubConnect = useAppStore(s => s.startGithubConnect)
   const [copied, setCopied] = useState(false)
-  const abortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    startGithubConnect() // 既に進行中・連携済みなら何もしない
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 連携が完了してgithubTokenがセットされたら、このダイアログを開いている間に
+  // 限り自動で閉じる。バックグラウンド同期自体はダイアログを閉じても続く。
+  const prevTokenRef = useRef(githubToken)
+  useEffect(() => {
+    if (!prevTokenRef.current && githubToken) onClose()
+    prevTokenRef.current = githubToken
+  }, [githubToken, onClose])
 
   const handleCopy = async (code: string) => {
     try {
@@ -62,65 +49,6 @@ export function GithubConnectOverlay({ onConnected, onClose }: {
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
-
-  const start = () => {
-    setPhase('requesting')
-    setError(null)
-    setDevice(null)
-
-    const controller = new AbortController()
-    abortRef.current = controller
-
-    ;(async () => {
-      try {
-        // ホーム画面に追加したPWA（特にiOS）では、承認ページを開くと外部ブラウザ／
-        // アプリ内ブラウザに切り替わり、戻ってきた際にページが再読み込みされて
-        // Reactの状態（発行済みのデバイスコード）が失われることがある。
-        // その場合は「もう一度試す」を押しても新しいコードを発行し直さず、
-        // 承認待ちの既存コードをそのまま使って確認を再開する。
-        let d: DeviceCodeResponse
-        let deadline: number | undefined
-        const pending = loadPendingDeviceFlow()
-        if (pending) {
-          d = pending.device
-          deadline = pending.requestedAt + pending.device.expires_in * 1000
-        } else {
-          d = await requestDeviceCode('repo workflow')
-          if (controller.signal.aborted) return
-          savePendingDeviceFlow(d)
-        }
-        setDevice(d)
-        setPhase('waiting')
-
-        const token = await pollForAccessToken(d, { signal: controller.signal, deadline })
-        clearPendingDeviceFlow()
-        if (controller.signal.aborted) return
-        setPhase('finalizing')
-
-        const { owner } = await ensureDataRepo(token)
-        if (controller.signal.aborted) return
-
-        // ここで接続完了とする。設定・記録・記事・画像の同期（重い処理になりうる）は
-        // バックグラウンドに回し、ダイアログはすぐ閉じられるようにする（仕様書10章）。
-        // onConnected() が storage.saveGithubAuth() を呼びlocalStorageへ保存するのが先。
-        // syncInBackground() 内の同期処理はそのlocalStorageの認証情報を読むため、
-        // 順序を逆にすると「まだ認証情報が無い」として同期が黙って何もしなくなる。
-        onConnected(token, owner)
-        syncInBackground()
-      } catch (e) {
-        if (e instanceof DeviceFlowError && e.message === 'cancelled') return
-        if (e instanceof DeviceFlowError && e.message === 'expired_token') clearPendingDeviceFlow()
-        setError(e instanceof Error ? e.message : '接続に失敗しました')
-        setPhase('error')
-      }
-    })()
-  }
-
-  useEffect(() => {
-    start()
-    return () => abortRef.current?.abort()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   return (
     <div className={`stamp-overlay${closing ? ' closing' : ''}`} onClick={handleClose}>
@@ -158,6 +86,7 @@ export function GithubConnectOverlay({ onConnected, onClose }: {
               </p>
               <p className="settings-hint">
                 承認が終わったら、開いた画面の「完了」または「×」を押してこのアプリに戻ってきてください。
+                このダイアログを閉じても連携処理は裏側で続きます。
               </p>
             </>
           )}
@@ -165,7 +94,7 @@ export function GithubConnectOverlay({ onConnected, onClose }: {
           {phase === 'error' && (
             <>
               <p className="bookmark-error">{error}</p>
-              <button className="btn-secondary wide" onClick={start}>もう一度試す</button>
+              <button className="btn-secondary wide" onClick={startGithubConnect}>もう一度試す</button>
             </>
           )}
         </div>

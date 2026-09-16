@@ -1,8 +1,13 @@
 import { create } from 'zustand'
 import type { ScreenName, ChoiceType, User, LogEntry, Declaration } from '../types'
 import { storage, todayStr, onGithubAuthCleared, syncSettingsWithGithub } from '../utils/storage'
-import { checkDataRepoValid } from '../utils/github'
+import {
+  checkDataRepoValid, requestDeviceCode, pollForAccessToken, ensureDataRepo, DeviceFlowError,
+  savePendingDeviceFlow, loadPendingDeviceFlow, clearPendingDeviceFlow, type DeviceCodeResponse,
+} from '../utils/github'
 import { syncIdbOnConnect } from '../utils/idbSync'
+
+export type GithubConnectPhase = 'idle' | 'requesting' | 'waiting' | 'finalizing' | 'error'
 
 interface AppStore {
   // State
@@ -18,6 +23,14 @@ interface AppStore {
   githubToken: string | null
   githubUsername: string | null
 
+  // GitHub連携フロー（Device Flow〜リポジトリ確認まで）の進行状況。
+  // ストア（コンポーネントのライフサイクルとは無関係な、モジュール単位の
+  // シングルトン）に持たせることで、これを表示しているダイアログが閉じたり
+  // 再マウントされたりしても処理そのものは中断されずに継続する。
+  githubConnectPhase: GithubConnectPhase
+  githubConnectDevice: DeviceCodeResponse | null
+  githubConnectError: string | null
+
   // Actions
   init: () => void
   goTo: (screen: ScreenName) => void
@@ -30,9 +43,32 @@ interface AppStore {
   setEditingRestTemplateId: (id: string | null) => void
   setGithubAuth: (token: string, username: string) => void
   clearGithubAuth: () => void
+  startGithubConnect: () => void
 
   // Selectors
   todayLog: () => LogEntry | undefined
+}
+
+/**
+ * 設定・記録・記事・画像の同期をバックグラウンドで行う。トークン取得＋リポジトリ
+ * 確認が終わった時点で「連携完了」とし、この重い処理は連携ダイアログを閉じた後も
+ * 中断せず継続する（仕様書10章）。完了後、画面に反映するため init() を呼び直す。
+ *
+ * 設定同期と記事・画像同期は別々のtry/catchにする。片方が失敗しても
+ * もう片方の同期が実行されなくなる（＝原因不明のまま画像が一切同期されない）
+ * ことを避けるため。失敗した内容はconsoleに出す（原因調査のため。以降は
+ * 通常の自動同期で再試行される）。
+ */
+function syncGithubDataInBackground(token: string, owner: string): void {
+  ;(async () => {
+    await syncSettingsWithGithub()
+    try {
+      await syncIdbOnConnect(token, owner)
+    } catch (e) {
+      console.error('[GitHub連携] 記事・画像の同期に失敗しました', e)
+    }
+    useAppStore.getState().init()
+  })()
 }
 
 export const useAppStore = create<AppStore>((set, get) => {
@@ -49,6 +85,9 @@ export const useAppStore = create<AppStore>((set, get) => {
   editingRestTemplateId: null,
   githubToken: storage.loadGithubAuth()?.token ?? null,
   githubUsername: storage.loadGithubAuth()?.username ?? null,
+  githubConnectPhase: 'idle',
+  githubConnectDevice: null,
+  githubConnectError: null,
 
   init() {
     const user = storage.loadUser()
@@ -112,6 +151,61 @@ export const useAppStore = create<AppStore>((set, get) => {
   clearGithubAuth() {
     storage.clearGithubAuth()
     set({ githubToken: null, githubUsername: null })
+  },
+
+  /**
+   * GitHub連携（Device Flow）を開始する。UIコンポーネント（連携ダイアログ）の
+   * マウント状態とは無関係にストア側で完結させる。以前はこの処理全体を
+   * ダイアログのコンポーネント内で行っており、リポジトリ作成後・連携完了前に
+   * ダイアログが閉じる（再マウントされる等）と、AbortControllerの中断チェックに
+   * 引っかかって連携処理そのものがそこで静かに止まってしまう不具合があった。
+   *
+   * 既に進行中（requesting/waiting/finalizing）なら何もしない（多重起動防止）。
+   * ダイアログは githubConnectPhase/Device/Error を購読して表示するだけにする。
+   */
+  startGithubConnect() {
+    const phase = get().githubConnectPhase
+    if (phase === 'requesting' || phase === 'waiting' || phase === 'finalizing') return
+
+    set({ githubConnectPhase: 'requesting', githubConnectError: null, githubConnectDevice: null })
+
+    ;(async () => {
+      try {
+        // ホーム画面に追加したPWA（特にiOS）では、承認ページを開くと外部ブラウザ／
+        // アプリ内ブラウザに切り替わり、戻ってきた際にページが再読み込みされて
+        // 状態（発行済みのデバイスコード）が失われることがある。その場合でも
+        // 承認待ちの既存コードのまま確認を再開できるよう、localStorageを見る。
+        let d: DeviceCodeResponse
+        let deadline: number | undefined
+        const pending = loadPendingDeviceFlow()
+        if (pending) {
+          d = pending.device
+          deadline = pending.requestedAt + pending.device.expires_in * 1000
+        } else {
+          d = await requestDeviceCode('repo workflow')
+          savePendingDeviceFlow(d)
+        }
+        set({ githubConnectDevice: d, githubConnectPhase: 'waiting' })
+
+        const token = await pollForAccessToken(d, { deadline })
+        clearPendingDeviceFlow()
+        set({ githubConnectPhase: 'finalizing' })
+
+        const { owner } = await ensureDataRepo(token)
+
+        get().setGithubAuth(token, owner)
+        set({ githubConnectPhase: 'idle', githubConnectDevice: null })
+
+        // 重い同期処理はバックグラウンドに回し、ここでは待たない（仕様書10章）。
+        syncGithubDataInBackground(token, owner)
+      } catch (e) {
+        if (e instanceof DeviceFlowError && e.message === 'expired_token') clearPendingDeviceFlow()
+        set({
+          githubConnectError: e instanceof Error ? e.message : '接続に失敗しました',
+          githubConnectPhase: 'error',
+        })
+      }
+    })()
   },
 
   todayLog() { return get().logs[todayStr()] },

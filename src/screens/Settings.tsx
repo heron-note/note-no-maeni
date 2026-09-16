@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { Toast } from '../components/Toast'
@@ -18,7 +18,6 @@ export function Settings() {
 
   const init = useAppStore(s => s.init)
   const githubUsername = useAppStore(s => s.githubUsername)
-  const setGithubAuth = useAppStore(s => s.setGithubAuth)
   const clearGithubAuth = useAppStore(s => s.clearGithubAuth)
   const [showGithubConnect, setShowGithubConnect] = useState(false)
   const [name, setName] = useState(user?.name ?? '')
@@ -31,6 +30,15 @@ export function Settings() {
   const importBgRef = useRef<HTMLInputElement>(null)
   const importStampRef = useRef<HTMLInputElement>(null)
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
+
+  // GitHub連携が完了した（未連携→連携済みに変わった）タイミングでトースト表示する。
+  // 連携処理自体はストア側（startGithubConnect）で行われるため、ここでは結果を
+  // 監視するだけにする。
+  const prevGithubUsernameRef = useRef(githubUsername)
+  useEffect(() => {
+    if (!prevGithubUsernameRef.current && githubUsername) setToast('GitHubと連携しました')
+    prevGithubUsernameRef.current = githubUsername
+  }, [githubUsername])
 
   const triggerBurst = (pos: { x: number; y: number }) => {
     setHeartBursts(prev => {
@@ -228,20 +236,7 @@ export function Settings() {
       </div>
 
       {showGithubConnect && (
-        <GithubConnectOverlay
-          onConnected={(token, username) => {
-            setGithubAuth(token, username)
-            // ここでinit()は呼ばない。init()は接続の有効性チェック
-            // （checkDataRepoValid）を伴うが、リポジトリを作成した直後は
-            // GitHub側の反映にわずかなラグがあり得るため、直後に叩くと
-            // 誤って無効判定され連携が即座に解除されてしまうことがある。
-            // 実際のデータ読み書きが成功した後（＝有効なことが証明された後）に
-            // GithubConnectOverlay側のsyncInBackground()がinit()を呼ぶ。
-            setShowGithubConnect(false)
-            setToast('GitHubと連携しました')
-          }}
-          onClose={() => setShowGithubConnect(false)}
-        />
+        <GithubConnectOverlay onClose={() => setShowGithubConnect(false)} />
       )}
     </div>
   )
