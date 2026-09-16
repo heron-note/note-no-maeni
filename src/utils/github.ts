@@ -455,8 +455,19 @@ function articleFilePath(postId: string): string {
   return `articles/${postId}.json`
 }
 
-async function syncArticleFiles(token: string, owner: string, localArticles: unknown[]): Promise<void> {
-  const remoteIndex = (await pullJsonFile<ArticleIndexEntry[]>(token, owner, ARTICLES_INDEX_PATH)) ?? []
+/**
+ * 記事インデックス（articles/index.json）を取得する唯一の入口。1回の同期で
+ * pull側・push側の両方がこれぞれ個別に取得し直すと、記事ファイル本体は
+ * 増分だけで済むよう最適化していてもインデックスだけ毎回2回取得する無駄な
+ * やり取りが残ってしまう。呼び出し側（idbSync.ts）で1回だけ取得し、
+ * pullArticleStocker・pushArticleStockerの両方に同じ値を渡して使い回すこと。
+ */
+export async function pullArticleIndex(token: string, owner: string): Promise<ArticleIndexEntry[] | null> {
+  return pullJsonFile<ArticleIndexEntry[]>(token, owner, ARTICLES_INDEX_PATH)
+}
+
+async function syncArticleFiles(token: string, owner: string, localArticles: unknown[], remoteIndexInput: ArticleIndexEntry[] | null): Promise<void> {
+  const remoteIndex = remoteIndexInput ?? []
 
   // ローカルが空なのにリモートには記事がある場合、IndexedDBの読み込みが終わる前に
   // 同期が走った等の異常とみなし、インデックス上書き・ファイル削除を行わない。
@@ -506,9 +517,7 @@ async function syncArticleFiles(token: string, owner: string, localArticles: unk
 // 取得をスキップする。マージ側（idbPutIfAbsent）はどのみち既知の記事を
 // 上書きしないため、毎回全件を取得し直すのはネットワークの無駄でしかない
 // （記事が数百件になるとAPIリクエスト数も比例して膨れ上がってしまう）。
-async function pullArticleFiles(token: string, owner: string, knownIds: Set<string>): Promise<unknown[] | null> {
-  const remoteIndex = await pullJsonFile<ArticleIndexEntry[]>(token, owner, ARTICLES_INDEX_PATH)
-  if (!remoteIndex) return null
+async function pullArticleFiles(token: string, owner: string, remoteIndex: ArticleIndexEntry[], knownIds: Set<string>): Promise<unknown[]> {
   const articles: unknown[] = []
   for (const entry of remoteIndex) {
     if (knownIds.has(entry.postId)) continue
@@ -518,8 +527,8 @@ async function pullArticleFiles(token: string, owner: string, knownIds: Set<stri
   return articles
 }
 
-export async function pushArticleStocker(token: string, owner: string, data: Record<string, unknown[]>): Promise<void> {
-  await syncArticleFiles(token, owner, data.nob_stk_articles ?? [])
+export async function pushArticleStocker(token: string, owner: string, data: Record<string, unknown[]>, remoteIndex: ArticleIndexEntry[] | null): Promise<void> {
+  await syncArticleFiles(token, owner, data.nob_stk_articles ?? [], remoteIndex)
   await pushJsonFile(token, owner, ARTICLES_META_PATH, {
     nob_stk_nouns: data.nob_stk_nouns ?? [],
     nob_stk_article_nouns: data.nob_stk_article_nouns ?? [],
@@ -527,9 +536,9 @@ export async function pushArticleStocker(token: string, owner: string, data: Rec
   }, '記事メタデータを同期')
 }
 
-export async function pullArticleStocker(token: string, owner: string, knownIds: Set<string> = new Set()): Promise<Record<string, unknown[]> | null> {
+export async function pullArticleStocker(token: string, owner: string, remoteIndex: ArticleIndexEntry[] | null, knownIds: Set<string> = new Set()): Promise<Record<string, unknown[]> | null> {
   const [articles, meta] = await Promise.all([
-    pullArticleFiles(token, owner, knownIds),
+    remoteIndex ? pullArticleFiles(token, owner, remoteIndex, knownIds) : Promise.resolve(null),
     pullJsonFile<Record<string, unknown[]>>(token, owner, ARTICLES_META_PATH),
   ])
   if (articles === null && meta === null) return null
@@ -559,9 +568,14 @@ function toDataUrl(base64: string, ext: string): string {
   return `data:image/${mime};base64,${base64}`
 }
 
-async function syncImageFiles(token: string, owner: string, dir: string, localImages: ImageRecord[], excludeId?: string): Promise<void> {
+/** 画像インデックス（images/bg または images/stamp の index.json）を取得する唯一の入口。 */
+export async function pullImageIndex(token: string, owner: string, dir: string): Promise<ImageIndexEntry[] | null> {
+  return pullJsonFile<ImageIndexEntry[]>(token, owner, `${dir}/index.json`)
+}
+
+async function syncImageFiles(token: string, owner: string, dir: string, localImages: ImageRecord[], remoteIndexInput: ImageIndexEntry[] | null, excludeId?: string): Promise<void> {
   const indexPath = `${dir}/index.json`
-  const remoteIndex = (await pullJsonFile<ImageIndexEntry[]>(token, owner, indexPath)) ?? []
+  const remoteIndex = remoteIndexInput ?? []
 
   // 記事ストッカーと同様、ローカルが空でリモートに画像がある場合は上書き・削除しない安全策。
   // ただし、呼び出し元がexcludeIdで「今まさに削除した1件」を教えてくれている場合は、
@@ -609,9 +623,7 @@ async function syncImageFiles(token: string, owner: string, dir: string, localIm
 // 記事と同様、knownIds（既にローカルにある画像id集合）に含まれる画像は取得を
 // スキップする。画像は本文がbase64のバイナリで記事以上にペイロードが大きいため、
 // 既知の画像を毎回律儀に取得し直すのはAPIリクエスト数・転送量とも無駄が大きい。
-async function pullImageFiles(token: string, owner: string, dir: string, knownIds: Set<string>): Promise<ImageRecord[] | null> {
-  const remoteIndex = await pullJsonFile<ImageIndexEntry[]>(token, owner, `${dir}/index.json`)
-  if (!remoteIndex) return null
+async function pullImageFiles(token: string, owner: string, dir: string, remoteIndex: ImageIndexEntry[], knownIds: Set<string>): Promise<ImageRecord[]> {
   const images: ImageRecord[] = []
   for (const entry of remoteIndex) {
     if (knownIds.has(entry.id)) continue
@@ -621,16 +633,16 @@ async function pullImageFiles(token: string, owner: string, dir: string, knownId
   return images
 }
 
-export async function pushBgImages(token: string, owner: string, images: unknown[], excludeId?: string): Promise<void> {
-  await syncImageFiles(token, owner, 'images/bg', images as ImageRecord[], excludeId)
+export async function pushBgImages(token: string, owner: string, images: unknown[], remoteIndex: ImageIndexEntry[] | null, excludeId?: string): Promise<void> {
+  await syncImageFiles(token, owner, 'images/bg', images as ImageRecord[], remoteIndex, excludeId)
 }
-export async function pullBgImages(token: string, owner: string, knownIds: Set<string> = new Set()): Promise<unknown[] | null> {
-  return pullImageFiles(token, owner, 'images/bg', knownIds)
+export async function pullBgImages(token: string, owner: string, remoteIndex: ImageIndexEntry[] | null, knownIds: Set<string> = new Set()): Promise<unknown[] | null> {
+  return remoteIndex ? pullImageFiles(token, owner, 'images/bg', remoteIndex, knownIds) : null
 }
 
-export async function pushStampImages(token: string, owner: string, images: unknown[], excludeId?: string): Promise<void> {
-  await syncImageFiles(token, owner, 'images/stamp', images as ImageRecord[], excludeId)
+export async function pushStampImages(token: string, owner: string, images: unknown[], remoteIndex: ImageIndexEntry[] | null, excludeId?: string): Promise<void> {
+  await syncImageFiles(token, owner, 'images/stamp', images as ImageRecord[], remoteIndex, excludeId)
 }
-export async function pullStampImages(token: string, owner: string, knownIds: Set<string> = new Set()): Promise<unknown[] | null> {
-  return pullImageFiles(token, owner, 'images/stamp', knownIds)
+export async function pullStampImages(token: string, owner: string, remoteIndex: ImageIndexEntry[] | null, knownIds: Set<string> = new Set()): Promise<unknown[] | null> {
+  return remoteIndex ? pullImageFiles(token, owner, 'images/stamp', remoteIndex, knownIds) : null
 }

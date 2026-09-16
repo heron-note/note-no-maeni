@@ -7,6 +7,7 @@ import { storage, withGithubSyncIndicator } from './storage'
 import {
   pushArticleStocker, pushBgImages, pushStampImages, checkDataRepoValid,
   pullArticleStocker, pullBgImages, pullStampImages,
+  pullArticleIndex, pullImageIndex,
 } from './github'
 
 function idbOpen(name: string, version: number, upgrade: (db: IDBDatabase) => void): Promise<IDBDatabase> {
@@ -174,25 +175,34 @@ const CATEGORY_LABELS: Record<IdbCategory, string> = {
 async function pullMergePushCategory(category: IdbCategory, token: string, owner: string, excludeId?: string): Promise<void> {
   await withGithubSyncIndicator(async () => {
     if (category === 'articleStocker') {
-      // 既にローカルにある記事はpull時に取得をスキップする（既知の記事を毎回
-      // 全件取得し直すと、件数が増えるほどAPIリクエスト数が膨れ上がるため）。
+      // インデックス（articles/index.json）はこの同期で1回だけ取得し、
+      // pull（新規記事の取り込み）・push（追加/削除の差分計算）の両方で
+      // 使い回す。以前はpull側・push側がそれぞれ個別に取得し直しており、
+      // 記事本体は増分だけで済むよう最適化していてもインデックスだけ
+      // 毎回2回取得する無駄なやり取りが残っていた。
+      const remoteIndex = await pullArticleIndex(token, owner)
       const localArticles = (await collectArticleStocker()).nob_stk_articles as { postId?: string }[]
       const knownIds = new Set(localArticles.map(a => a.postId).filter((id): id is string => !!id))
-      const remote = await pullArticleStocker(token, owner, knownIds)
+      console.info(`[GitHub連携] 記事ストッカー同期: ローカル${localArticles.length}件 / リモートインデックス${remoteIndex?.length ?? '(なし)'}`)
+      const remote = await pullArticleStocker(token, owner, remoteIndex, knownIds)
       if (remote) await mergeArticleStocker(remote, excludeId)
-      await pushArticleStocker(token, owner, await collectArticleStocker())
+      await pushArticleStocker(token, owner, await collectArticleStocker(), remoteIndex)
     } else if (category === 'bgImages') {
+      const remoteIndex = await pullImageIndex(token, owner, 'images/bg')
       const localImages = (await collectBgImages()) as { id?: string }[]
       const knownIds = new Set(localImages.map(i => i.id).filter((id): id is string => !!id))
-      const remote = await pullBgImages(token, owner, knownIds)
+      console.info(`[GitHub連携] 背景画像同期: ローカル${localImages.length}件 / リモートインデックス${remoteIndex?.length ?? '(なし)'}`)
+      const remote = await pullBgImages(token, owner, remoteIndex, knownIds)
       if (remote) await mergeBgImages(remote, excludeId)
-      await pushBgImages(token, owner, await collectBgImages(), excludeId)
+      await pushBgImages(token, owner, await collectBgImages(), remoteIndex, excludeId)
     } else {
+      const remoteIndex = await pullImageIndex(token, owner, 'images/stamp')
       const localImages = (await collectStampImages()) as { id?: string }[]
       const knownIds = new Set(localImages.map(i => i.id).filter((id): id is string => !!id))
-      const remote = await pullStampImages(token, owner, knownIds)
+      console.info(`[GitHub連携] 画像スタンプ同期: ローカル${localImages.length}件 / リモートインデックス${remoteIndex?.length ?? '(なし)'}`)
+      const remote = await pullStampImages(token, owner, remoteIndex, knownIds)
       if (remote) await mergeStampImages(remote, excludeId)
-      await pushStampImages(token, owner, await collectStampImages(), excludeId)
+      await pushStampImages(token, owner, await collectStampImages(), remoteIndex, excludeId)
     }
   })
 }
