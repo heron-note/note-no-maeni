@@ -3,7 +3,7 @@
 // 仕様書10章参照。EyecatchCreator.tsx / ArticleStorcker.tsx の保存・削除箇所から
 // scheduleIdbSync() を呼び出すことで同期する。
 
-import { storage, withGithubSyncIndicator } from './storage'
+import { storage, withGithubSyncIndicator, mergeRemoteIntoLocal } from './storage'
 import { collectData } from './transfer'
 import {
   pushArticleStocker, pushBgImages, pushStampImages, checkDataRepoValid,
@@ -93,19 +93,6 @@ async function collectArticleStocker(): Promise<Record<string, unknown[]>> {
   const data: Record<string, unknown[]> = {}
   for (const store of AS_STORES) data[store] = await idbGetAll(db, store)
   return data
-}
-
-/**
- * この端末の記事ストッカーがまだ空かどうか。GitHub連携時に「新規端末（zip一括
- * 復元を使うべき）」かどうかの判定に使う。オンボーディング完了の有無（nob_user
- * の有無）だけで判定すると、オンボーディングは済ませたが記事はまだ1件も
- * インポートしていない状態でGitHub連携した場合に判定から漏れ、記事件数分だけ
- * リクエストが発生するカテゴリ別pullに流れてしまう（実際にこれで記事が
- * 一部しか降りてこない不具合が再発した）。
- */
-export async function isLocalArticleStockerEmpty(): Promise<boolean> {
-  const data = await collectArticleStocker()
-  return (data.nob_stk_articles ?? []).length === 0
 }
 
 function openBgDB(): Promise<IDBDatabase> {
@@ -293,9 +280,9 @@ export async function pullInitialSnapshotFromGithub(token: string, owner: string
     if (!snapshot) return false
     console.info(`[GitHub連携] zip一括復元: 記事${snapshot.articles.length}件・背景画像${snapshot.bgImages.length}件・画像スタンプ${snapshot.stampImages.length}件`)
 
-    for (const [key, value] of Object.entries(snapshot.localData)) {
-      if (key.startsWith('nob_') && typeof value === 'string') localStorage.setItem(key, value)
-    }
+    // ローカルに既にあるキーは上書きしない（この端末にだけある設定・記録を
+    // 消さないため）。記事・画像側と同じ「無ければ追加」方針をここでも守る。
+    mergeRemoteIntoLocal(snapshot.localData)
 
     await mergeArticleStocker({
       nob_stk_articles: snapshot.articles,

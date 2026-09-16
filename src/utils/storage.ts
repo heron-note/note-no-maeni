@@ -145,7 +145,8 @@ export async function withGithubSyncIndicator<T>(fn: () => Promise<T>): Promise<
 // （今まさに保存した値である可能性があるため）上書きしない。無いキーだけ補う。
 // nob_logs だけは「日付をキーにしたレコード集合」なので、キー単位ではなく
 // 日付単位でマージする（同じ日付はローカル優先、リモートだけにある日付を残す）。
-function mergeRemoteIntoLocal(remote: Record<string, string>): void {
+// zip一括復元（idbSync.ts）からも使うため export する。
+export function mergeRemoteIntoLocal(remote: Record<string, string>): void {
   for (const [key, value] of Object.entries(remote)) {
     if (!key.startsWith('nob_') || key === SK.logs) continue
     if (localStorage.getItem(key) === null) localStorage.setItem(key, value)

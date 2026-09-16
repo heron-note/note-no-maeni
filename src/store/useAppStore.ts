@@ -5,7 +5,7 @@ import {
   checkDataRepoValid, requestDeviceCode, pollForAccessToken, ensureDataRepo, DeviceFlowError,
   savePendingDeviceFlow, loadPendingDeviceFlow, clearPendingDeviceFlow, type DeviceCodeResponse,
 } from '../utils/github'
-import { syncIdbOnConnect, pushInitialSnapshotToGithub, pullInitialSnapshotFromGithub, isLocalArticleStockerEmpty } from '../utils/idbSync'
+import { syncIdbOnConnect, pushInitialSnapshotToGithub, pullInitialSnapshotFromGithub } from '../utils/idbSync'
 
 export type GithubConnectPhase = 'idle' | 'requesting' | 'waiting' | 'finalizing' | 'error'
 
@@ -61,49 +61,37 @@ interface AppStore {
  * isFreshRepo（リポジトリを今まさに新規作成した）がtrueなら、中身が空だと
  * 確定しているのでカテゴリ別のpull→merge→pushは行わず、設定・記録・記事・画像
  * すべてをまとめて1回のコミットでアップロードする（pushInitialSnapshotToGithub）。
- * カテゴリごとに分けて処理する理由（突き合わせるべきリモートの状態）が
- * 初回には存在しないため、その分の無駄なやり取り・同じrefを取り合う余地を無くす。
  *
- * isFreshDevice（この端末にはまだローカルデータが無い＝新規端末からの初回接続）
- * がtrueなら、記事ごとに1リクエストで取得するカテゴリ別pullではなく、
- * リポジトリ全体をzip1回でダウンロードするpullInitialSnapshotFromGithubで
- * まとめて復元する。記事が数百件ある場合、カテゴリ別pullは件数分リクエストが
- * 発生し、実際に403件中200件程度までしか降ってこない不具合が起きたため。
+ * falseの場合（連携時にリポジトリを新規作成しなかった＝既存リポジトリへの接続）は、
+ * 端末側のローカルデータの有無に関わらず必ずzip一括ダウンロード
+ * （pullInitialSnapshotFromGithub）を先に行う。「ローカルが空に見える端末だけ
+ * zipを使う」という条件分岐にすると、判定条件の見落とし（実際にオンボーディング
+ * 済みだが記事は未インポート、というケースが漏れて記事の一部しか降りてこない
+ * 不具合が起きた）を繰り返す。既存リポジトリへの接続は常にリモートの全件を
+ * 安価に（1リクエストで）取り込めるのだから、無条件にそうすればよい。
+ * zip側の取り込みはmergeRemoteIntoLocal・idbPutIfAbsentによりローカル優先で
+ * 安全なので、ローカルに既にデータがあっても壊さない。
  *
- * どちらでもない（既にローカルにデータがある端末が、既存リポジトリに再接続・
- * 再起動時に同期する）場合のみ、他端末の変更を取りこぼさないよう従来どおり
- * カテゴリ別のpull→merge→pushを行う。設定同期と記事・画像同期は別々の
- * try/catchにする。片方が失敗してももう片方が実行されなくなる（＝原因不明の
- * まま画像が一切同期されない）ことを避けるため。失敗した内容はconsoleに出す
- * （原因調査のため。以降は通常の自動同期で再試行される）。
+ * そのうえで、この端末にしか無いローカルデータ（zip一括ダウンロードでは
+ * 拾えない、まだリモートに無い分）を取りこぼさないよう、続けて従来の
+ * カテゴリ別pull→merge→pushも行う。すでに大部分はzipで取り込み済みなので、
+ * ここで発生するリクエストは通常わずか（新規追加分のみ）で済む。
  */
-function syncGithubDataInBackground(token: string, owner: string, isFreshRepo: boolean, isFreshDevice: boolean): void {
+function syncGithubDataInBackground(token: string, owner: string, isFreshRepo: boolean): void {
   ;(async () => {
-    console.info(`[GitHub連携] 同期方式: ${isFreshRepo ? '初回アップロード（1コミット）' : isFreshDevice ? 'zip一括復元' : 'カテゴリ別pull→merge→push'}`)
+    console.info(`[GitHub連携] 同期方式: ${isFreshRepo ? '初回アップロード（1コミット）' : 'zip一括復元 + カテゴリ別pull→merge→push'}`)
     if (isFreshRepo) {
       try {
         await pushInitialSnapshotToGithub(token, owner)
       } catch (e) {
         console.error('[GitHub連携] 初回データのアップロードに失敗しました', e)
       }
-    } else if (isFreshDevice) {
-      let restored = false
+    } else {
       try {
-        restored = await pullInitialSnapshotFromGithub(token, owner)
+        await pullInitialSnapshotFromGithub(token, owner)
       } catch (e) {
         console.error('[GitHub連携] 初回データの復元に失敗しました', e)
       }
-      console.info(`[GitHub連携] zip一括復元: ${restored ? '成功' : '対象データ無し・カテゴリ別処理にフォールバック'}`)
-      if (!restored) {
-        // リポジトリの中身が読めなかった等、通常のカテゴリ別処理にフォールバック。
-        await syncSettingsWithGithub()
-        try {
-          await syncIdbOnConnect(token, owner)
-        } catch (e) {
-          console.error('[GitHub連携] 記事・画像の同期に失敗しました', e)
-        }
-      }
-    } else {
       await syncSettingsWithGithub()
       try {
         await syncIdbOnConnect(token, owner)
@@ -260,19 +248,11 @@ export const useAppStore = create<AppStore>((set, get) => {
 
         const { owner, created } = await ensureDataRepo(token)
 
-        // 「新規端末」の判定は、オンボーディング未完了（nob_userが無い）だけでは
-        // 不十分。オンボーディングは済ませたが記事はまだ1件もインポートして
-        // いない状態でGitHub連携するケースも同じく拾う必要がある（そうしないと
-        // 記事の件数分だけリクエストが発生するカテゴリ別pullに流れてしまい、
-        // 実際に記事が一部しか降りてこない不具合が起きた）。どちらか一方でも
-        // 満たせば新規端末として扱い、zip一括ダウンロードを使う。
-        const isFreshDevice = storage.loadUser() === null || await isLocalArticleStockerEmpty()
-
         get().setGithubAuth(token, owner)
         set({ githubConnectPhase: 'idle', githubConnectDevice: null })
 
         // 重い同期処理はバックグラウンドに回し、ここでは待たない（仕様書10章）。
-        syncGithubDataInBackground(token, owner, created, isFreshDevice)
+        syncGithubDataInBackground(token, owner, created)
       } catch (e) {
         if (e instanceof DeviceFlowError && e.message === 'expired_token') clearPendingDeviceFlow()
         set({
