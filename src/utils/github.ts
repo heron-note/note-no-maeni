@@ -322,14 +322,6 @@ async function pullJsonFile<T>(token: string, owner: string, path: string): Prom
   return file ? (JSON.parse(file.content) as T) : null
 }
 
-async function getRepoFileRaw(token: string, owner: string, path: string): Promise<{ content: string; sha: string } | null> {
-  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`)
-  if (res.status === 404) return null
-  if (!res.ok) throw new Error(`${path} の取得に失敗しました (HTTP ${res.status})`)
-  const data = await res.json()
-  return { content: String(data.content).replace(/\n/g, ''), sha: data.sha }
-}
-
 // ─── 複数ファイルの一括コミット（Git Data API） ──────────────────────────────
 // Contents API（1ファイル=1コミット）で記事を大量インポートすると、記事の
 // 件数分だけコミット（＝リクエスト）が発生し、実際に403件のインポートが
@@ -516,14 +508,26 @@ async function syncArticleFiles(token: string, owner: string, localArticles: unk
 }
 
 // knownIds（この端末のローカルに既にある記事のpostId集合）に含まれる記事は
-// 取得をスキップする。マージ側（idbPutIfAbsent）はどのみち既知の記事を
-// 上書きしないため、毎回全件を取得し直すのはネットワークの無駄でしかない
-// （記事が数百件になるとAPIリクエスト数も比例して膨れ上がってしまう）。
+// 取得をスキップする。1件でも欠けている記事があれば、その分だけをContents API
+// で1件ずつ取得するのではなく、リポジトリ全体をzip1回でダウンロードして
+// そこから読み出す（fetchRepoZip/makeZipReaderはpullRepoSnapshotと共通）。
+// 記事が数百件になると、件数分だけリクエストが発生する個別取得は
+// タイムアウト・レート制限・端末側の中断などで容易に「一部だけ取得できた
+// 状態」のまま止まってしまい、しかも次回起動時の再試行（自己修復）も同じ
+// 個別取得方式のままだと同じ理由でまた止まる、という永久に治らない状態に
+// なる不具合が実際に確認された。zip方式ならリクエストは常に1回で済み、
+// 何度再試行してもそのリクエスト自体が失敗しない限り必ず全件取得できる。
 async function pullArticleFiles(token: string, owner: string, remoteIndex: ArticleIndexEntry[], knownIds: Set<string>): Promise<unknown[]> {
+  const missing = remoteIndex.filter(entry => !knownIds.has(entry.postId))
+  if (missing.length === 0) return []
+
+  const zip = await fetchRepoZip(token, owner)
+  if (!zip) return []
+  const { readJson } = makeZipReader(zip)
+
   const articles: unknown[] = []
-  for (const entry of remoteIndex) {
-    if (knownIds.has(entry.postId)) continue
-    const article = await pullJsonFile(token, owner, articleFilePath(entry.postId))
+  for (const entry of missing) {
+    const article = await readJson(articleFilePath(entry.postId))
     if (article) articles.push(article)
   }
   return articles
@@ -625,12 +629,22 @@ async function syncImageFiles(token: string, owner: string, dir: string, localIm
 // 記事と同様、knownIds（既にローカルにある画像id集合）に含まれる画像は取得を
 // スキップする。画像は本文がbase64のバイナリで記事以上にペイロードが大きいため、
 // 既知の画像を毎回律儀に取得し直すのはAPIリクエスト数・転送量とも無駄が大きい。
+// 記事と同じ理由でzip一括ダウンロードを使う（fetchRepoZip/makeZipReaderは
+// pullRepoSnapshotと共通）。個別取得だと画像が何件も欠けている場合に
+// 件数分のリクエストが発生し、途中で止まると自己修復の再試行も同じ方式の
+// ままでは同じ理由でまた止まる。
 async function pullImageFiles(token: string, owner: string, dir: string, remoteIndex: ImageIndexEntry[], knownIds: Set<string>): Promise<ImageRecord[]> {
+  const missing = remoteIndex.filter(entry => !knownIds.has(entry.id))
+  if (missing.length === 0) return []
+
+  const zip = await fetchRepoZip(token, owner)
+  if (!zip) return []
+  const { readBase64 } = makeZipReader(zip)
+
   const images: ImageRecord[] = []
-  for (const entry of remoteIndex) {
-    if (knownIds.has(entry.id)) continue
-    const file = await getRepoFileRaw(token, owner, `${dir}/${entry.id}.${entry.ext}`)
-    if (file) images.push({ id: entry.id, dataUrl: toDataUrl(file.content, entry.ext), createdAt: entry.createdAt })
+  for (const entry of missing) {
+    const base64 = await readBase64(`${dir}/${entry.id}.${entry.ext}`)
+    if (base64) images.push({ id: entry.id, dataUrl: toDataUrl(base64, entry.ext), createdAt: entry.createdAt })
   }
   return images
 }
