@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { Toast } from '../components/Toast'
 import { GithubConnectOverlay } from '../components/GithubConnectOverlay'
+import { SyncLogOverlay } from '../components/SyncLogOverlay'
 import { exportData, importData, exportArticles, importArticles, exportBgImages, importBgImages, exportStampImages, importStampImages, downloadImage } from '../utils/transfer'
 import { storage } from '../utils/storage'
 import { useSlideBack } from '../hooks/useSlideBack'
@@ -20,6 +21,7 @@ export function Settings() {
   const githubUsername = useAppStore(s => s.githubUsername)
   const clearGithubAuth = useAppStore(s => s.clearGithubAuth)
   const [showGithubConnect, setShowGithubConnect] = useState(false)
+  const [showSyncLog, setShowSyncLog] = useState(false)
   const [name, setName] = useState(user?.name ?? '')
   const [char, setChar] = useState(user?.character ?? 'kuma')
   const [toast, setToast] = useState<string | null>(null)
@@ -173,6 +175,9 @@ export function Settings() {
             </button>
           </>
         )}
+        <button className="btn-secondary wide" onClick={() => setShowSyncLog(true)}>
+          連携ログを見る
+        </button>
       </div>
 
       <div className="settings-row">
@@ -237,6 +242,9 @@ export function Settings() {
 
       {showGithubConnect && (
         <GithubConnectOverlay onClose={() => setShowGithubConnect(false)} />
+      )}
+      {showSyncLog && (
+        <SyncLogOverlay onClose={() => setShowSyncLog(false)} />
       )}
     </div>
   )

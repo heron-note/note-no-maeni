@@ -915,6 +915,15 @@ html, body, #root {
 }
 .github-user-code-row .btn-secondary { flex-shrink: 0; white-space: nowrap; }
 
+.sync-log-list {
+  max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+  background: var(--surface-soft, #f4f4f4); border-radius: 12px; padding: 10px;
+}
+.sync-log-entry { display: flex; gap: 8px; font-size: 0.8rem; line-height: 1.4; }
+.sync-log-time { flex-shrink: 0; color: var(--text-light); font-variant-numeric: tabular-nums; }
+.sync-log-message { word-break: break-word; }
+.sync-log-entry.sync-log-error .sync-log-message { color: #c0392b; }
+
 /* ===== REACTION ===== */
 .bubble {
   background: var(--surface); border: 2px solid var(--border);

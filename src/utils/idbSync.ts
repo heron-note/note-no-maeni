@@ -4,6 +4,7 @@
 // scheduleIdbSync() を呼び出すことで同期する。
 
 import { storage, withGithubSyncIndicator, mergeRemoteIntoLocal } from './storage'
+import { logConnect } from './syncLog'
 import { collectData } from './transfer'
 import {
   pushArticleStocker, pushBgImages, pushStampImages, checkDataRepoValid,
@@ -262,14 +263,18 @@ export async function syncIdbOnConnect(token: string, owner: string): Promise<vo
 export async function pushInitialSnapshotToGithub(token: string, owner: string): Promise<void> {
   await withGithubSyncIndicator(async () => {
     const articleStocker = await collectArticleStocker()
+    const bgImages = (await collectBgImages()) as ImageRecord[]
+    const stampImages = (await collectStampImages()) as ImageRecord[]
+    const articles = articleStocker.nob_stk_articles ?? []
+    logConnect('info', `初回一括アップロード: 記事${articles.length}件・背景画像${bgImages.length}件・画像スタンプ${stampImages.length}件`)
     await pushInitialSnapshot(token, owner, {
       localData: collectData(),
-      articles: articleStocker.nob_stk_articles ?? [],
+      articles,
       articleNouns: articleStocker.nob_stk_nouns ?? [],
       articleNounLinks: articleStocker.nob_stk_article_nouns ?? [],
       collections: articleStocker.nob_stk_collections ?? [],
-      bgImages: (await collectBgImages()) as ImageRecord[],
-      stampImages: (await collectStampImages()) as ImageRecord[],
+      bgImages,
+      stampImages,
     })
   })
 }
@@ -288,8 +293,11 @@ export async function pushInitialSnapshotToGithub(token: string, owner: string):
 export async function pullInitialSnapshotFromGithub(token: string, owner: string): Promise<boolean> {
   return withGithubSyncIndicator(async () => {
     const snapshot = await pullRepoSnapshot(token, owner)
-    if (!snapshot) return false
-    console.info(`[GitHub連携] zip一括復元: 記事${snapshot.articles.length}件・背景画像${snapshot.bgImages.length}件・画像スタンプ${snapshot.stampImages.length}件`)
+    if (!snapshot) {
+      logConnect('info', 'zip一括復元: リモートにデータが無いためスキップ')
+      return false
+    }
+    logConnect('info', `zip一括復元: リモートから記事${snapshot.articles.length}件・背景画像${snapshot.bgImages.length}件・画像スタンプ${snapshot.stampImages.length}件を取得`)
 
     // ローカルに既にあるキーは上書きしない（この端末にだけある設定・記録を
     // 消さないため）。記事・画像側と同じ「無ければ追加」方針をここでも守る。
@@ -303,6 +311,11 @@ export async function pullInitialSnapshotFromGithub(token: string, owner: string
     })
     await mergeBgImages(snapshot.bgImages)
     await mergeStampImages(snapshot.stampImages)
+
+    const localArticleCount = ((await collectArticleStocker()).nob_stk_articles ?? []).length
+    const localBgCount = (await collectBgImages()).length
+    const localStampCount = (await collectStampImages()).length
+    logConnect('info', `zip一括復元: マージ後のローカル件数 記事${localArticleCount}件・背景画像${localBgCount}件・画像スタンプ${localStampCount}件`)
     return true
   })
 }

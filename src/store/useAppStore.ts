@@ -6,6 +6,7 @@ import {
   savePendingDeviceFlow, loadPendingDeviceFlow, clearPendingDeviceFlow, type DeviceCodeResponse,
 } from '../utils/github'
 import { syncIdbOnConnect, pushInitialSnapshotToGithub, pullInitialSnapshotFromGithub } from '../utils/idbSync'
+import { logConnect, resetConnectLog } from '../utils/syncLog'
 
 export type GithubConnectPhase = 'idle' | 'requesting' | 'waiting' | 'finalizing' | 'error'
 
@@ -79,26 +80,35 @@ interface AppStore {
  */
 function syncGithubDataInBackground(token: string, owner: string, isFreshRepo: boolean): void {
   ;(async () => {
-    console.info(`[GitHub連携] 同期方式: ${isFreshRepo ? '初回アップロード（1コミット）' : 'zip一括復元 + カテゴリ別pull→merge→push'}`)
+    logConnect('info', `同期方式: ${isFreshRepo ? '初回アップロード（1コミット）' : 'zip一括復元 + カテゴリ別pull→merge→push'}`)
     if (isFreshRepo) {
       try {
         await pushInitialSnapshotToGithub(token, owner)
+        logConnect('info', '初回データのアップロードが完了しました')
       } catch (e) {
-        console.error('[GitHub連携] 初回データのアップロードに失敗しました', e)
+        logConnect('error', `初回データのアップロードに失敗しました: ${e instanceof Error ? e.message : e}`)
       }
     } else {
       try {
-        await pullInitialSnapshotFromGithub(token, owner)
+        const restored = await pullInitialSnapshotFromGithub(token, owner)
+        logConnect('info', `zip一括復元: ${restored ? '成功' : 'リモートにデータ無し'}`)
       } catch (e) {
-        console.error('[GitHub連携] 初回データの復元に失敗しました', e)
+        logConnect('error', `初回データの復元に失敗しました: ${e instanceof Error ? e.message : e}`)
       }
-      await syncSettingsWithGithub()
+      try {
+        await syncSettingsWithGithub()
+        logConnect('info', '設定・記録の同期が完了しました')
+      } catch (e) {
+        logConnect('error', `設定・記録の同期に失敗しました: ${e instanceof Error ? e.message : e}`)
+      }
       try {
         await syncIdbOnConnect(token, owner)
+        logConnect('info', '記事・画像の同期が完了しました')
       } catch (e) {
-        console.error('[GitHub連携] 記事・画像の同期に失敗しました', e)
+        logConnect('error', `記事・画像の同期に失敗しました: ${e instanceof Error ? e.message : e}`)
       }
     }
+    logConnect('info', '初回連携の同期処理が終了しました')
     // init()ではなくrefreshFromStorage()を使う。init()は画面をhome/onboardingに
     // 強制的に切り替えてしまうため、設定画面などバックグラウンド同期とは無関係の
     // 場所にいるユーザーを勝手に遷移させてしまう（実際に連携直後の挙動が
@@ -242,6 +252,11 @@ export const useAppStore = create<AppStore>((set, get) => {
     const phase = get().githubConnectPhase
     if (phase === 'requesting' || phase === 'waiting' || phase === 'finalizing') return
 
+    // 新しい連携の試みを始めるタイミングでログをリセットする（前回分と混ざらないように）。
+    // 承認待ちからの再開（pendingあり）は同じ試みの続きなのでリセットしない。
+    if (!loadPendingDeviceFlow()) resetConnectLog()
+    logConnect('info', '連携を開始します')
+
     set({ githubConnectPhase: 'requesting', githubConnectError: null, githubConnectDevice: null })
 
     ;(async () => {
@@ -256,17 +271,21 @@ export const useAppStore = create<AppStore>((set, get) => {
         if (pending) {
           d = pending.device
           deadline = pending.requestedAt + pending.device.expires_in * 1000
+          logConnect('info', '承認待ちの既存コードから再開します')
         } else {
           d = await requestDeviceCode('repo workflow')
           savePendingDeviceFlow(d)
+          logConnect('info', 'デバイスコードを発行しました')
         }
         set({ githubConnectDevice: d, githubConnectPhase: 'waiting' })
 
         const token = await pollForAccessToken(d, { deadline })
         clearPendingDeviceFlow()
+        logConnect('info', 'GitHubの承認が完了しました')
         set({ githubConnectPhase: 'finalizing' })
 
         const { owner, created } = await ensureDataRepo(token)
+        logConnect('info', `リポジトリ確認完了: owner=${owner}, 新規作成=${created}`)
 
         get().setGithubAuth(token, owner)
         set({ githubConnectPhase: 'idle', githubConnectDevice: null })
@@ -275,8 +294,10 @@ export const useAppStore = create<AppStore>((set, get) => {
         syncGithubDataInBackground(token, owner, created)
       } catch (e) {
         if (e instanceof DeviceFlowError && e.message === 'expired_token') clearPendingDeviceFlow()
+        const message = e instanceof Error ? e.message : '接続に失敗しました'
+        logConnect('error', `連携に失敗しました: ${message}`)
         set({
-          githubConnectError: e instanceof Error ? e.message : '接続に失敗しました',
+          githubConnectError: message,
           githubConnectPhase: 'error',
         })
       }
