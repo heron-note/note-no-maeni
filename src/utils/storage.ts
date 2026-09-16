@@ -1,4 +1,4 @@
-import type { User, LogEntry, Template, Bookmark, UserTemplate, RestTemplate } from '../types'
+import type { User, LogEntry, Template, Bookmark, UserTemplate, RestTemplate, CustomCompanion } from '../types'
 import { pushLocalSettings, pullLocalSettings, checkDataRepoValid } from './github'
 import { collectData } from './transfer'
 
@@ -11,7 +11,10 @@ const SK = {
   lastRestTplId: 'nob_last_rest_tpl',
   lastUserTplId: 'nob_last_user_tpl',
   includeTodayEvent: 'nob_include_today_event',
+  customCompanions: 'nob_custom_companions',
 } as const
+
+const LEGACY_CUSTOM_IMG_KEYS = ['normal', 'write', 'rest'] as const
 
 function safeLoad<T>(key: string): T | null {
   try {
@@ -34,6 +37,32 @@ const rawStorage = {
 
   loadUserTemplates: () => safeLoad<UserTemplate[]>(SK.userTemplates) ?? [],
   saveUserTemplates: (v: UserTemplate[]) => localStorage.setItem(SK.userTemplates, JSON.stringify(v)),
+
+  // カスタム相棒（複数対応）。旧フォーマット（nob_custom_img_normal/write/rest の
+  // 3キーに1体だけ保存）が残っていれば、初回アクセス時に自動マイグレーションする。
+  loadCustomCompanions: (): CustomCompanion[] => {
+    const existing = safeLoad<CustomCompanion[]>(SK.customCompanions)
+    if (existing !== null) return existing
+    const legacy = LEGACY_CUSTOM_IMG_KEYS.map(k => localStorage.getItem(`nob_custom_img_${k}`))
+    if (!legacy.every(v => v)) return []
+    const migrated: CustomCompanion[] = [{
+      id: crypto.randomUUID(),
+      label: 'マイキャラ',
+      normal: legacy[0]!,
+      write: legacy[1]!,
+      rest: legacy[2]!,
+      createdAt: Date.now(),
+    }]
+    localStorage.setItem(SK.customCompanions, JSON.stringify(migrated))
+    LEGACY_CUSTOM_IMG_KEYS.forEach(k => localStorage.removeItem(`nob_custom_img_${k}`))
+    const user = safeLoad<User>(SK.user)
+    if (user && user.character === 'custom') {
+      user.character = `custom:${migrated[0].id}`
+      localStorage.setItem(SK.user, JSON.stringify(user))
+    }
+    return migrated
+  },
+  saveCustomCompanions: (v: CustomCompanion[]) => localStorage.setItem(SK.customCompanions, JSON.stringify(v)),
 
   loadRestTemplates: (): RestTemplate[] => {
     const existing = safeLoad<RestTemplate[]>(SK.restTemplates)
@@ -146,9 +175,16 @@ export async function withGithubSyncIndicator<T>(fn: () => Promise<T>): Promise<
 // nob_logs だけは「日付をキーにしたレコード集合」なので、キー単位ではなく
 // 日付単位でマージする（同じ日付はローカル優先、リモートだけにある日付を残す）。
 // zip一括復元（idbSync.ts）からも使うため export する。
+const LEGACY_CUSTOM_IMG_FULL_KEYS = LEGACY_CUSTOM_IMG_KEYS.map(k => `nob_custom_img_${k}`)
+
 export function mergeRemoteIntoLocal(remote: Record<string, string>): void {
   for (const [key, value] of Object.entries(remote)) {
-    if (!key.startsWith('nob_') || key === SK.logs) continue
+    if (!key.startsWith('nob_') || key === SK.logs || key === SK.customCompanions) continue
+    // 旧形式のカスタム相棒キー（nob_custom_img_*）は下の専用処理でしか扱わない。
+    // まだ新形式に移行していない端末（アプリ未更新）が押し戻してくることがあるため、
+    // ここで無条件に「無ければ補う」をしてしまうと、新形式へ移行済みの端末では
+    // 既に消したはずのキーが復活し、しかも配列側には二度と取り込まれない孤立データになる。
+    if (LEGACY_CUSTOM_IMG_FULL_KEYS.includes(key)) continue
     if (localStorage.getItem(key) === null) localStorage.setItem(key, value)
   }
   const remoteLogsRaw = remote[SK.logs]
@@ -160,6 +196,55 @@ export function mergeRemoteIntoLocal(remote: Record<string, string>): void {
       localStorage.setItem(SK.logs, JSON.stringify(merged))
     } catch {
       // リモートのログが壊れている場合は無視（ローカルはそのまま）
+    }
+  }
+
+  // カスタム相棒はキー単位（配列まるごと）ではなく、相棒ID単位でマージする。
+  // 他のnob_設定と同じ「ローカルに無ければ補う」方式だと、別端末で作った
+  // 別のカスタム相棒が一切取り込まれない（配列全体が「既にある」とみなされ無視される）。
+  // 逆に単純に上書きすると、今使っているカスタム相棒が消えてしまう。
+  // そのためIDで突き合わせ、ローカルに無いIDだけ追加するユニオンマージにする。
+  const remoteCompanionsRaw = remote[SK.customCompanions]
+  if (remoteCompanionsRaw) {
+    try {
+      const remoteCompanions = JSON.parse(remoteCompanionsRaw) as CustomCompanion[]
+      const localCompanions = rawStorage.loadCustomCompanions()
+      const localIds = new Set(localCompanions.map(c => c.id))
+      const newOnes = remoteCompanions.filter(c => !localIds.has(c.id))
+      if (newOnes.length > 0) {
+        localStorage.setItem(SK.customCompanions, JSON.stringify([...localCompanions, ...newOnes]))
+      }
+    } catch {
+      // リモートのデータが壊れている場合は無視（ローカルはそのまま）
+    }
+  }
+
+  // 旧形式（相棒1体・IDなし）のままの端末からリモートに届いたデータを取り込む。
+  // 内容が完全一致する相棒がまだ無ければ、新形式の配列に1件追加する
+  // （IDで突き合わせられないため、画像データそのものの一致で重複を防ぐ）。
+  const remoteLegacyImgs = LEGACY_CUSTOM_IMG_KEYS.map(k => remote[`nob_custom_img_${k}`])
+  if (remoteLegacyImgs.every(v => v)) {
+    const [normal, write, rest] = remoteLegacyImgs as [string, string, string]
+    const current = rawStorage.loadCustomCompanions()
+    const alreadyHave = current.some(c => c.normal === normal && c.write === write && c.rest === rest)
+    if (!alreadyHave) {
+      const added: CustomCompanion = {
+        id: crypto.randomUUID(),
+        label: current.length === 0 ? 'マイキャラ' : `マイキャラ${current.length + 1}`,
+        normal, write, rest,
+        createdAt: Date.now(),
+      }
+      localStorage.setItem(SK.customCompanions, JSON.stringify([...current, added]))
+    }
+  }
+
+  // 復元されたユーザー設定が旧形式の 'custom'（相棒IDなし）のままだった場合、
+  // マージ後に存在する相棒に紐付け直す（IDが無いままだと表示できないため）。
+  const mergedUser = safeLoad<User>(SK.user)
+  if (mergedUser && mergedUser.character === 'custom') {
+    const companions = rawStorage.loadCustomCompanions()
+    if (companions.length > 0) {
+      localStorage.setItem(SK.user, JSON.stringify({ ...mergedUser, character: `custom:${companions[0].id}` }))
     }
   }
 }

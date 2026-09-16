@@ -179,6 +179,11 @@ export const useAppStore = create<AppStore>((set, get) => {
   githubConnectError: null,
 
   init() {
+    // 旧形式（相棒1体・IDなし）が残っていれば起動時に必ずIDを振る。
+    // これを先にやらないと、下のstorage.loadUser()がまだ'custom'（ID無し）の
+    // ままのuserを読み込んでしまい、Home画面の表示がcharImgPathで解決できず
+    // 崩れてしまう（GitHub同期の有無に関わらず、単体端末でも起きる問題）。
+    storage.loadCustomCompanions()
     const user = storage.loadUser()
     const logs = storage.loadLogs()
     set({ user, logs })

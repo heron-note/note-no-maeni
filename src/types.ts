@@ -59,6 +59,17 @@ export interface RestTemplate {
 
 export const REST_TEMPLATE_MAX = 5
 
+export interface CustomCompanion {
+  id: string
+  label: string
+  normal: string  // dataURL (PNG)
+  write: string
+  rest: string
+  createdAt: number
+}
+
+export const CUSTOM_COMPANION_MAX = 5
+
 export interface NoteTag {
   id: string
   text: string  // # なし

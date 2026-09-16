@@ -3,6 +3,9 @@ import JSZip from 'jszip'
 import { useAppStore } from '../store/useAppStore'
 import { Toast } from '../components/Toast'
 import { useSlideBack } from '../hooks/useSlideBack'
+import { storage } from '../utils/storage'
+import { CUSTOM_COMPANION_MAX } from '../types'
+import { CUSTOM_KEY_PREFIX } from '../characters'
 
 const CANVAS_SIZE = 320
 const CROP_SIZE = 256
@@ -579,6 +582,11 @@ export function CharacterCreator() {
   const handleApply = async () => {
     const normalDataUrl = exports.normal
     if (!normalDataUrl) return
+    const companions = storage.loadCustomCompanions()
+    if (companions.length >= CUSTOM_COMPANION_MAX) {
+      setToast(`カスタム相棒は最大${CUSTOM_COMPANION_MAX}体までです。設定画面で不要な相棒を削除してください`)
+      return
+    }
     const base = import.meta.env.BASE_URL
     const writeDataUrl = await createComposite(
       normalDataUrl,
@@ -590,10 +598,12 @@ export function CharacterCreator() {
       `${base}assets/images/overlays/rest_left.png`,
       `${base}assets/images/overlays/rest_right.png`,
     ).catch(() => normalDataUrl)
-    localStorage.setItem('nob_custom_img_normal', normalDataUrl)
-    localStorage.setItem('nob_custom_img_write', writeDataUrl)
-    localStorage.setItem('nob_custom_img_rest', restDataUrl)
-    if (user) saveUser({ ...user, character: 'custom' })
+    const id = crypto.randomUUID()
+    const label = companions.length === 0 ? 'マイキャラ' : `マイキャラ${companions.length + 1}`
+    storage.saveCustomCompanions([...companions, {
+      id, label, normal: normalDataUrl, write: writeDataUrl, rest: restDataUrl, createdAt: Date.now(),
+    }])
+    if (user) saveUser({ ...user, character: `${CUSTOM_KEY_PREFIX}${id}` })
     setToast('保存しました！')
     setTimeout(handleBack, 800)
   }

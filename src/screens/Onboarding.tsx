@@ -7,6 +7,7 @@ import { speakVoicevox } from '../utils/voicevox'
 import { PwaInstallHint } from '../components/PwaInstallHint'
 import { OnboardingHelpOverlay } from '../components/OnboardingHelpOverlay'
 import { storage } from '../utils/storage'
+import { charImgPath, CUSTOM_KEY_PREFIX } from '../characters'
 
 export function Onboarding() {
   const [name, setName] = useState('')
@@ -122,12 +123,12 @@ export function Onboarding() {
             AI相棒クリエイト
           </button>
         </div>
-        {localStorage.getItem('nob_custom_img_normal') && (
+        {char.startsWith(CUSTOM_KEY_PREFIX) && (
           <button
             className="btn-secondary wide"
             style={{ marginTop: '8px' }}
             onClick={() => {
-              const url = localStorage.getItem('nob_custom_img_normal')
+              const url = charImgPath(char, 'normal')
               if (!url) return
               downloadImage(url, 'mychar.png').catch(() => {})
             }}

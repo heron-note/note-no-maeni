@@ -3,6 +3,8 @@ import { useAppStore } from '../store/useAppStore'
 import { useSlideBack } from '../hooks/useSlideBack'
 import { useBottomSheet } from '../hooks/useBottomSheet'
 import { scheduleIdbSync } from '../utils/idbSync'
+import { storage } from '../utils/storage'
+import { CUSTOM_KEY_PREFIX } from '../characters'
 
 const CW = 1280
 const CH = 670
@@ -519,8 +521,10 @@ function drawStampWithMask(ctx: CanvasRenderingContext2D, maskImg: HTMLImageElem
 }
 
 function charImgSrc(charKey: string, pose: string): string {
-  if (charKey === 'custom') {
-    return localStorage.getItem(`nob_custom_img_${pose}`) ?? ''
+  if (charKey.startsWith(CUSTOM_KEY_PREFIX)) {
+    const id = charKey.slice(CUSTOM_KEY_PREFIX.length)
+    const companion = storage.loadCustomCompanions().find(c => c.id === id)
+    return companion ? (companion as unknown as Record<string, string>)[pose] ?? '' : ''
   }
   return `${import.meta.env.BASE_URL}assets/images/characters/${charKey}/${pose}.png`
 }

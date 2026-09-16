@@ -1,4 +1,5 @@
 import type { CharDef } from './types'
+import { storage } from './utils/storage'
 
 // キャラクター定義ファイル
 // 新キャラを追加するには：
@@ -13,16 +14,19 @@ export const CHARS: CharDef[] = [
   { key: 'usagi', label: 'ウサギ' },
 ]
 
+export const CUSTOM_KEY_PREFIX = 'custom:'
+
 export function getChars(): CharDef[] {
-  const hasCustom = ['normal', 'write', 'rest'].every(
-    k => localStorage.getItem(`nob_custom_img_${k}`)
-  )
-  return hasCustom ? [...CHARS, { key: 'custom', label: 'マイキャラ' }] : CHARS
+  const customs = storage.loadCustomCompanions()
+  return [...CHARS, ...customs.map(c => ({ key: `${CUSTOM_KEY_PREFIX}${c.id}`, label: c.label }))]
 }
 
 export function charImgPath(charKey: string, stateKey: string): string {
-  if (charKey === 'custom') {
-    return localStorage.getItem(`nob_custom_img_${stateKey}`) ?? ''
+  if (charKey.startsWith(CUSTOM_KEY_PREFIX)) {
+    const id = charKey.slice(CUSTOM_KEY_PREFIX.length)
+    const companion = storage.loadCustomCompanions().find(c => c.id === id)
+    if (!companion) return ''
+    return (companion as unknown as Record<string, string>)[stateKey] ?? ''
   }
   return `assets/images/characters/${charKey}/${stateKey}.png`
 }

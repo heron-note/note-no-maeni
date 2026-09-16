@@ -7,6 +7,7 @@ import { SyncLogOverlay } from '../components/SyncLogOverlay'
 import { exportData, importData, exportArticles, importArticles, exportBgImages, importBgImages, exportStampImages, importStampImages, downloadImage } from '../utils/transfer'
 import { storage } from '../utils/storage'
 import { useSlideBack } from '../hooks/useSlideBack'
+import { charImgPath, CUSTOM_KEY_PREFIX } from '../characters'
 
 type HeartBurst = { id: number; x: number; y: number; particles: { dx: number; dy: number }[] }
 
@@ -99,7 +100,20 @@ export function Settings() {
 
       <div className="settings-row">
         <p className="label">相棒</p>
-        <CharGrid selected={char} onSelect={setChar} onSelectWithPos={(_, pos) => triggerBurst(pos)} />
+        <CharGrid
+          selected={char}
+          onSelect={setChar}
+          onSelectWithPos={(_, pos) => triggerBurst(pos)}
+          onDelete={key => {
+            const id = key.slice(CUSTOM_KEY_PREFIX.length)
+            storage.saveCustomCompanions(storage.loadCustomCompanions().filter(c => c.id !== id))
+            if (char === key) {
+              setChar('kuma')
+              if (user) saveUser({ ...user, character: 'kuma' })
+            }
+            setToast('削除しました')
+          }}
+        />
         <div className="creator-btn-row">
           <button className="btn-secondary" onClick={() => goTo('character-creator-simple')}>
             相棒クリエイト
@@ -108,11 +122,11 @@ export function Settings() {
             AI相棒クリエイト
           </button>
         </div>
-        {localStorage.getItem('nob_custom_img_normal') && (
+        {char.startsWith(CUSTOM_KEY_PREFIX) && (
           <button
             className="btn-secondary wide"
             onClick={() => {
-              const url = localStorage.getItem('nob_custom_img_normal')
+              const url = charImgPath(char, 'normal')
               if (!url) return
               downloadImage(url, 'mychar.png').catch(() => {})
             }}
