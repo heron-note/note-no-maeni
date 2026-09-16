@@ -23,6 +23,7 @@ export function Home() {
   const goTo = useAppStore(s => s.goTo)
   const goHome = useAppStore(s => s.goHome)
   const logToday = useAppStore(s => s.logToday)
+  const githubSyncing = useAppStore(s => s.githubSyncing)
 
   type HeartBurst = { id: number; x: number; y: number; particles: { dx: number; dy: number }[] }
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
@@ -105,6 +106,7 @@ export function Home() {
 
   return (
     <div className="screen-inner">
+      {githubSyncing && <div className="sync-indicator">⟳ 同期中</div>}
       <div className="top-bar">
         <button data-help="sound-btn" className="icon-btn sound-btn" onClick={toggleSound} aria-label={soundOn ? '音声オフ' : '音声オン'}>
           {soundOn ? (

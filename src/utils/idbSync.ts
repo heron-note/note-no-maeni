@@ -3,7 +3,7 @@
 // 仕様書10章参照。EyecatchCreator.tsx / ArticleStorcker.tsx の保存・削除箇所から
 // scheduleIdbSync() を呼び出すことで同期する。
 
-import { storage } from './storage'
+import { storage, withGithubSyncIndicator } from './storage'
 import {
   pushArticleStocker, pushBgImages, pushStampImages, checkDataRepoValid,
   pullArticleStocker, pullBgImages, pullStampImages,
@@ -172,19 +172,29 @@ const CATEGORY_LABELS: Record<IdbCategory, string> = {
  * 除外し、削除がmergeによって復活しないようにする。
  */
 async function pullMergePushCategory(category: IdbCategory, token: string, owner: string, excludeId?: string): Promise<void> {
-  if (category === 'articleStocker') {
-    const remote = await pullArticleStocker(token, owner)
-    if (remote) await mergeArticleStocker(remote, excludeId)
-    await pushArticleStocker(token, owner, await collectArticleStocker())
-  } else if (category === 'bgImages') {
-    const remote = await pullBgImages(token, owner)
-    if (remote) await mergeBgImages(remote, excludeId)
-    await pushBgImages(token, owner, await collectBgImages(), excludeId)
-  } else {
-    const remote = await pullStampImages(token, owner)
-    if (remote) await mergeStampImages(remote, excludeId)
-    await pushStampImages(token, owner, await collectStampImages(), excludeId)
-  }
+  await withGithubSyncIndicator(async () => {
+    if (category === 'articleStocker') {
+      // 既にローカルにある記事はpull時に取得をスキップする（既知の記事を毎回
+      // 全件取得し直すと、件数が増えるほどAPIリクエスト数が膨れ上がるため）。
+      const localArticles = (await collectArticleStocker()).nob_stk_articles as { postId?: string }[]
+      const knownIds = new Set(localArticles.map(a => a.postId).filter((id): id is string => !!id))
+      const remote = await pullArticleStocker(token, owner, knownIds)
+      if (remote) await mergeArticleStocker(remote, excludeId)
+      await pushArticleStocker(token, owner, await collectArticleStocker())
+    } else if (category === 'bgImages') {
+      const localImages = (await collectBgImages()) as { id?: string }[]
+      const knownIds = new Set(localImages.map(i => i.id).filter((id): id is string => !!id))
+      const remote = await pullBgImages(token, owner, knownIds)
+      if (remote) await mergeBgImages(remote, excludeId)
+      await pushBgImages(token, owner, await collectBgImages(), excludeId)
+    } else {
+      const localImages = (await collectStampImages()) as { id?: string }[]
+      const knownIds = new Set(localImages.map(i => i.id).filter((id): id is string => !!id))
+      const remote = await pullStampImages(token, owner, knownIds)
+      if (remote) await mergeStampImages(remote, excludeId)
+      await pushStampImages(token, owner, await collectStampImages(), excludeId)
+    }
+  })
 }
 
 /**

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { ScreenName, ChoiceType, User, LogEntry, Declaration } from '../types'
-import { storage, todayStr, onGithubAuthCleared, syncSettingsWithGithub } from '../utils/storage'
+import { storage, todayStr, onGithubAuthCleared, onGithubSyncActivityChange, syncSettingsWithGithub } from '../utils/storage'
 import {
   checkDataRepoValid, requestDeviceCode, pollForAccessToken, ensureDataRepo, DeviceFlowError,
   savePendingDeviceFlow, loadPendingDeviceFlow, clearPendingDeviceFlow, type DeviceCodeResponse,
@@ -31,8 +31,12 @@ interface AppStore {
   githubConnectDevice: DeviceCodeResponse | null
   githubConnectError: string | null
 
+  // 設定・記録・記事・画像いずれかの同期が進行中かどうか（ホーム画面のインジケーター用）。
+  githubSyncing: boolean
+
   // Actions
   init: () => void
+  refreshFromStorage: () => void
   goTo: (screen: ScreenName) => void
   goHome: () => void
   saveUser: (user: User) => void
@@ -67,13 +71,20 @@ function syncGithubDataInBackground(token: string, owner: string): void {
     } catch (e) {
       console.error('[GitHub連携] 記事・画像の同期に失敗しました', e)
     }
-    useAppStore.getState().init()
+    // init()ではなくrefreshFromStorage()を使う。init()は画面をhome/onboardingに
+    // 強制的に切り替えてしまうため、設定画面などバックグラウンド同期とは無関係の
+    // 場所にいるユーザーを勝手に遷移させてしまう（実際に連携直後の挙動が
+    // わかりづらい原因になっていた）。ここではpull→mergeで取り込まれた
+    // user/logsをストアに反映するだけでよい。
+    useAppStore.getState().refreshFromStorage()
   })()
 }
 
 export const useAppStore = create<AppStore>((set, get) => {
   // 自動同期（storage.ts）が有効チェックの結果GitHub連携を解除した場合、ストアの状態も追従させる。
   onGithubAuthCleared(() => set({ githubToken: null, githubUsername: null }))
+  // 設定・記録／記事・画像いずれかの同期が進行中かをホーム画面のインジケーターに反映する。
+  onGithubSyncActivityChange(syncing => set({ githubSyncing: syncing }))
 
   return {
   screen: 'onboarding',
@@ -85,6 +96,7 @@ export const useAppStore = create<AppStore>((set, get) => {
   editingRestTemplateId: null,
   githubToken: storage.loadGithubAuth()?.token ?? null,
   githubUsername: storage.loadGithubAuth()?.username ?? null,
+  githubSyncing: false,
   githubConnectPhase: 'idle',
   githubConnectDevice: null,
   githubConnectError: null,
@@ -118,6 +130,15 @@ export const useAppStore = create<AppStore>((set, get) => {
         void syncIdbOnConnect(githubToken, githubUsername)
       })
     }
+  },
+
+  // init()から画面遷移の副作用を切り離したもの。バックグラウンド同期の完了後など、
+  // 「ユーザーが今どの画面にいてもそこに留まったまま、pull→mergeで取り込まれた
+  // データだけをストアへ反映したい」場面で使う。init()は起動時の画面決定
+  // （onboarding/home）も兼ねているため、セッション中に呼ぶと勝手に画面が
+  // 切り替わってしまう（実際に連携直後の挙動がわかりづらい原因になっていた）。
+  refreshFromStorage() {
+    set({ user: storage.loadUser(), logs: storage.loadLogs() })
   },
 
   goTo(screen) { set({ screen }) },

@@ -118,6 +118,29 @@ export function onGithubAuthCleared(cb: SyncListener): void {
   authClearedListeners.push(cb)
 }
 
+// ─── 同期中インジケーター ────────────────────────────────────────────────────
+// ホーム画面に「同期中」を表示するための、進行中の同期処理数のカウンター。
+// 設定・記録の同期（このファイル）と記事・画像の同期（idbSync.ts）の両方から
+// withGithubSyncIndicator() で包んで使う。0→1で「開始」、1→0で「終了」を通知する。
+type SyncActivityListener = (syncing: boolean) => void
+const syncActivityListeners: SyncActivityListener[] = []
+let activeSyncCount = 0
+
+export function onGithubSyncActivityChange(cb: SyncActivityListener): void {
+  syncActivityListeners.push(cb)
+}
+
+export async function withGithubSyncIndicator<T>(fn: () => Promise<T>): Promise<T> {
+  activeSyncCount++
+  if (activeSyncCount === 1) syncActivityListeners.forEach(cb => cb(true))
+  try {
+    return await fn()
+  } finally {
+    activeSyncCount = Math.max(0, activeSyncCount - 1)
+    if (activeSyncCount === 0) syncActivityListeners.forEach(cb => cb(false))
+  }
+}
+
 // リモートの nob_ 設定値をローカルへ取り込む。ローカルに既にあるキーは
 // （今まさに保存した値である可能性があるため）上書きしない。無いキーだけ補う。
 // nob_logs だけは「日付をキーにしたレコード集合」なので、キー単位ではなく
@@ -149,18 +172,20 @@ function mergeRemoteIntoLocal(remote: Record<string, string>): void {
 export async function syncSettingsWithGithub(): Promise<void> {
   const auth = rawStorage.loadGithubAuth()
   if (!auth) return
-  try {
-    const remote = await pullLocalSettings(auth.token, auth.username)
-    if (remote) mergeRemoteIntoLocal(remote)
-    await pushLocalSettings(auth.token, auth.username, collectData())
-  } catch (e) {
-    console.error('[GitHub連携] 設定・記録の同期に失敗しました', e)
-    const valid = await checkDataRepoValid(auth.token, auth.username).catch(() => false)
-    if (!valid) {
-      rawStorage.clearGithubAuth()
-      authClearedListeners.forEach(cb => cb())
+  await withGithubSyncIndicator(async () => {
+    try {
+      const remote = await pullLocalSettings(auth.token, auth.username)
+      if (remote) mergeRemoteIntoLocal(remote)
+      await pushLocalSettings(auth.token, auth.username, collectData())
+    } catch (e) {
+      console.error('[GitHub連携] 設定・記録の同期に失敗しました', e)
+      const valid = await checkDataRepoValid(auth.token, auth.username).catch(() => false)
+      if (!valid) {
+        rawStorage.clearGithubAuth()
+        authClearedListeners.forEach(cb => cb())
+      }
     }
-  }
+  })
 }
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null

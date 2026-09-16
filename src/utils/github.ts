@@ -137,16 +137,55 @@ function enqueueRequest<T>(task: () => Promise<T>): Promise<T> {
   return run
 }
 
+// GitHubのレート制限（一次: 認証済みで5,000リクエスト/時。二次: 短時間に大量の
+// 書き込み系リクエスト＝ここでは記事1件ごとに1コミットが発生するため、記事を
+// 大量インポートすると容易に踏む）に引っかかった場合、Retry-After等のヘッダーに
+// 従って待ってから自動でリトライする。実際に403件の記事インポートが158件で
+// 止まる不具合が確認されており、そこで投げていた例外がsyncArticleFilesの
+// アップロードループを中断させ、記事本体はアップロードされたのに件数の途中で
+// インデックス更新まで到達できない、という不完全な状態を招いていた。
+// 待ち時間が長すぎる（一次制限のリセット待ちなど）場合は素直に諦めて例外を投げる。
+// 中断しても記事等はpostIdごとの個別ファイルなので、次回の同期で未取り込み分だけ
+// 再開できる（idbSync.tsのpending機構・重複防止ロジック参照）。
+const RATE_LIMIT_MAX_RETRIES = 6
+const RATE_LIMIT_MAX_WAIT_MS = 2 * 60 * 1000
+
+function isRateLimitResponse(res: Response): boolean {
+  if (res.status === 429) return true
+  return res.status === 403 && (res.headers.get('retry-after') !== null || res.headers.get('x-ratelimit-remaining') === '0')
+}
+
+function rateLimitWaitMs(res: Response, attempt: number): number | null {
+  const retryAfter = Number(res.headers.get('retry-after'))
+  if (Number.isFinite(retryAfter) && retryAfter > 0) return retryAfter * 1000
+
+  const resetEpochSec = Number(res.headers.get('x-ratelimit-reset'))
+  if (Number.isFinite(resetEpochSec) && resetEpochSec > 0) {
+    const wait = resetEpochSec * 1000 - Date.now() + 1000
+    if (wait > 0) return wait
+  }
+
+  return Math.min(1000 * 2 ** attempt, 30000) // ヘッダーが読めない場合の指数バックオフ
+}
+
 async function githubFetch(token: string, path: string, init: RequestInit = {}): Promise<Response> {
-  return enqueueRequest(() => fetch(`${GITHUB_API}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      ...(init.headers ?? {}),
-    },
-  }))
+  return enqueueRequest(async () => {
+    for (let attempt = 0; ; attempt++) {
+      const res = await fetch(`${GITHUB_API}${path}`, {
+        ...init,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          ...(init.headers ?? {}),
+        },
+      })
+      if (!isRateLimitResponse(res) || attempt >= RATE_LIMIT_MAX_RETRIES) return res
+      const wait = rateLimitWaitMs(res, attempt)
+      if (wait === null || wait > RATE_LIMIT_MAX_WAIT_MS) return res
+      await sleep(wait)
+    }
+  })
 }
 
 export async function getAuthenticatedUser(token: string): Promise<GithubUser> {
@@ -289,32 +328,78 @@ async function getRepoFileRaw(token: string, owner: string, path: string): Promi
   return { content: String(data.content).replace(/\n/g, ''), sha: data.sha }
 }
 
-async function putRepoFileRaw(token: string, owner: string, path: string, base64Content: string, message: string, sha?: string): Promise<void> {
-  let currentSha = sha
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`, {
-      method: 'PUT',
-      body: JSON.stringify({ message, content: base64Content, ...(currentSha ? { sha: currentSha } : {}) }),
-    })
-    if (res.ok) return
-    if (!CONFLICT_STATUSES.has(res.status) || attempt === 2) throw new Error(`${path} の更新に失敗しました (HTTP ${res.status})`)
-    const latest = await getRepoFileRaw(token, owner, path)
-    currentSha = latest?.sha
-  }
+// ─── 複数ファイルの一括コミット（Git Data API） ──────────────────────────────
+// Contents API（1ファイル=1コミット）で記事を大量インポートすると、記事の
+// 件数分だけコミット（＝リクエスト）が発生し、実際に403件のインポートが
+// 158件で二次レート制限に引っかかって止まる不具合が発生した。新規追加・削除
+// ぶんをまとめてtree一つ・コミット一つで済ませることで、件数によらず
+// リクエスト数を数回に抑える。
+
+const DATA_REPO_BRANCH = 'main'
+
+interface GitTreeEntry {
+  path: string
+  mode: '100644'
+  type: 'blob'
+  /** 新規/更新するファイルの中身（テキスト）。sha指定時は省略する。 */
+  content?: string
+  /** 既存blobを指すsha。nullを指定するとそのパスを削除する（base_tree使用時）。 */
+  sha?: string | null
 }
 
-async function deleteRepoFileIfExists(token: string, owner: string, path: string, message: string): Promise<void> {
-  // sha を得るだけなので、バイナリ（画像）でも安全な raw 版を使う（UTF8デコードするとクラッシュするため）
-  let file = await getRepoFileRaw(token, owner, path)
+async function getBranchState(token: string, owner: string, branch: string): Promise<{ commitSha: string; treeSha: string } | null> {
+  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/branches/${branch}`)
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`ブランチ情報の取得に失敗しました (HTTP ${res.status})`)
+  const data = await res.json()
+  return { commitSha: data.commit.sha, treeSha: data.commit.commit.tree.sha }
+}
+
+async function createBlob(token: string, owner: string, base64Content: string): Promise<string> {
+  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/git/blobs`, {
+    method: 'POST',
+    body: JSON.stringify({ content: base64Content, encoding: 'base64' }),
+  })
+  if (!res.ok) throw new Error(`blobの作成に失敗しました (HTTP ${res.status})`)
+  const data = await res.json()
+  return data.sha
+}
+
+/**
+ * entriesで指定した変更（追加・更新・sha:nullで削除）を1つのコミットにまとめて
+ * pushする。他端末が同時に更新してブランチが進んでいた場合（fast-forwardに
+ * 失敗した場合）は、最新のブランチ状態を取り直して数回リトライする。
+ */
+async function commitTreeChanges(token: string, owner: string, entries: GitTreeEntry[], message: string): Promise<void> {
+  if (entries.length === 0) return
+
   for (let attempt = 0; attempt < 3; attempt++) {
-    if (!file) return // 他端末が既に削除済みなら何もしない
-    const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/contents/${path}`, {
-      method: 'DELETE',
-      body: JSON.stringify({ message, sha: file.sha }),
+    const base = await getBranchState(token, owner, DATA_REPO_BRANCH)
+    if (!base) throw new Error(`ブランチ ${DATA_REPO_BRANCH} が見つかりません`)
+
+    const treeRes = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/git/trees`, {
+      method: 'POST',
+      body: JSON.stringify({ base_tree: base.treeSha, tree: entries }),
     })
-    if (res.ok || res.status === 404) return
-    if (!CONFLICT_STATUSES.has(res.status) || attempt === 2) throw new Error(`${path} の削除に失敗しました (HTTP ${res.status})`)
-    file = await getRepoFileRaw(token, owner, path) // shaが古くなっていたので取り直してリトライ
+    if (!treeRes.ok) throw new Error(`treeの作成に失敗しました (HTTP ${treeRes.status})`)
+    const tree = await treeRes.json()
+
+    const commitRes = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/git/commits`, {
+      method: 'POST',
+      body: JSON.stringify({ message, tree: tree.sha, parents: [base.commitSha] }),
+    })
+    if (!commitRes.ok) throw new Error(`commitの作成に失敗しました (HTTP ${commitRes.status})`)
+    const commit = await commitRes.json()
+
+    const refRes = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/git/refs/heads/${DATA_REPO_BRANCH}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ sha: commit.sha }),
+    })
+    if (refRes.ok) return
+    // 409/422: 他端末が同時に更新しfast-forwardできなかった。最新状態を取り直してリトライ。
+    if (!CONFLICT_STATUSES.has(refRes.status) || attempt === 2) {
+      throw new Error(`refの更新に失敗しました (HTTP ${refRes.status})`)
+    }
   }
 }
 
@@ -382,32 +467,51 @@ async function syncArticleFiles(token: string, owner: string, localArticles: unk
   const remoteIds = new Set(remoteIndex.map(e => e.postId))
   const localIds = new Set<string>()
 
+  // 新規追加・削除・インデックス更新をすべて1つのtree/commitにまとめる
+  // （1ファイル=1コミットのContents APIだと、記事を大量インポートした際に
+  // 件数分のリクエストが発生し、二次レート制限に引っかかって途中で止まって
+  // しまう不具合が実際にあったため）。
+  const entries: GitTreeEntry[] = []
+  let addedCount = 0
+  let removedCount = 0
+
   for (const article of localArticles) {
     const rec = article as { postId?: unknown; title?: unknown; date?: unknown }
     const postId = String(rec.postId ?? '')
     if (!postId) continue
     localIds.add(postId)
     if (remoteIds.has(postId)) continue // 既存記事は不変な前提で再アップロードしない
-    await pushJsonFile(token, owner, articleFilePath(postId), article, `記事を追加: ${postId}`)
+    entries.push({ path: articleFilePath(postId), mode: '100644', type: 'blob', content: JSON.stringify(article, null, 2) })
+    addedCount++
   }
 
   for (const entry of remoteIndex) {
     if (localIds.has(entry.postId)) continue
-    await deleteRepoFileIfExists(token, owner, articleFilePath(entry.postId), `記事を削除: ${entry.postId}`)
+    entries.push({ path: articleFilePath(entry.postId), mode: '100644', type: 'blob', sha: null })
+    removedCount++
   }
+
+  if (entries.length === 0) return // 記事本体に変更なし（インデックスも変わらないはず）
 
   const newIndex: ArticleIndexEntry[] = localArticles.map(a => {
     const rec = a as { postId?: unknown; title?: unknown; date?: unknown }
     return { postId: String(rec.postId ?? ''), title: String(rec.title ?? ''), date: String(rec.date ?? '') }
   })
-  await pushJsonFile(token, owner, ARTICLES_INDEX_PATH, newIndex, '記事インデックスを更新')
+  entries.push({ path: ARTICLES_INDEX_PATH, mode: '100644', type: 'blob', content: JSON.stringify(newIndex, null, 2) })
+
+  await commitTreeChanges(token, owner, entries, `記事を同期（追加${addedCount}件・削除${removedCount}件）`)
 }
 
-async function pullArticleFiles(token: string, owner: string): Promise<unknown[] | null> {
+// knownIds（この端末のローカルに既にある記事のpostId集合）に含まれる記事は
+// 取得をスキップする。マージ側（idbPutIfAbsent）はどのみち既知の記事を
+// 上書きしないため、毎回全件を取得し直すのはネットワークの無駄でしかない
+// （記事が数百件になるとAPIリクエスト数も比例して膨れ上がってしまう）。
+async function pullArticleFiles(token: string, owner: string, knownIds: Set<string>): Promise<unknown[] | null> {
   const remoteIndex = await pullJsonFile<ArticleIndexEntry[]>(token, owner, ARTICLES_INDEX_PATH)
   if (!remoteIndex) return null
   const articles: unknown[] = []
   for (const entry of remoteIndex) {
+    if (knownIds.has(entry.postId)) continue
     const article = await pullJsonFile(token, owner, articleFilePath(entry.postId))
     if (article) articles.push(article)
   }
@@ -423,9 +527,9 @@ export async function pushArticleStocker(token: string, owner: string, data: Rec
   }, '記事メタデータを同期')
 }
 
-export async function pullArticleStocker(token: string, owner: string): Promise<Record<string, unknown[]> | null> {
+export async function pullArticleStocker(token: string, owner: string, knownIds: Set<string> = new Set()): Promise<Record<string, unknown[]> | null> {
   const [articles, meta] = await Promise.all([
-    pullArticleFiles(token, owner),
+    pullArticleFiles(token, owner, knownIds),
     pullJsonFile<Record<string, unknown[]>>(token, owner, ARTICLES_META_PATH),
   ])
   if (articles === null && meta === null) return null
@@ -469,30 +573,48 @@ async function syncImageFiles(token: string, owner: string, dir: string, localIm
   const remoteIds = new Set(remoteIndex.map(e => e.id))
   const localIds = new Set(localImages.map(i => i.id))
 
+  // 記事と同様、新規追加・削除・インデックス更新を1つのtree/commitにまとめる。
+  // 画像はバイナリなのでtreeへ直接contentを書けず、blobだけは1件ずつ作成する
+  // 必要があるが、それでもコミットは常に1回で済む（件数分のコミットが発生しない）。
+  const entries: GitTreeEntry[] = []
+  let addedCount = 0
+  let removedCount = 0
+
   for (const img of localImages) {
     if (remoteIds.has(img.id)) continue // 既存画像は不変な前提で再アップロードしない
     const { base64, ext } = parseDataUrl(img.dataUrl)
-    await putRepoFileRaw(token, owner, `${dir}/${img.id}.${ext}`, base64, `画像を追加: ${img.id}`)
+    const sha = await createBlob(token, owner, base64)
+    entries.push({ path: `${dir}/${img.id}.${ext}`, mode: '100644', type: 'blob', sha })
+    addedCount++
   }
 
   for (const entry of remoteIndex) {
     if (localIds.has(entry.id)) continue
-    await deleteRepoFileIfExists(token, owner, `${dir}/${entry.id}.${entry.ext}`, `画像を削除: ${entry.id}`)
+    entries.push({ path: `${dir}/${entry.id}.${entry.ext}`, mode: '100644', type: 'blob', sha: null })
+    removedCount++
   }
+
+  if (entries.length === 0) return
 
   const newIndex: ImageIndexEntry[] = localImages.map(img => ({
     id: img.id,
     createdAt: img.createdAt,
     ext: parseDataUrl(img.dataUrl).ext,
   }))
-  await pushJsonFile(token, owner, indexPath, newIndex, '画像インデックスを更新')
+  entries.push({ path: indexPath, mode: '100644', type: 'blob', content: JSON.stringify(newIndex, null, 2) })
+
+  await commitTreeChanges(token, owner, entries, `画像を同期（追加${addedCount}件・削除${removedCount}件）`)
 }
 
-async function pullImageFiles(token: string, owner: string, dir: string): Promise<ImageRecord[] | null> {
+// 記事と同様、knownIds（既にローカルにある画像id集合）に含まれる画像は取得を
+// スキップする。画像は本文がbase64のバイナリで記事以上にペイロードが大きいため、
+// 既知の画像を毎回律儀に取得し直すのはAPIリクエスト数・転送量とも無駄が大きい。
+async function pullImageFiles(token: string, owner: string, dir: string, knownIds: Set<string>): Promise<ImageRecord[] | null> {
   const remoteIndex = await pullJsonFile<ImageIndexEntry[]>(token, owner, `${dir}/index.json`)
   if (!remoteIndex) return null
   const images: ImageRecord[] = []
   for (const entry of remoteIndex) {
+    if (knownIds.has(entry.id)) continue
     const file = await getRepoFileRaw(token, owner, `${dir}/${entry.id}.${entry.ext}`)
     if (file) images.push({ id: entry.id, dataUrl: toDataUrl(file.content, entry.ext), createdAt: entry.createdAt })
   }
@@ -502,13 +624,13 @@ async function pullImageFiles(token: string, owner: string, dir: string): Promis
 export async function pushBgImages(token: string, owner: string, images: unknown[], excludeId?: string): Promise<void> {
   await syncImageFiles(token, owner, 'images/bg', images as ImageRecord[], excludeId)
 }
-export async function pullBgImages(token: string, owner: string): Promise<unknown[] | null> {
-  return pullImageFiles(token, owner, 'images/bg')
+export async function pullBgImages(token: string, owner: string, knownIds: Set<string> = new Set()): Promise<unknown[] | null> {
+  return pullImageFiles(token, owner, 'images/bg', knownIds)
 }
 
 export async function pushStampImages(token: string, owner: string, images: unknown[], excludeId?: string): Promise<void> {
   await syncImageFiles(token, owner, 'images/stamp', images as ImageRecord[], excludeId)
 }
-export async function pullStampImages(token: string, owner: string): Promise<unknown[] | null> {
-  return pullImageFiles(token, owner, 'images/stamp')
+export async function pullStampImages(token: string, owner: string, knownIds: Set<string> = new Set()): Promise<unknown[] | null> {
+  return pullImageFiles(token, owner, 'images/stamp', knownIds)
 }

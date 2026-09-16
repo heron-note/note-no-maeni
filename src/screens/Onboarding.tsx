@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
+import { GithubConnectOverlay } from '../components/GithubConnectOverlay'
 import { importData, downloadImage } from '../utils/transfer'
 import { speakVoicevox } from '../utils/voicevox'
 import { PwaInstallHint } from '../components/PwaInstallHint'
@@ -17,6 +18,24 @@ export function Onboarding() {
   const init = useAppStore(s => s.init)
   const importRef = useRef<HTMLInputElement>(null)
   const [showHelp, setShowHelp] = useState(() => !storage.loadObHelpDone())
+  const [showGithubRestore, setShowGithubRestore] = useState(false)
+
+  // 新規端末でオンボーディングを最後まで進めてしまうと、その時点でnob_userなどが
+  // ローカルに書き込まれてしまい、その後GitHub連携してもpull→mergeが「既にローカルに
+  // ある値」として復元をスキップしてしまう（ローカルの新規プロフィールで
+  // 上書き・確定してしまう）。オンボーディングの完了前（ローカルがまだ空の状態）に
+  // GitHub連携できるようにし、同期が終わった時点で復元されたuserがあれば
+  // オンボーディングをスキップしてホームへ進む。
+  const githubToken = useAppStore(s => s.githubToken)
+  const githubSyncing = useAppStore(s => s.githubSyncing)
+  const prevSyncingRef = useRef(githubSyncing)
+  useEffect(() => {
+    if (prevSyncingRef.current && !githubSyncing && githubToken) {
+      const restoredUser = storage.loadUser()
+      if (restoredUser?.onboarded) goHome()
+    }
+    prevSyncingRef.current = githubSyncing
+  }, [githubSyncing, githubToken, goHome])
 
   type HeartBurst = { id: number; x: number; y: number; particles: { dx: number; dy: number }[] }
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
@@ -123,6 +142,9 @@ export function Onboarding() {
       </button>
 
       <div className="transfer-row">
+        <button className="btn-secondary wide" onClick={() => setShowGithubRestore(true)}>
+          GitHubと連携して復元
+        </button>
         <input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
         <button data-help="ob-import" className="btn-secondary wide" onClick={() => importRef.current?.click()}>
           引越しデータをインポート
@@ -130,6 +152,7 @@ export function Onboarding() {
       </div>
 
       {showHelp && <OnboardingHelpOverlay onDone={() => setShowHelp(false)} />}
+      {showGithubRestore && <GithubConnectOverlay onClose={() => setShowGithubRestore(false)} />}
 
       <div className="heart-burst-wrap">
         {heartBursts.flatMap(({ id, x, y, particles }) =>
