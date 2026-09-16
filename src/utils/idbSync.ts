@@ -4,10 +4,11 @@
 // scheduleIdbSync() を呼び出すことで同期する。
 
 import { storage, withGithubSyncIndicator } from './storage'
+import { collectData } from './transfer'
 import {
   pushArticleStocker, pushBgImages, pushStampImages, checkDataRepoValid,
   pullArticleStocker, pullBgImages, pullStampImages,
-  pullArticleIndex, pullImageIndex,
+  pullArticleIndex, pullImageIndex, pushInitialSnapshot, type ImageRecord,
 } from './github'
 
 function idbOpen(name: string, version: number, upgrade: (db: IDBDatabase) => void): Promise<IDBDatabase> {
@@ -237,6 +238,29 @@ export async function syncIdbOnConnect(token: string, owner: string): Promise<vo
   }
 
   if (allOk) clearIdbSyncPending()
+}
+
+/**
+ * リポジトリを今まさに新規作成した直後（＝中身は空だと確定している）にだけ
+ * 呼び出す。カテゴリ別にpull→merge→pushする理由が無い（突き合わせるべき
+ * リモートの状態が存在しない）ため、設定・記録・記事・画像すべてをローカルから
+ * まとめて集め、1回のadd-commit-pushで送る。カテゴリごとに分けて処理すると、
+ * 各カテゴリが同じrefへのコミットを取り合う・個別にリモートの空インデックスを
+ * 読みに行くといった、空だと分かっている場面では本来不要なやり取りが発生する。
+ */
+export async function pushInitialSnapshotToGithub(token: string, owner: string): Promise<void> {
+  await withGithubSyncIndicator(async () => {
+    const articleStocker = await collectArticleStocker()
+    await pushInitialSnapshot(token, owner, {
+      localData: collectData(),
+      articles: articleStocker.nob_stk_articles ?? [],
+      articleNouns: articleStocker.nob_stk_nouns ?? [],
+      articleNounLinks: articleStocker.nob_stk_article_nouns ?? [],
+      collections: articleStocker.nob_stk_collections ?? [],
+      bgImages: (await collectBgImages()) as ImageRecord[],
+      stampImages: (await collectStampImages()) as ImageRecord[],
+    })
+  })
 }
 
 async function syncCategory(category: IdbCategory, excludeId?: string): Promise<void> {

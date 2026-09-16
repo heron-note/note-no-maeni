@@ -553,7 +553,7 @@ export async function pullArticleStocker(token: string, owner: string, remoteInd
 // ---- 背景画像・画像スタンプ ----
 // 1画像1ファイル（バイナリのまま）＋インデックスに分割。
 
-interface ImageRecord { id: string; dataUrl: string; createdAt: unknown }
+export interface ImageRecord { id: string; dataUrl: string; createdAt: unknown }
 interface ImageIndexEntry { id: string; createdAt: unknown; ext: string }
 
 function parseDataUrl(dataUrl: string): { base64: string; ext: string } {
@@ -645,4 +645,63 @@ export async function pushStampImages(token: string, owner: string, images: unkn
 }
 export async function pullStampImages(token: string, owner: string, remoteIndex: ImageIndexEntry[] | null, knownIds: Set<string> = new Set()): Promise<unknown[] | null> {
   return remoteIndex ? pullImageFiles(token, owner, 'images/stamp', remoteIndex, knownIds) : null
+}
+
+// ─── 初回接続時の一括アップロード ─────────────────────────────────────────────
+// リポジトリを今まさに新規作成した（＝中身は空だと確定している）場合は、
+// カテゴリごとにpull→merge→pushする理由が無い。突き合わせるべきリモートの
+// 状態が存在しないのだから、設定・記録・記事・画像すべてをまとめて1回の
+// add-commit-pushで送ればよい。カテゴリ別に処理を分けると、各カテゴリが
+// 独立にリモートの状態を読みに行ったり、同じrefへのコミットを取り合ったり
+// （リトライはするが無用な複雑さ）する余地が生まれる。空だと分かっている
+// 初回だけは、それ自体を避けられる。
+export interface InitialSnapshotData {
+  localData: Record<string, string>
+  articles: unknown[]
+  articleNouns: unknown[]
+  articleNounLinks: unknown[]
+  collections: unknown[]
+  bgImages: ImageRecord[]
+  stampImages: ImageRecord[]
+}
+
+export async function pushInitialSnapshot(token: string, owner: string, data: InitialSnapshotData): Promise<void> {
+  const entries: GitTreeEntry[] = []
+
+  const { settings, logs } = splitLocalData(data.localData)
+  entries.push({ path: SETTINGS_PATH, mode: '100644', type: 'blob', content: JSON.stringify(settings, null, 2) })
+  if (Object.keys(logs).length > 0) {
+    entries.push({ path: LOGS_PATH, mode: '100644', type: 'blob', content: JSON.stringify(logs, null, 2) })
+  }
+
+  const articleIndex: ArticleIndexEntry[] = []
+  for (const article of data.articles) {
+    const rec = article as { postId?: unknown; title?: unknown; date?: unknown }
+    const postId = String(rec.postId ?? '')
+    if (!postId) continue
+    entries.push({ path: articleFilePath(postId), mode: '100644', type: 'blob', content: JSON.stringify(article, null, 2) })
+    articleIndex.push({ postId, title: String(rec.title ?? ''), date: String(rec.date ?? '') })
+  }
+  entries.push({ path: ARTICLES_INDEX_PATH, mode: '100644', type: 'blob', content: JSON.stringify(articleIndex, null, 2) })
+  entries.push({
+    path: ARTICLES_META_PATH, mode: '100644', type: 'blob',
+    content: JSON.stringify({
+      nob_stk_nouns: data.articleNouns,
+      nob_stk_article_nouns: data.articleNounLinks,
+      nob_stk_collections: data.collections,
+    }, null, 2),
+  })
+
+  for (const [dir, images] of [['images/bg', data.bgImages], ['images/stamp', data.stampImages]] as const) {
+    const imageIndex: ImageIndexEntry[] = []
+    for (const img of images) {
+      const { base64, ext } = parseDataUrl(img.dataUrl)
+      const sha = await createBlob(token, owner, base64)
+      entries.push({ path: `${dir}/${img.id}.${ext}`, mode: '100644', type: 'blob', sha })
+      imageIndex.push({ id: img.id, createdAt: img.createdAt, ext })
+    }
+    entries.push({ path: `${dir}/index.json`, mode: '100644', type: 'blob', content: JSON.stringify(imageIndex, null, 2) })
+  }
+
+  await commitTreeChanges(token, owner, entries, 'GitHub連携: 初回データをまとめてアップロード')
 }

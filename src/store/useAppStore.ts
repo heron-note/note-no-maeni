@@ -5,7 +5,7 @@ import {
   checkDataRepoValid, requestDeviceCode, pollForAccessToken, ensureDataRepo, DeviceFlowError,
   savePendingDeviceFlow, loadPendingDeviceFlow, clearPendingDeviceFlow, type DeviceCodeResponse,
 } from '../utils/github'
-import { syncIdbOnConnect } from '../utils/idbSync'
+import { syncIdbOnConnect, pushInitialSnapshotToGithub } from '../utils/idbSync'
 
 export type GithubConnectPhase = 'idle' | 'requesting' | 'waiting' | 'finalizing' | 'error'
 
@@ -58,18 +58,33 @@ interface AppStore {
  * 確認が終わった時点で「連携完了」とし、この重い処理は連携ダイアログを閉じた後も
  * 中断せず継続する（仕様書10章）。完了後、画面に反映するため init() を呼び直す。
  *
- * 設定同期と記事・画像同期は別々のtry/catchにする。片方が失敗しても
+ * isFreshRepo（リポジトリを今まさに新規作成した）がtrueなら、中身が空だと
+ * 確定しているのでカテゴリ別のpull→merge→pushは行わず、設定・記録・記事・画像
+ * すべてをまとめて1回のコミットでアップロードする（pushInitialSnapshotToGithub）。
+ * カテゴリごとに分けて処理する理由（突き合わせるべきリモートの状態）が
+ * 初回には存在しないため、その分の無駄なやり取り・同じrefを取り合う余地を無くす。
+ *
+ * 既存リポジトリへの再接続時は、他端末の変更を取りこぼさないよう従来どおり
+ * 設定同期と記事・画像同期を別々のtry/catchで順番に行う。片方が失敗しても
  * もう片方の同期が実行されなくなる（＝原因不明のまま画像が一切同期されない）
  * ことを避けるため。失敗した内容はconsoleに出す（原因調査のため。以降は
  * 通常の自動同期で再試行される）。
  */
-function syncGithubDataInBackground(token: string, owner: string): void {
+function syncGithubDataInBackground(token: string, owner: string, isFreshRepo: boolean): void {
   ;(async () => {
-    await syncSettingsWithGithub()
-    try {
-      await syncIdbOnConnect(token, owner)
-    } catch (e) {
-      console.error('[GitHub連携] 記事・画像の同期に失敗しました', e)
+    if (isFreshRepo) {
+      try {
+        await pushInitialSnapshotToGithub(token, owner)
+      } catch (e) {
+        console.error('[GitHub連携] 初回データのアップロードに失敗しました', e)
+      }
+    } else {
+      await syncSettingsWithGithub()
+      try {
+        await syncIdbOnConnect(token, owner)
+      } catch (e) {
+        console.error('[GitHub連携] 記事・画像の同期に失敗しました', e)
+      }
     }
     // init()ではなくrefreshFromStorage()を使う。init()は画面をhome/onboardingに
     // 強制的に切り替えてしまうため、設定画面などバックグラウンド同期とは無関係の
@@ -218,13 +233,13 @@ export const useAppStore = create<AppStore>((set, get) => {
         clearPendingDeviceFlow()
         set({ githubConnectPhase: 'finalizing' })
 
-        const { owner } = await ensureDataRepo(token)
+        const { owner, created } = await ensureDataRepo(token)
 
         get().setGithubAuth(token, owner)
         set({ githubConnectPhase: 'idle', githubConnectDevice: null })
 
         // 重い同期処理はバックグラウンドに回し、ここでは待たない（仕様書10章）。
-        syncGithubDataInBackground(token, owner)
+        syncGithubDataInBackground(token, owner, created)
       } catch (e) {
         if (e instanceof DeviceFlowError && e.message === 'expired_token') clearPendingDeviceFlow()
         set({
