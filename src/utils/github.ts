@@ -729,8 +729,21 @@ export async function pushInitialSnapshot(token: string, owner: string, data: In
 // リポジトリ全体をzip一つでダウンロードできるエンドポイントを提供しており、
 // ここから直接読み出せば、記事・画像が何百件あってもリクエストは1回で済む
 // （以後の展開・JSON解析はすべてローカルで行う）。
+//
+// ただし zipball エンドポイント（/repos/.../zipball/...）は実体が
+// codeload.github.com への302リダイレクトであり、api.github.com自体はCORSに
+// 対応しているのに対し、codeload.github.comはブラウザからの任意オリジンの
+// fetch()を許可していない（Access-Control-Allow-Originがrender.githubusercontent.com
+// 固定）。そのためブラウザから直接githubFetch()すると常にCORSでブロックされ、
+// 記事・画像が1件も取得できない（curlやNode等CORSを受けないクライアントでは
+// 問題なく取得できてしまうため、そちらだけで検証すると見逃す）。
+// auth-relay（Device Flowの中継にも使っている同じCloudflare Worker）経由で
+// 取得することでこれを回避する。ユーザー自身のトークンをAuthorizationヘッダーで
+// そのまま転送するだけで、中継サーバー自体は秘密情報を持たない。
 async function fetchRepoZip(token: string, owner: string): Promise<JSZip | null> {
-  const res = await githubFetch(token, `/repos/${owner}/${DATA_REPO_NAME}/zipball/${DATA_REPO_BRANCH}`)
+  const res = await enqueueRequest(() => fetch(`${AUTH_RELAY_URL}/zipball/${owner}/${DATA_REPO_NAME}/${DATA_REPO_BRANCH}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }))
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`リポジトリのアーカイブ取得に失敗しました (HTTP ${res.status})`)
   const blob = await res.blob()
