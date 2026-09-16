@@ -38,13 +38,24 @@ function extractKey(record: unknown, keyPath: string | string[]): IDBValidKey {
 // コレクションの並び替え・記事の削除直後にsync（pull→merge→push）が走った際、
 // まだそのローカル編集を知らない（1歩古い）リモートの内容でローカルの編集
 // そのものを潰して元に戻してしまう（＝編集が無かったことになる）重大な不具合になる。
+//
+// 以前はレコードごとにget()を発行し、そのonsuccessコールバックの中で個別に
+// put()するという実装だった。1トランザクション内に数百件分の「未完了のget()」
+// が並行してぶら下がる形になり、ブラウザによってはコールバックが出揃う前に
+// トランザクションが自動コミットされてしまうリスクがある（実際に、同じ操作を
+// 別ブラウザで行うと復元される記事件数が毎回同じ数だけ少なくなる不具合が
+// 確認された）。getAllKeys()で既存キーを1回のリクエストでまとめて取得し、
+// その後は同期的にput()するだけにすることで、この種のタイミング依存を無くす。
 function idbPutIfAbsent(db: IDBDatabase, store: string, records: unknown[], keyPath: string | string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(store, 'readwrite')
     const os = tx.objectStore(store)
-    for (const r of records) {
-      const getReq = os.get(extractKey(r, keyPath))
-      getReq.onsuccess = () => { if (getReq.result === undefined) os.put(r) }
+    const keysReq = os.getAllKeys()
+    keysReq.onsuccess = () => {
+      const existing = new Set(keysReq.result.map(k => JSON.stringify(k)))
+      for (const r of records) {
+        if (!existing.has(JSON.stringify(extractKey(r, keyPath)))) os.put(r)
+      }
     }
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
