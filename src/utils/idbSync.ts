@@ -217,16 +217,24 @@ async function pullMergePushCategory(category: IdbCategory, token: string, owner
 export async function syncIdbOnConnect(token: string, owner: string): Promise<void> {
   markIdbSyncPending()
 
+  // 3カテゴリとも同じブランチ（main）のrefを更新するコミットを行うため、
+  // Promise.allSettledで並行に走らせると3者が同じrefを取り合って
+  // コンフリクト（非fast-forward）とリトライを頻発させてしまう
+  // （リトライ自体は動作を確認済みだが、3者が繰り返し衝突すると
+  // 既定のリトライ回数内に収まらず失敗する可能性がある）。実際のHTTP
+  // リクエストはこの下のenqueueRequestキューでどのみち直列化されるため、
+  // 並行実行にした所で速くはならない。素直に順番に実行し、この種の
+  // 衝突自体を起こさないようにする。
   const categories: IdbCategory[] = ['articleStocker', 'bgImages', 'stampImages']
-  const results = await Promise.allSettled(categories.map(c => pullMergePushCategory(c, token, owner)))
-
   let allOk = true
-  results.forEach((result, i) => {
-    if (result.status === 'rejected') {
+  for (const category of categories) {
+    try {
+      await pullMergePushCategory(category, token, owner)
+    } catch (e) {
       allOk = false
-      console.error(`[GitHub連携] ${CATEGORY_LABELS[categories[i]]}の同期に失敗しました`, result.reason)
+      console.error(`[GitHub連携] ${CATEGORY_LABELS[category]}の同期に失敗しました`, e)
     }
-  })
+  }
 
   if (allOk) clearIdbSyncPending()
 }

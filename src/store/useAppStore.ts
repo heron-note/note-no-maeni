@@ -126,8 +126,14 @@ export const useAppStore = create<AppStore>((set, get) => {
         // 既に同期済みの内容は変更なしとしてスキップされるので、通信コストは
         // 小さい（PWAがバックグラウンド化で同期処理を打ち切ってしまい、画像だけ
         // 同期されない、という問題への対処。仕様書10章参照）。
-        void syncSettingsWithGithub()
-        void syncIdbOnConnect(githubToken, githubUsername)
+        // 設定同期と記事・画像同期を並行に走らせない。どちらも同じmainブランチの
+        // refを更新するコミットを行うため、同時に走らせると片方のコミットが
+        // 進んだ後にもう片方がfast-forwardできず失敗しうる（コンフリクト時は
+        // リトライするが、無用な衝突自体を避けるほうが確実）。
+        void (async () => {
+          await syncSettingsWithGithub()
+          await syncIdbOnConnect(githubToken, githubUsername)
+        })()
       })
     }
   },
