@@ -5,7 +5,7 @@ import {
   checkDataRepoValid, requestDeviceCode, pollForAccessToken, ensureDataRepo, DeviceFlowError,
   savePendingDeviceFlow, loadPendingDeviceFlow, clearPendingDeviceFlow, type DeviceCodeResponse,
 } from '../utils/github'
-import { syncIdbOnConnect, pushInitialSnapshotToGithub, pullInitialSnapshotFromGithub } from '../utils/idbSync'
+import { syncIdbOnConnect, pushInitialSnapshotToGithub, pullInitialSnapshotFromGithub, isLocalArticleStockerEmpty } from '../utils/idbSync'
 
 export type GithubConnectPhase = 'idle' | 'requesting' | 'waiting' | 'finalizing' | 'error'
 
@@ -79,6 +79,7 @@ interface AppStore {
  */
 function syncGithubDataInBackground(token: string, owner: string, isFreshRepo: boolean, isFreshDevice: boolean): void {
   ;(async () => {
+    console.info(`[GitHub連携] 同期方式: ${isFreshRepo ? '初回アップロード（1コミット）' : isFreshDevice ? 'zip一括復元' : 'カテゴリ別pull→merge→push'}`)
     if (isFreshRepo) {
       try {
         await pushInitialSnapshotToGithub(token, owner)
@@ -92,6 +93,7 @@ function syncGithubDataInBackground(token: string, owner: string, isFreshRepo: b
       } catch (e) {
         console.error('[GitHub連携] 初回データの復元に失敗しました', e)
       }
+      console.info(`[GitHub連携] zip一括復元: ${restored ? '成功' : '対象データ無し・カテゴリ別処理にフォールバック'}`)
       if (!restored) {
         // リポジトリの中身が読めなかった等、通常のカテゴリ別処理にフォールバック。
         await syncSettingsWithGithub()
@@ -258,10 +260,13 @@ export const useAppStore = create<AppStore>((set, get) => {
 
         const { owner, created } = await ensureDataRepo(token)
 
-        // この端末にまだローカルデータが無いか（オンボーディング未完了＝
-        // nob_userが無い）で「新規端末」を判定する。GithubConnectOverlayを
-        // Onboarding画面から開いて復元する場合がまさにこのケース。
-        const isFreshDevice = storage.loadUser() === null
+        // 「新規端末」の判定は、オンボーディング未完了（nob_userが無い）だけでは
+        // 不十分。オンボーディングは済ませたが記事はまだ1件もインポートして
+        // いない状態でGitHub連携するケースも同じく拾う必要がある（そうしないと
+        // 記事の件数分だけリクエストが発生するカテゴリ別pullに流れてしまい、
+        // 実際に記事が一部しか降りてこない不具合が起きた）。どちらか一方でも
+        // 満たせば新規端末として扱い、zip一括ダウンロードを使う。
+        const isFreshDevice = storage.loadUser() === null || await isLocalArticleStockerEmpty()
 
         get().setGithubAuth(token, owner)
         set({ githubConnectPhase: 'idle', githubConnectDevice: null })

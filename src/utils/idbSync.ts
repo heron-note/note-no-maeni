@@ -95,6 +95,19 @@ async function collectArticleStocker(): Promise<Record<string, unknown[]>> {
   return data
 }
 
+/**
+ * この端末の記事ストッカーがまだ空かどうか。GitHub連携時に「新規端末（zip一括
+ * 復元を使うべき）」かどうかの判定に使う。オンボーディング完了の有無（nob_user
+ * の有無）だけで判定すると、オンボーディングは済ませたが記事はまだ1件も
+ * インポートしていない状態でGitHub連携した場合に判定から漏れ、記事件数分だけ
+ * リクエストが発生するカテゴリ別pullに流れてしまう（実際にこれで記事が
+ * 一部しか降りてこない不具合が再発した）。
+ */
+export async function isLocalArticleStockerEmpty(): Promise<boolean> {
+  const data = await collectArticleStocker()
+  return (data.nob_stk_articles ?? []).length === 0
+}
+
 function openBgDB(): Promise<IDBDatabase> {
   return idbOpen('EcBgDB', 1, d => { if (!d.objectStoreNames.contains('ec_bg_images')) d.createObjectStore('ec_bg_images', { keyPath: 'id' }) })
 }
@@ -278,6 +291,7 @@ export async function pullInitialSnapshotFromGithub(token: string, owner: string
   return withGithubSyncIndicator(async () => {
     const snapshot = await pullRepoSnapshot(token, owner)
     if (!snapshot) return false
+    console.info(`[GitHub連携] zip一括復元: 記事${snapshot.articles.length}件・背景画像${snapshot.bgImages.length}件・画像スタンプ${snapshot.stampImages.length}件`)
 
     for (const [key, value] of Object.entries(snapshot.localData)) {
       if (key.startsWith('nob_') && typeof value === 'string') localStorage.setItem(key, value)
