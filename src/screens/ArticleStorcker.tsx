@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import JSZip from 'jszip'
 import { useAppStore } from '../store/useAppStore'
+import { scheduleIdbSync } from '../utils/idbSync'
 
 const _BASE = import.meta.env.BASE_URL
 
@@ -472,6 +473,7 @@ export function ArticleStorcker() {
       const idx = allCollections.findIndex(c => c.id === col.id)
       if (idx >= 0) allCollections[idx] = col; else allCollections.push(col)
       renderCollectionList()
+      scheduleIdbSync('articleStocker')
     }
 
     async function deleteCollection(id: string) {
@@ -482,6 +484,7 @@ export function ArticleStorcker() {
       allCollections = allCollections.filter(c => c.id !== id)
       if (activeCollection?.id === id) { activeCollection = null; showCollectionDetail(null) }
       renderCollectionList()
+      scheduleIdbSync('articleStocker', id)
     }
 
     function renderCollectionList() {
@@ -670,6 +673,7 @@ export function ArticleStorcker() {
         setStatus(`${parsedArticles.length}件の記事をインポートしました`, 'ok')
         await loadAllFromDB()
         enqueueArticles(parsedArticles)
+        scheduleIdbSync('articleStocker')
         if (window.innerWidth <= 768) $('as-filter-section')?.classList.remove('open')
       } catch (err: any) {
         setStatus('エラー: ' + err.message)

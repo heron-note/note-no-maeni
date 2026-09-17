@@ -1,10 +1,13 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { CharGrid } from '../components/CharGrid'
 import { Toast } from '../components/Toast'
+import { GithubConnectOverlay } from '../components/GithubConnectOverlay'
+import { SyncLogOverlay } from '../components/SyncLogOverlay'
 import { exportData, importData, exportArticles, importArticles, exportBgImages, importBgImages, exportStampImages, importStampImages, downloadImage } from '../utils/transfer'
 import { storage } from '../utils/storage'
 import { useSlideBack } from '../hooks/useSlideBack'
+import { charImgPath, CUSTOM_KEY_PREFIX } from '../characters'
 
 type HeartBurst = { id: number; x: number; y: number; particles: { dx: number; dy: number }[] }
 
@@ -16,6 +19,10 @@ export function Settings() {
   const { closing, handleBack } = useSlideBack(goHome)
 
   const init = useAppStore(s => s.init)
+  const githubUsername = useAppStore(s => s.githubUsername)
+  const clearGithubAuth = useAppStore(s => s.clearGithubAuth)
+  const [showGithubConnect, setShowGithubConnect] = useState(false)
+  const [showSyncLog, setShowSyncLog] = useState(false)
   const [name, setName] = useState(user?.name ?? '')
   const [char, setChar] = useState(user?.character ?? 'kuma')
   const [toast, setToast] = useState<string | null>(null)
@@ -26,6 +33,15 @@ export function Settings() {
   const importBgRef = useRef<HTMLInputElement>(null)
   const importStampRef = useRef<HTMLInputElement>(null)
   const [heartBursts, setHeartBursts] = useState<HeartBurst[]>([])
+
+  // GitHub連携が完了した（未連携→連携済みに変わった）タイミングでトースト表示する。
+  // 連携処理自体はストア側（startGithubConnect）で行われるため、ここでは結果を
+  // 監視するだけにする。
+  const prevGithubUsernameRef = useRef(githubUsername)
+  useEffect(() => {
+    if (!prevGithubUsernameRef.current && githubUsername) setToast('GitHubと連携しました')
+    prevGithubUsernameRef.current = githubUsername
+  }, [githubUsername])
 
   const triggerBurst = (pos: { x: number; y: number }) => {
     setHeartBursts(prev => {
@@ -84,7 +100,20 @@ export function Settings() {
 
       <div className="settings-row">
         <p className="label">相棒</p>
-        <CharGrid selected={char} onSelect={setChar} onSelectWithPos={(_, pos) => triggerBurst(pos)} />
+        <CharGrid
+          selected={char}
+          onSelect={setChar}
+          onSelectWithPos={(_, pos) => triggerBurst(pos)}
+          onDelete={key => {
+            const id = key.slice(CUSTOM_KEY_PREFIX.length)
+            storage.saveCustomCompanions(storage.loadCustomCompanions().filter(c => c.id !== id))
+            if (char === key) {
+              setChar('kuma')
+              if (user) saveUser({ ...user, character: 'kuma' })
+            }
+            setToast('削除しました')
+          }}
+        />
         <div className="creator-btn-row">
           <button className="btn-secondary" onClick={() => goTo('character-creator-simple')}>
             相棒クリエイト
@@ -93,11 +122,11 @@ export function Settings() {
             AI相棒クリエイト
           </button>
         </div>
-        {localStorage.getItem('nob_custom_img_normal') && (
+        {char.startsWith(CUSTOM_KEY_PREFIX) && (
           <button
             className="btn-secondary wide"
             onClick={() => {
-              const url = localStorage.getItem('nob_custom_img_normal')
+              const url = charImgPath(char, 'normal')
               if (!url) return
               downloadImage(url, 'mychar.png').catch(() => {})
             }}
@@ -142,6 +171,28 @@ export function Settings() {
       <button className="btn-primary wide" onClick={handleSave}>
         保存する
       </button>
+
+      <div className="settings-row">
+        <p className="label">GitHub連携</p>
+        {githubUsername ? (
+          <>
+            <p className="settings-hint">連携済み: {githubUsername}</p>
+            <button className="btn-secondary wide" onClick={() => { clearGithubAuth(); setToast('連携を解除しました') }}>
+              連携を解除
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="settings-hint">GitHubと連携すると、設定やデータを端末をまたいで使えるようになります（無料）。</p>
+            <button className="btn-primary wide" onClick={() => setShowGithubConnect(true)}>
+              GitHub連携する
+            </button>
+          </>
+        )}
+        <button className="btn-secondary wide" onClick={() => setShowSyncLog(true)}>
+          連携ログを見る
+        </button>
+      </div>
 
       <div className="settings-row">
         <p className="label">バックアップ</p>
@@ -202,6 +253,13 @@ export function Settings() {
           ))
         )}
       </div>
+
+      {showGithubConnect && (
+        <GithubConnectOverlay onClose={() => setShowGithubConnect(false)} />
+      )}
+      {showSyncLog && (
+        <SyncLogOverlay onClose={() => setShowSyncLog(false)} />
+      )}
     </div>
   )
 }

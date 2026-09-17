@@ -1,0 +1,37 @@
+{
+  "profile": {
+    "name": "へろん",
+    "icon": 1,
+    "bio": "50代から、AIを相棒に新しい遊びを始めました。"
+  },
+  "blocks": [
+    { "id": "profile", "enabled": true, "order": 1, "style": "center" },
+    { "id": "featured", "enabled": true, "order": 2, "style": "grid" },
+    { "id": "categories", "enabled": true, "order": 3, "style": "default" },
+    { "id": "articles", "enabled": true, "order": 4, "style": "card" },
+    { "id": "products", "enabled": false, "order": 5, "style": "card" },
+    { "id": "search", "enabled": false, "order": 6, "style": "default" },
+    { "id": "links", "enabled": true, "order": 7, "style": "default" }
+  ],
+  "theme": {
+    "primaryColor": "#4A90D9",
+    "fontFamily": "rounded",
+    "header": {
+      "image": null,
+      "logoPosition": "left"
+    }
+  },
+  "links": {
+    "note": "https://note.com/nifty_sheep7386",
+    "x": "https://x.com/plasticbeing",
+    "instagram": "https://www.instagram.com/example",
+    "facebook": "https://www.facebook.com/example",
+    "tiktok": "https://www.tiktok.com/@example",
+    "line": "https://line.me/R/ti/p/@example"
+  },
+  "meta": {
+    "siteTitle": "へろんのnoteまとめ",
+    "lastDeployed": "2026-09-14T12:00:00Z",
+    "templateVersion": "1.0.0"
+  }
+}

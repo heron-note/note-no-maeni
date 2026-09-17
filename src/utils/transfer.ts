@@ -112,7 +112,7 @@ export async function importBgImages(file: File): Promise<void> {
 
 const ENCRYPTED_MARKER = '__enc_v1__'
 
-function collectData(): Record<string, string> {
+export function collectData(): Record<string, string> {
   const data: Record<string, string> = {}
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)!

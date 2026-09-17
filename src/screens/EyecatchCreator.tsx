@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { useSlideBack } from '../hooks/useSlideBack'
 import { useBottomSheet } from '../hooks/useBottomSheet'
+import { scheduleIdbSync } from '../utils/idbSync'
+import { storage } from '../utils/storage'
+import { CUSTOM_KEY_PREFIX } from '../characters'
 
 const CW = 1280
 const CH = 670
@@ -184,8 +187,8 @@ function BgCropPanel({ src, onConfirm, onCancel }: {
   )
 }
 
-function BgPickerPanel({ images, selectedId, onSelect, onAddFile, onDelete, onClose }: {
-  images: BgImage[]; selectedId: string | null
+function BgPickerPanel({ images, selectedId, max, onSelect, onAddFile, onDelete, onClose }: {
+  images: BgImage[]; selectedId: string | null; max: number
   onSelect: (id: string | null) => void; onAddFile: (f: File) => void
   onDelete: (id: string) => void; onClose: () => void
 }) {
@@ -204,7 +207,7 @@ function BgPickerPanel({ images, selectedId, onSelect, onAddFile, onDelete, onCl
         <div className="eyecatch-history-header">
           <span className="eyecatch-section-title" style={{ margin: 0 }}>背景画像</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>{images.length}/{BG_MAX}</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>{images.length}/{Number.isFinite(max) ? max : '∞'}</span>
             <button className="icon-btn" onClick={handleClose} aria-label="閉じる">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -227,7 +230,7 @@ function BgPickerPanel({ images, selectedId, onSelect, onAddFile, onDelete, onCl
             </div>
           ))}
         </div>
-        {images.length < BG_MAX && (
+        {images.length < max && (
           <div style={{ padding: '8px 0 4px' }}>
             <button className="btn-secondary wide" onClick={() => fileRef.current?.click()}>＋ 背景画像を追加</button>
             <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
@@ -367,8 +370,8 @@ function StampCropPanel({ src, onConfirm, onCancel }: {
   )
 }
 
-function StampPickerPanel({ images, pendingId, onSelect, onAddFile, onDelete, onClose }: {
-  images: StampImage[]; pendingId: string | null
+function StampPickerPanel({ images, pendingId, max, onSelect, onAddFile, onDelete, onClose }: {
+  images: StampImage[]; pendingId: string | null; max: number
   onSelect: (id: string) => void; onAddFile: (f: File) => void
   onDelete: (id: string) => void; onClose: () => void
 }) {
@@ -387,7 +390,7 @@ function StampPickerPanel({ images, pendingId, onSelect, onAddFile, onDelete, on
         <div className="eyecatch-history-header">
           <span className="eyecatch-section-title" style={{ margin: 0 }}>画像スタンプ</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>{images.length}/{STAMP_MAX}</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>{images.length}/{Number.isFinite(max) ? max : '∞'}</span>
             <button className="icon-btn" onClick={handleClose} aria-label="閉じる">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -407,7 +410,7 @@ function StampPickerPanel({ images, pendingId, onSelect, onAddFile, onDelete, on
               <button className="stamp-picker-del" onClick={() => onDelete(img.id)} aria-label="削除">✕</button>
             </div>
           ))}
-          {images.length < STAMP_MAX && (
+          {images.length < max && (
             <button className="stamp-picker-add" onClick={() => fileRef.current?.click()}>＋</button>
           )}
         </div>
@@ -518,8 +521,10 @@ function drawStampWithMask(ctx: CanvasRenderingContext2D, maskImg: HTMLImageElem
 }
 
 function charImgSrc(charKey: string, pose: string): string {
-  if (charKey === 'custom') {
-    return localStorage.getItem(`nob_custom_img_${pose}`) ?? ''
+  if (charKey.startsWith(CUSTOM_KEY_PREFIX)) {
+    const id = charKey.slice(CUSTOM_KEY_PREFIX.length)
+    const companion = storage.loadCustomCompanions().find(c => c.id === id)
+    return companion ? (companion as unknown as Record<string, string>)[pose] ?? '' : ''
   }
   return `${import.meta.env.BASE_URL}assets/images/characters/${charKey}/${pose}.png`
 }
@@ -676,9 +681,16 @@ function HistoryPanel({ history, onLoad, onClose }: {
 export function EyecatchCreator() {
   const goTo = useAppStore(s => s.goTo)
   const user = useAppStore(s => s.user)
+  const githubToken = useAppStore(s => s.githubToken)
   const { closing, handleBack } = useSlideBack(() => goTo('home'))
 
   const charKey = user?.character ?? 'kuma'
+
+  // 背景画像・画像スタンプの登録上限は、もともとローカル（IndexedDB）だけに
+  // 保存する前提の容量制限だった。GitHub連携済みならGitHub側に保管されるため
+  // 実質無制限にしてよい（仕様書のGitHub連携の切り口を参照）。
+  const bgMax = githubToken ? Infinity : BG_MAX
+  const stampMax = githubToken ? Infinity : STAMP_MAX
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -827,6 +839,7 @@ export function EyecatchCreator() {
     const img = new Image(); img.src = dataUrl
     customImgCacheRef.current.set(entry.id, img)
     setCustomStampImages(prev => [...prev, entry])
+    scheduleIdbSync('stampImages')
   }
 
   const deleteStampImage = async (id: string) => {
@@ -838,6 +851,7 @@ export function EyecatchCreator() {
     customImgCacheRef.current.delete(id)
     setCustomStampImages(prev => prev.filter(s => s.id !== id))
     if (pendingCustom === id) { setPendingCustom(null); pendingCustomRef.current = null }
+    scheduleIdbSync('stampImages', id)
   }
 
   // Load bg images from IndexedDB on mount
@@ -867,6 +881,7 @@ export function EyecatchCreator() {
     })
     setBgImages(prev => [...prev, entry])
     setBgImageId(entry.id)
+    scheduleIdbSync('bgImages')
   }
 
   const deleteBgImage = async (id: string) => {
@@ -877,6 +892,7 @@ export function EyecatchCreator() {
     })
     setBgImages(prev => prev.filter(b => b.id !== id))
     if (bgImageId === id) setBgImageId(null)
+    scheduleIdbSync('bgImages', id)
   }
 
   const confirmEditStable = () => {
@@ -1451,7 +1467,7 @@ export function EyecatchCreator() {
                 <img src={s.dataUrl} className="stamp-thumb-img" alt="" />
               </button>
             ))}
-            {customStampImages.length < STAMP_MAX && (
+            {customStampImages.length < stampMax && (
               <button className="stamp-thumb-add" onClick={() => setShowStampPicker(true)}>＋</button>
             )}
           </div>
@@ -1480,6 +1496,7 @@ export function EyecatchCreator() {
         <BgPickerPanel
           images={bgImages}
           selectedId={bgImageId}
+          max={bgMax}
           onSelect={id => setBgImageId(id)}
           onAddFile={f => setBgCropSrc(URL.createObjectURL(f))}
           onDelete={deleteBgImage}
@@ -1529,6 +1546,7 @@ export function EyecatchCreator() {
         <StampPickerPanel
           images={customStampImages}
           pendingId={pendingCustom}
+          max={stampMax}
           onSelect={id => { setPendingCustom(id); pendingCustomRef.current = id; if (mode === 'edit') switchMode('stamp') }}
           onAddFile={f => setStampCropSrc(URL.createObjectURL(f))}
           onDelete={deleteStampImage}

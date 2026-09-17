@@ -1,0 +1,43 @@
+{
+  "articles": [
+    {
+      "id": "n1a3b7919d991",
+      "url": "https://note.com/nifty_sheep7386/n/n1a3b7919d991",
+      "title": "『休もっ化アプリ』 休む日に「今日は何の日」埋め込み機能追加！",
+      "description": "今回のアプリについて重要な注意点も含めて、追加した機能の背景を紹介します。",
+      "thumbnail": "https://picsum.photos/seed/note-lp-1/640/360",
+      "tags": ["note", "個人開発", "AI活用", "アプリ開発"],
+      "publishedAt": "2026-09-12",
+      "addedAt": "2026-09-14",
+      "category": "個人開発",
+      "featured": true,
+      "pinned": true
+    },
+    {
+      "id": "n2c9d1234abcd",
+      "url": "https://note.com/nifty_sheep7386/n/n2c9d1234abcd",
+      "title": "50代からのAI相棒生活、はじめました",
+      "description": "AIとの付き合い方を試行錯誤してきた半年間の記録。",
+      "thumbnail": "https://picsum.photos/seed/note-lp-2/640/360",
+      "tags": ["AI活用", "エッセイ"],
+      "publishedAt": "2026-08-20",
+      "addedAt": "2026-09-14",
+      "category": "エッセイ",
+      "featured": true,
+      "pinned": false
+    },
+    {
+      "id": "n3e5f6789hijk",
+      "url": "https://note.com/nifty_sheep7386/n/n3e5f6789hijk",
+      "title": "今日は何の日機能の裏側を解説",
+      "description": "実装の工夫と、つまずいたポイントをまとめました。",
+      "thumbnail": "https://picsum.photos/seed/note-lp-3/640/360",
+      "tags": ["個人開発", "技術"],
+      "publishedAt": "2026-07-30",
+      "addedAt": "2026-09-14",
+      "category": "個人開発",
+      "featured": false,
+      "pinned": false
+    }
+  ]
+}

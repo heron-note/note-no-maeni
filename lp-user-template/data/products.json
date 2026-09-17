@@ -1,0 +1,16 @@
+{
+  "products": [
+    {
+      "id": "prod_001",
+      "url": "https://www.amazon.co.jp/dp/XXXXXXXXXX",
+      "type": "kindle",
+      "title": "50代からのAI相棒生活",
+      "description": "noteの人気連載をまとめた電子書籍。",
+      "thumbnail": "https://picsum.photos/seed/note-lp-product-1/400/400",
+      "price": "500円",
+      "tags": ["Kindle", "エッセイ"],
+      "addedAt": "2026-09-14",
+      "featured": false
+    }
+  ]
+}

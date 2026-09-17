@@ -3,6 +3,9 @@ import JSZip from 'jszip'
 import { useAppStore } from '../store/useAppStore'
 import { Toast } from '../components/Toast'
 import { useSlideBack } from '../hooks/useSlideBack'
+import { storage } from '../utils/storage'
+import { CUSTOM_COMPANION_MAX } from '../types'
+import { CUSTOM_KEY_PREFIX } from '../characters'
 
 const CANVAS_SIZE = 320
 const CROP_SIZE = 256
@@ -404,10 +407,17 @@ export function SimpleCharacterCreator() {
 
   const handleApply = () => {
     if (!allReady) return
-    STATES.forEach(s => {
-      localStorage.setItem(`nob_custom_img_${s.key}`, exports[s.key]!)
-    })
-    if (user) saveUser({ ...user, character: 'custom' })
+    const companions = storage.loadCustomCompanions()
+    if (companions.length >= CUSTOM_COMPANION_MAX) {
+      setToast(`カスタム相棒は最大${CUSTOM_COMPANION_MAX}体までです。設定画面で不要な相棒を削除してください`)
+      return
+    }
+    const id = crypto.randomUUID()
+    const label = companions.length === 0 ? 'マイキャラ' : `マイキャラ${companions.length + 1}`
+    storage.saveCustomCompanions([...companions, {
+      id, label, normal: exports.normal!, write: exports.write!, rest: exports.rest!, createdAt: Date.now(),
+    }])
+    if (user) saveUser({ ...user, character: `${CUSTOM_KEY_PREFIX}${id}` })
     setToast('保存しました！')
     setTimeout(handleBack, 800)
   }
