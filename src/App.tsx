@@ -13,6 +13,7 @@ import { CharacterCreator } from './screens/CharacterCreator'
 import { SimpleCharacterCreator } from './screens/SimpleCharacterCreator'
 import { ArticleStorcker } from './screens/ArticleStorcker'
 import { LpEditor } from './screens/LpEditor'
+import { WatermarkStudio } from './screens/WatermarkStudio'
 import { SplashScreen } from './components/SplashScreen'
 import { preloadVoicevox } from './utils/voicevox'
 import type { VoicevoxKey } from './utils/voicevox'
@@ -36,9 +37,10 @@ const SCREENS: Record<ScreenName, JSX.Element> = {
   'character-creator-simple': <SimpleCharacterCreator />,
   'article-stocker':          <ArticleStorcker />,
   'lp-editor':                <LpEditor />,
+  'watermark-studio':         <WatermarkStudio />,
 }
 
-const SLIDE_SCREENS: ScreenName[] = ['settings', 'template-editor', 'user-template-list', 'user-template-editor', 'rest-template-list', 'rest-template-editor', 'eyecatch-creator', 'character-creator', 'character-creator-simple', 'article-stocker', 'lp-editor']
+const SLIDE_SCREENS: ScreenName[] = ['settings', 'template-editor', 'user-template-list', 'user-template-editor', 'rest-template-list', 'rest-template-editor', 'eyecatch-creator', 'character-creator', 'character-creator-simple', 'article-stocker', 'lp-editor', 'watermark-studio']
 
 export function App() {
   const screen = useAppStore(s => s.screen)

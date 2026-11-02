@@ -1,4 +1,4 @@
-import type { User, LogEntry, Template, Bookmark, UserTemplate, RestTemplate, CustomCompanion } from '../types'
+import type { User, LogEntry, Template, Bookmark, UserTemplate, RestTemplate, CustomCompanion, WmKey, WmRecord } from '../types'
 import { pushLocalSettings, pullLocalSettings, checkDataRepoValid } from './github'
 import { collectData } from './transfer'
 
@@ -12,6 +12,10 @@ const SK = {
   lastUserTplId: 'nob_last_user_tpl',
   includeTodayEvent: 'nob_include_today_event',
   customCompanions: 'nob_custom_companions',
+  wmKeys: 'nob_wm_keys',
+  wmCurrentKeyId: 'nob_wm_current_key',
+  wmRecords: 'nob_wm_records',
+  wmAuthor: 'nob_wm_author',
 } as const
 
 const LEGACY_CUSTOM_IMG_KEYS = ['normal', 'write', 'rest'] as const
@@ -112,6 +116,20 @@ const rawStorage = {
 
   loadGeminiKey: () => localStorage.getItem('nob_gemini_key'),
   saveGeminiKey: (v: string) => localStorage.setItem('nob_gemini_key', v),
+
+  // 透かし: 鍵は履歴ごと保持する（古い鍵で埋めた画像を後から検出するため）。
+  // nob_ プレフィックスなので他の設定と同様に GitHub 同期・バックアップ対象になる。
+  loadWmKeys: (): WmKey[] => safeLoad<WmKey[]>(SK.wmKeys) ?? [],
+  saveWmKeys: (v: WmKey[]) => localStorage.setItem(SK.wmKeys, JSON.stringify(v)),
+
+  loadWmCurrentKeyId: () => localStorage.getItem(SK.wmCurrentKeyId),
+  saveWmCurrentKeyId: (v: string) => localStorage.setItem(SK.wmCurrentKeyId, v),
+
+  loadWmRecords: (): WmRecord[] => safeLoad<WmRecord[]>(SK.wmRecords) ?? [],
+  saveWmRecords: (v: WmRecord[]) => localStorage.setItem(SK.wmRecords, JSON.stringify(v)),
+
+  loadWmAuthor: () => localStorage.getItem(SK.wmAuthor) ?? '',
+  saveWmAuthor: (v: string) => localStorage.setItem(SK.wmAuthor, v),
 
   loadCharPersonality: () => localStorage.getItem('nob_char_personality') ?? '',
   saveCharPersonality: (v: string) => localStorage.setItem('nob_char_personality', v),
