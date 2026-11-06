@@ -1,6 +1,7 @@
 import type { User, LogEntry, Template, Bookmark, UserTemplate, RestTemplate, CustomCompanion, WmKey, WmRecord } from '../types'
 import { pushLocalSettings, pullLocalSettings, checkDataRepoValid } from './github'
 import { collectData } from './transfer'
+import { makeExternalData, restoreWmKeysFromEnc, getWmSyncPass } from './wmSync'
 
 const SK = {
   user: 'nob_user',
@@ -13,6 +14,7 @@ const SK = {
   includeTodayEvent: 'nob_include_today_event',
   customCompanions: 'nob_custom_companions',
   wmKeys: 'nob_wm_keys',
+  wmKeysEnc: 'nob_wm_keys_enc',
   wmCurrentKeyId: 'nob_wm_current_key',
   wmRecords: 'nob_wm_records',
   wmAuthor: 'nob_wm_author',
@@ -118,9 +120,19 @@ const rawStorage = {
   saveGeminiKey: (v: string) => localStorage.setItem('nob_gemini_key', v),
 
   // 透かし: 鍵は履歴ごと保持する（古い鍵で埋めた画像を後から検出するため）。
-  // nob_ プレフィックスなので他の設定と同様に GitHub 同期・バックアップ対象になる。
+  // 平文の鍵（nob_wm_keys）は端末内のみ。同期・バックアップへは暗号化した
+  // 鍵束（nob_wm_keys_enc）だけを出す（wmSync.ts の A案仕様）。
   loadWmKeys: (): WmKey[] => safeLoad<WmKey[]>(SK.wmKeys) ?? [],
   saveWmKeys: (v: WmKey[]) => localStorage.setItem(SK.wmKeys, JSON.stringify(v)),
+
+  loadWmKeysEnc: () => localStorage.getItem(SK.wmKeysEnc) ?? '',
+  saveWmKeysEnc: (v: string) => localStorage.setItem(SK.wmKeysEnc, v),
+
+  // 鍵の同期用パスフレーズ。GitHub トークンと同様、意図的に nob_ を付けず
+  // 同期・バックアップ対象から外す（パスフレーズ自体は端末外へ出さない）。
+  loadWmSyncPass: () => localStorage.getItem('wm_sync_pass') ?? '',
+  saveWmSyncPass: (v: string) => localStorage.setItem('wm_sync_pass', v),
+  clearWmSyncPass: () => localStorage.removeItem('wm_sync_pass'),
 
   loadWmCurrentKeyId: () => localStorage.getItem(SK.wmCurrentKeyId),
   saveWmCurrentKeyId: (v: string) => localStorage.setItem(SK.wmCurrentKeyId, v),
@@ -279,8 +291,20 @@ export async function syncSettingsWithGithub(): Promise<void> {
   await withGithubSyncIndicator(async () => {
     try {
       const remote = await pullLocalSettings(auth.token, auth.username)
-      if (remote) mergeRemoteIntoLocal(remote)
-      await pushLocalSettings(auth.token, auth.username, collectData())
+      if (remote) {
+        // 透かしの暗号化鍵束は「無ければ補う」ではなく最新で置き換え、復号して合流させる
+        const remoteEnc = remote[SK.wmKeysEnc]
+        if (remoteEnc && remoteEnc !== localStorage.getItem(SK.wmKeysEnc)) {
+          localStorage.setItem(SK.wmKeysEnc, remoteEnc)
+        }
+        mergeRemoteIntoLocal(remote)
+        const pass = getWmSyncPass()
+        if (pass && localStorage.getItem(SK.wmKeysEnc)) {
+          await restoreWmKeysFromEnc(pass).catch(() => 0) // パスフレーズ違い等は静かに無視（手動復元で再試行できる）
+        }
+      }
+      // 平文の鍵は端末外へ出さない: 送信データは暗号化形への変換を通す
+      await pushLocalSettings(auth.token, auth.username, await makeExternalData(collectData()))
     } catch (e) {
       console.error('[GitHub連携] 設定・記録の同期に失敗しました', e)
       const valid = await checkDataRepoValid(auth.token, auth.username).catch(() => false)
@@ -299,7 +323,7 @@ function scheduleGithubSync(): void {
   syncTimer = setTimeout(() => { void syncSettingsWithGithub() }, 2000)
 }
 
-const SYNC_EXCLUDED_KEYS = new Set(['saveGithubAuth', 'clearGithubAuth'])
+const SYNC_EXCLUDED_KEYS = new Set(['saveGithubAuth', 'clearGithubAuth', 'saveWmSyncPass', 'clearWmSyncPass'])
 
 export const storage = new Proxy(rawStorage, {
   get(target, prop) {

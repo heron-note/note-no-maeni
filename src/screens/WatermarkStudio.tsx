@@ -12,6 +12,7 @@ import {
   type WmStrengthKey, type WmDetectKeyResult, type WmCropCandidate, type WmCropResult,
 } from '../utils/wm'
 import { wmTemplate } from '../utils/wmCore'
+import { refreshWmKeysEnc, restoreWmKeysFromEnc } from '../utils/wmSync'
 
 type Tab = 'embed' | 'detect' | 'history'
 type EmbedMode = 'invisible' | 'visible' | 'both'
@@ -104,6 +105,11 @@ export function WatermarkStudio() {
         <button className={`eyecatch-mode-tab${tab === 'detect' ? ' active' : ''}`} onClick={() => setTab('detect')}>読み出す</button>
         <button className={`eyecatch-mode-tab${tab === 'history' ? ' active' : ''}`} onClick={() => setTab('history')}>履歴</button>
       </div>
+
+      <WmSyncSection
+        onRestored={() => { setKeys(storage.loadWmKeys()); setCurrentKeyId(storage.loadWmCurrentKeyId()) }}
+        setToast={setToast}
+      />
 
       {tab === 'embed' && (
         <EmbedTab
@@ -570,6 +576,70 @@ function HistoryTab({ records, onDelete }: { records: WmRecord[]; onDelete: (id:
           <button className="btn-secondary" style={{ padding: '6px 14px', fontSize: 13 }} onClick={() => onDelete(r.id)}>この記録を削除</button>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ================= 鍵の同期（暗号化） =================
+// A案仕様: 平文の鍵は端末内のみ。GitHub同期・バックアップには、パスフレーズで
+// 暗号化した鍵束だけを含める。パスフレーズ自体は端末外へ出さない。
+function WmSyncSection({ onRestored, setToast }: { onRestored: () => void; setToast: (v: string) => void }) {
+  const [storedPass, setStoredPass] = useState(() => storage.loadWmSyncPass())
+  const [hasEnc, setHasEnc] = useState(() => !!storage.loadWmKeysEnc())
+  const [input, setInput] = useState('')
+  const [busy, setBusyLocal] = useState(false)
+
+  const applyPass = async () => {
+    const v = input.trim()
+    if (v.length < 6) { setToast('パスフレーズは6文字以上にしてください'); return }
+    setBusyLocal(true)
+    try {
+      storage.saveWmSyncPass(v)
+      setStoredPass(v)
+      setInput('')
+      const ok = await refreshWmKeysEnc()
+      setHasEnc(!!storage.loadWmKeysEnc())
+      // 同期を促す（保存系の呼び出しでスケジュールされる）
+      storage.saveWmKeys(storage.loadWmKeys())
+      setToast(ok ? 'パスフレーズを設定しました。鍵は暗号化されて同期されます' : 'パスフレーズを設定しました（鍵ができたら暗号化して同期します）')
+    } finally { setBusyLocal(false) }
+  }
+
+  const restore = async () => {
+    const pass = storedPass || input.trim()
+    if (!pass) { setToast('パスフレーズを入力してください'); return }
+    setBusyLocal(true)
+    try {
+      const added = await restoreWmKeysFromEnc(pass)
+      if (!storedPass) { storage.saveWmSyncPass(pass); setStoredPass(pass) }
+      onRestored()
+      setToast(added > 0 ? `同期データから鍵を ${added} 件復元しました` : '復元できる新しい鍵はありませんでした')
+    } catch {
+      setToast('復元できませんでした（パスフレーズが違う可能性があります）')
+    } finally { setBusyLocal(false) }
+  }
+
+  return (
+    <div className="settings-row" style={{ marginTop: 4 }}>
+      <p className="label">鍵の同期（暗号化）</p>
+      {storedPass ? (
+        <p className="settings-hint">
+          パスフレーズ設定済み。鍵は平文のまま端末の外へ出ず、暗号化されて GitHub 同期・バックアップに含まれます。
+          別の端末では、ここで同じパスフレーズを入れれば鍵を復元できます。
+        </p>
+      ) : (
+        <p className="settings-hint">
+          パスフレーズを設定すると、鍵が暗号化されて GitHub 同期・バックアップに含まれるようになります（平文の鍵は端末の外へ出ません）。
+          パスフレーズ自体はこの端末にだけ保存され、同期されません。忘れると別の端末で鍵を復元できなくなります。
+        </p>
+      )}
+      <input type="password" className="text-input" value={input} autoComplete="new-password"
+        placeholder={storedPass ? 'パスフレーズを変更する場合に入力' : 'パスフレーズ（6文字以上）'}
+        onChange={(e) => setInput(e.target.value)} />
+      <div className="creator-btn-row" style={{ maxWidth: '100%' }}>
+        <button className="btn-secondary" disabled={busy} onClick={applyPass}>{storedPass ? 'パスフレーズを変更する' : 'パスフレーズを設定する'}</button>
+        {hasEnc && <button className="btn-secondary" disabled={busy} onClick={restore}>同期データから鍵を復元する</button>}
+      </div>
     </div>
   )
 }
