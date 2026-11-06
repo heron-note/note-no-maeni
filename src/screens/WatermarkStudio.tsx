@@ -8,8 +8,8 @@ import type { WmKey, WmRecord } from '../types'
 import {
   WM_STRENGTH, buildWmPayload, parseWmPayload, wmKeyFingerprint, sha256Hex,
   generateWmKey, embedInvisible, embedCanvasWithTemplate, drawVisibleWatermark,
-  newAccumulator, addFrameToAccumulator, accumulateVideoFrames, detectWithKeys,
-  type WmStrengthKey, type WmDetectKeyResult,
+  newAccumulator, addFrameToAccumulator, accumulateVideoFrames, detectWithKeys, detectCrop,
+  type WmStrengthKey, type WmDetectKeyResult, type WmCropCandidate, type WmCropResult,
 } from '../utils/wm'
 import { wmTemplate } from '../utils/wmCore'
 
@@ -186,6 +186,7 @@ function EmbedTab(p: EmbedProps) {
           saveBlobDownload(blob, outName)
           if (p.currentKey) await finishRecord(blob, outName, 'video', w, h, payload, p.currentKey)
         })
+        // 音声の有無は embedVideo 内のトーストで知らせる
       } else {
         const bmp = await createImageBitmap(file)
         const canvas = document.createElement('canvas')
@@ -284,7 +285,7 @@ function EmbedTab(p: EmbedProps) {
         {video && (
           <p className="settings-hint">
             動画の埋め込みは試験的です。再生しながら変換するため、動画の長さと同じ時間がかかります。
-            出力は WebM 形式で、音声は含まれません。
+            出力は WebM 形式です。音声は元の動画から取り出して入れ直します（ブラウザが対応していない場合は音声なしになります）。
           </p>
         )}
       </div>
@@ -305,7 +306,7 @@ async function embedVideo(
   const url = URL.createObjectURL(file)
   try {
     const video = document.createElement('video')
-    video.muted = true; video.playsInline = true; video.src = url
+    video.playsInline = true; video.src = url
     await new Promise<void>((res, rej) => { video.onloadeddata = () => res(); video.onerror = () => rej(new Error('動画を読み込めませんでした')) })
     const scale = Math.min(1, 1280 / video.videoWidth)
     const w = Math.round(video.videoWidth * scale), h = Math.round(video.videoHeight * scale)
@@ -313,8 +314,29 @@ async function embedVideo(
     canvas.width = w; canvas.height = h
     const ctx = canvas.getContext('2d', { willReadFrequently: true })!
     const T = mode !== 'visible' && p.currentKey ? await wmTemplate(p.currentKey.key, payload) : null
-    const stream = canvas.captureStream(30)
-    const rec = new MediaRecorder(stream, { videoBitsPerSecond: 8_000_000 })
+    // 音声は元の動画から取り出して、映像ストリームと再合成する。
+    // WebAudio 経由（要素の音はスピーカーに出さず、録画ストリームへだけ流す）を優先し、
+    // ダメなら要素の captureStream の音声トラックを使う。
+    let audioCtx: AudioContext | null = null
+    let audioTracks: MediaStreamTrack[] = []
+    try {
+      audioCtx = new AudioContext()
+      const srcNode = audioCtx.createMediaElementSource(video)
+      const dest = audioCtx.createMediaStreamDestination()
+      srcNode.connect(dest)
+      await audioCtx.resume()
+      audioTracks = dest.stream.getAudioTracks()
+    } catch { audioCtx = null; audioTracks = [] }
+    if (audioTracks.length === 0) {
+      try {
+        const cs = (video as HTMLVideoElement & { captureStream?: () => MediaStream }).captureStream?.()
+        audioTracks = cs?.getAudioTracks() ?? []
+      } catch { audioTracks = [] }
+      if (audioTracks.length > 0) video.muted = true // captureStream 経路では要素側を消音してもトラックは生きる
+    }
+    const hasAudio = audioTracks.length > 0
+    const stream = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...audioTracks])
+    const rec = new MediaRecorder(stream, { videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 128_000 })
     const chunks: Blob[] = []
     rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data) }
     const stopped = new Promise<void>((res) => { rec.onstop = () => res() })
@@ -334,7 +356,8 @@ async function embedVideo(
     rec.stop()
     await stopped
     await done(new Blob(chunks, { type: 'video/webm' }), w, h)
-    p.setToast('透かし入り動画を保存しました')
+    p.setToast(hasAudio ? '透かし入り動画を保存しました（音声入り）' : '透かし入り動画を保存しました（音声を取り込めませんでした）')
+    if (audioCtx) void audioCtx.close().catch(() => {})
   } finally {
     URL.revokeObjectURL(url)
   }
@@ -354,13 +377,14 @@ function DetectTab(p: DetectProps) {
   const [previewUrl, setPreviewUrl] = useState('')
   const [manualKey, setManualKey] = useState('')
   const [results, setResults] = useState<WmDetectKeyResult[] | null>(null)
+  const [cropResult, setCropResult] = useState<WmCropResult | null>(null)
   const [frames, setFrames] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const pick = (f: File | undefined) => {
     if (!f) return
     if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setFile(f); setPreviewUrl(URL.createObjectURL(f)); setResults(null)
+    setFile(f); setPreviewUrl(URL.createObjectURL(f)); setResults(null); setCropResult(null)
   }
 
   const runDetect = async () => {
@@ -374,6 +398,7 @@ function DetectTab(p: DetectProps) {
     try {
       const acc = newAccumulator()
       let n = 1
+      let cropSrc: { src: CanvasImageSource; w: number; h: number } | null = null
       if (isVideoFile(file)) {
         const url = URL.createObjectURL(file)
         try {
@@ -381,16 +406,44 @@ function DetectTab(p: DetectProps) {
           video.muted = true; video.playsInline = true; video.preload = 'auto'; video.src = url
           await new Promise<void>((res, rej) => { video.onloadeddata = () => res(); video.onerror = () => rej(new Error('動画を読み込めませんでした')) })
           n = await accumulateVideoFrames(acc, video, 60, (done, total) => p.setProgress(`フレームを解析中… ${done} / ${total}`))
+          // 切り抜き照合用に中央の1フレームだけを保持する
+          await new Promise<void>((res) => {
+            const done = () => { video.removeEventListener('seeked', done); res() }
+            video.addEventListener('seeked', done)
+            video.currentTime = video.duration / 2
+            setTimeout(done, 4000)
+          })
+          const c = document.createElement('canvas')
+          c.width = video.videoWidth; c.height = video.videoHeight
+          c.getContext('2d')!.drawImage(video, 0, 0)
+          cropSrc = { src: c, w: c.width, h: c.height }
         } finally { URL.revokeObjectURL(url) }
       } else {
         const bmp = await createImageBitmap(file)
         addFrameToAccumulator(acc, bmp, bmp.width, bmp.height)
+        cropSrc = { src: bmp, w: bmp.width, h: bmp.height }
       }
       setFrames(n)
       p.setProgress('鍵と照合中…')
       const targets = p.records.map((r) => ({ recordId: r.id, payload: r.payload, keyId: r.keyId }))
       const res = await detectWithKeys(acc, tryKeys, targets, (label) => p.setProgress(label))
       setResults(res)
+      // 全体で検出できなかった場合は、切り抜き照合を自動で試す（台帳テンプレート優先）
+      const fullHit = res.some((r) => r.pilotZ > 6 || r.ledgerMatch)
+      setCropResult(null)
+      if (!fullHit && cropSrc) {
+        const candidates: WmCropCandidate[] = []
+        for (const rec of p.records.slice(0, 5)) {
+          const k = p.keys.find((kk) => kk.id === rec.keyId)
+          if (k) candidates.push({ keyId: k.id, key: k.key, payload: rec.payload, recordId: rec.id })
+        }
+        for (const tk of tryKeys) candidates.push({ keyId: tk.id, key: tk.key, payload: null, recordId: null })
+        if (candidates.length > 0) {
+          p.setProgress('切り抜き照合中…')
+          const cr = await detectCrop(cropSrc.src, cropSrc.w, cropSrc.h, candidates, (label) => p.setProgress(label))
+          setCropResult(cr)
+        }
+      }
     } catch (e) {
       p.setToast(e instanceof Error ? e.message : '解析に失敗しました')
     } finally {
@@ -467,9 +520,26 @@ function DetectTab(p: DetectProps) {
               </div>
             )
           })}
+          {cropResult && (
+            <div className="wm-result-card">
+              {cropResult.z > 7 ? (
+                <p><b>切り抜き照合で検出しました</b>（照合スコア {cropResult.z.toFixed(1)}／しきい値 7）<br />
+                  元フレーム（1280×720）換算で、左上およそ（{Math.max(0, cropResult.x)}, {Math.max(0, cropResult.y)}）から {cropResult.w}×{cropResult.h} の範囲が、この画像に当たります。
+                  {cropResult.payload && <><br />一致した台帳の文字列： <b>{cropResult.payload}</b></>}
+                  {!cropResult.payload && <><br />鍵のパイロット信号と一致しました（台帳の記録がないため、文字列までは特定できません）。</>}
+                </p>
+              ) : cropResult.z >= 5.5 ? (
+                <p><b>切り抜き照合は判定保留</b>（照合スコア {cropResult.z.toFixed(1)}／しきい値 7）<br />
+                  弱い一致があります。もう少し広い範囲の切り抜きや、高画質な素材で試してください。</p>
+              ) : (
+                <p>切り抜き照合でも見つかりませんでした（照合スコア {cropResult.z.toFixed(1)}／しきい値 7）。</p>
+              )}
+            </div>
+          )}
           <p className="settings-hint">
             スコアは「透かしが無い場合」を 0 とした標準偏差の倍数です。6を超えると偶然の一致はほぼあり得ません。
-            切り抜き画像の照合にはまだ対応していません（全体が残っている画像・動画が対象です）。
+            全体で検出できない場合は、台帳のテンプレートを使った切り抜き照合を自動で行います（切り抜きからは文字列は復元できません。一致した台帳の記録が根拠になります）。
+            切り抜きが元画像の 1/20 程度より小さいと、信号が弱く検出できないことがあります。動画の切り抜き照合は中央の1フレームで行います。
           </p>
         </div>
       )}

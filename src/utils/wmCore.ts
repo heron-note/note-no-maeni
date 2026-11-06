@@ -281,4 +281,92 @@ export async function wmTemplate(key: string, text: string): Promise<Float64Arra
   return T.map((v) => (v - m) / sd)
 }
 
+// ---- partial-crop search: match a crop against the full watermark template ----
+// wmdetect の FFT 相関器をそのまま移植。切り抜きは「文字列の復号」はできないが、
+// 鍵＋台帳ペイロードから作ったテンプレートとの一致で「元画像の一部」であることを判定できる。
+
+const FW = 256, FH = 128
+
+function fft1(re: Float64Array, im: Float64Array, n: number, inv: boolean): void {
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1
+    for (; j & bit; bit >>= 1) j ^= bit
+    j ^= bit
+    if (i < j) {
+      const tr = re[i]; re[i] = re[j]; re[j] = tr
+      const ti = im[i]; im[i] = im[j]; im[j] = ti
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = (inv ? 2 : -2) * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang)
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0
+      for (let k = 0; k < len / 2; k++) {
+        const a = i + k, b = a + len / 2
+        const xr = re[b] * cr - im[b] * ci, xi = re[b] * ci + im[b] * cr
+        re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi
+        const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t
+      }
+    }
+  }
+}
+
+function fft2(re: Float64Array, im: Float64Array, inv: boolean): void {
+  const rr = new Float64Array(FH), ri = new Float64Array(FH)
+  for (let y = 0; y < FH; y++) fft1(re.subarray(y * FW, (y + 1) * FW), im.subarray(y * FW, (y + 1) * FW), FW, inv)
+  for (let x = 0; x < FW; x++) {
+    for (let y = 0; y < FH; y++) { rr[y] = re[y * FW + x]; ri[y] = im[y * FW + x] }
+    fft1(rr, ri, FH, inv)
+    for (let y = 0; y < FH; y++) { re[y * FW + x] = rr[y]; im[y * FW + x] = ri[y] }
+  }
+}
+
+function padded(a: ArrayLike<number>, w: number, h: number): [Float64Array, Float64Array] {
+  const re = new Float64Array(FW * FH), im = new Float64Array(FW * FH)
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) re[y * FW + x] = a[y * w + x]
+  return [re, im]
+}
+
+/** centre and unit-normalise a crop residual grid */
+export function wmUnitGrid(G: Float32Array): Float64Array {
+  let m = 0; for (const v of G) m += v; m /= G.length
+  let s = 0; for (const v of G) s += (v - m) ** 2
+  s = Math.sqrt(s) || 1
+  return Float64Array.from(G, (v) => (v - m) / s)
+}
+
+export interface WmCorrBest { z: number; ox: number; oy: number }
+
+/**
+ * Returns corr(G, gw, gh) -> best {z, ox, oy} over every placement of the
+ * gw x gh grid inside the 160x90 template (z ~ N(0,1) for a random placement).
+ */
+export function wmCorrelator(T: Float64Array): (G: Float32Array, gw: number, gh: number) => WmCorrBest {
+  const [tr, ti] = padded(T, GW, GH)
+  fft2(tr, ti, false)
+  return (G, gw, gh) => {
+    const [gr, gi] = padded(wmUnitGrid(G), gw, gh)
+    fft2(gr, gi, false)
+    for (let i = 0; i < FW * FH; i++) {           // conj(G) * T
+      const a = gr[i], b = -gi[i]
+      gr[i] = a * tr[i] - b * ti[i]; gi[i] = a * ti[i] + b * tr[i]
+    }
+    fft2(gr, gi, true)
+    let best: WmCorrBest = { z: -Infinity, ox: 0, oy: 0 }
+    for (let oy = 0; oy <= GH - gh; oy++) for (let ox = 0; ox <= GW - gw; ox++) {
+      const z = gr[oy * FW + ox] / (FW * FH)
+      if (z > best.z) best = { z, ox, oy }
+    }
+    return best
+  }
+}
+
+/** direct correlation at one placement */
+export function wmCorrAt(G: Float32Array, gw: number, gh: number, T: Float64Array, ox: number, oy: number): number {
+  if (ox < 0 || oy < 0 || ox + gw > GW || oy + gh > GH) return -Infinity
+  const u = wmUnitGrid(G); let s = 0
+  for (let i = 0; i < gh; i++) for (let j = 0; j < gw; j++) s += u[i * gw + j] * T[(oy + i) * GW + ox + j]
+  return s
+}
+
 export const WM = { W, H, GW, GH, N }
