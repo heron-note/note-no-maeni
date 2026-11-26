@@ -2,6 +2,7 @@ export type ScreenName =
   | 'onboarding'
   | 'home'
   | 'settings'
+  | 'watermark-studio'
   | 'template-editor'
   | 'character-creator'
   | 'character-creator-simple'
@@ -58,6 +59,29 @@ export interface RestTemplate {
 }
 
 export const REST_TEMPLATE_MAX = 5
+
+/** 透かし用鍵。古い鍵も検出に必要なので、履歴として残す。 */
+export interface WmKey {
+  id: string
+  key: string
+  createdAt: string // ISO
+}
+
+/** 透かしの埋め込み台帳。切り抜き照合や復号できない場合の照合に使う。 */
+export interface WmRecord {
+  id: string
+  at: string // ISO (埋め込み実行時刻)
+  payload: string // 埋めた文字列（著者名|yyyyMMdd-HHmm）
+  invisible: boolean
+  visible: boolean
+  keyId: string
+  keyFingerprint: string // 鍵の SHA-256 先頭12桁
+  fileName: string // 出力ファイル名
+  kind: 'image' | 'video'
+  width: number
+  height: number
+  sha256: string // 出力ファイルの SHA-256
+}
 
 export interface CustomCompanion {
   id: string

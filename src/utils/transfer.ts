@@ -1,4 +1,5 @@
 import { encryptText, decryptText } from './crypto'
+import { makeExternalData, restoreWmKeysFromEnc, getWmSyncPass, setWmSyncPass, loadPlainWmKeys } from './wmSync'
 
 // ─── IndexedDB helpers ─────────────────────────────────────────────────────
 
@@ -154,7 +155,12 @@ export async function downloadImage(dataUrl: string, filename: string): Promise<
 }
 
 export async function exportData(): Promise<void> {
-  const data = collectData()
+  // 透かしの鍵は平文で出さない（暗号化した鍵束だけを含める）
+  if (loadPlainWmKeys().length > 0 && !getWmSyncPass()) {
+    const ok = window.confirm('透かしの鍵の同期用パスフレーズが未設定のため、鍵はこのバックアップに含まれません（台帳は含まれます）。\nパスフレーズは「透かし」画面で設定できます。このまま続けますか？')
+    if (!ok) return
+  }
+  const data = await makeExternalData(collectData())
   const filename = `note-no-maeni-backup-${new Date().toISOString().slice(0, 10)}.json`
   const password = window.prompt('バックアップを暗号化するパスワードを入力してください。\n空欄にすると暗号化せずに保存します。')
   if (password === null) return // キャンセル
@@ -195,6 +201,22 @@ export async function importData(file: File): Promise<void> {
         for (const [key, value] of Object.entries(data)) {
           if (key.startsWith('nob_') && typeof value === 'string') {
             localStorage.setItem(key, value)
+          }
+        }
+        // 透かしの暗号化鍵束が含まれていれば、パスフレーズで復号して鍵を取り込む
+        if (typeof data['nob_wm_keys_enc'] === 'string' && data['nob_wm_keys_enc']) {
+          let pass = getWmSyncPass()
+          if (!pass) {
+            pass = window.prompt('このバックアップには透かしの鍵（暗号化）が含まれています。\n鍵の同期用パスフレーズを入力してください（あとで「透かし」画面からでも復元できます）。') ?? ''
+            if (pass) setWmSyncPass(pass)
+          }
+          if (pass) {
+            try {
+              const added = await restoreWmKeysFromEnc(pass)
+              if (added > 0) window.alert(`透かしの鍵を ${added} 件復元しました。`)
+            } catch {
+              window.alert('透かしの鍵を復元できませんでした（パスフレーズが違う可能性があります）。「透かし」画面から再試行できます。')
+            }
           }
         }
         resolve()

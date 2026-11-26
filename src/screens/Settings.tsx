@@ -155,6 +155,18 @@ export function Settings() {
       </div>
 
       <div className="settings-row">
+        <p className="label">透かし（著作権保護）</p>
+        <p className="settings-hint">
+          画像・動画に電子透かしと埋め込み記録（台帳）を残す機能です。
+          鍵は現在 {storage.loadWmKeys().length} 件、台帳は {storage.loadWmRecords().length} 件あります。
+          鍵の生成と管理も透かし画面で行います。
+        </p>
+        <button className="btn-secondary wide" onClick={() => goTo('watermark-studio')}>
+          透かしを開く
+        </button>
+      </div>
+
+      <div className="settings-row">
         <p className="label">AIの性格・口調</p>
         <textarea
           className="text-input"
